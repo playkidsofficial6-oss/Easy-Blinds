@@ -22,15 +22,30 @@ export default function HomePage() {
                 <div className="h-px bg-gradient-to-r from-transparent via-neutral-200 to-transparent"></div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <Link href="/field" className="group">
+                    <Link href="/salesman" className="group">
                         <div className="bg-white border-2 border-neutral-200 p-8 hover:border-neutral-900 transition-all duration-300 cursor-pointer h-full">
                             <h2 className="text-2xl font-light text-neutral-900 mb-3 group-hover:font-medium transition-all">
-                                Field Work
+                                Salesman
                             </h2>
                             <p className="text-neutral-500 mb-6 text-sm">
-                                For measurement and installation teams
+                                Measurement appointments and quoting
                             </p>
                             <div className="flex items-center gap-2 text-neutral-400 text-sm uppercase tracking-wider">
+                                <span>Enter</span>
+                                <ArrowLeft className="w-4 h-4 rotate-180" />
+                            </div>
+                        </div>
+                    </Link>
+
+                    <Link href="/fitter" className="group">
+                        <div className="bg-blue-50 border-2 border-blue-200 p-8 hover:border-blue-900 transition-all duration-300 cursor-pointer h-full">
+                            <h2 className="text-2xl font-light text-blue-900 mb-3 group-hover:font-medium transition-all">
+                                Fitter
+                            </h2>
+                            <p className="text-blue-700/70 mb-6 text-sm">
+                                Installation jobs and schedules
+                            </p>
+                            <div className="flex items-center gap-2 text-blue-600 text-sm uppercase tracking-wider">
                                 <span>Enter</span>
                                 <ArrowLeft className="w-4 h-4 rotate-180" />
                             </div>
@@ -61,21 +76,6 @@ export default function HomePage() {
                                 Business intelligence and analytics
                             </p>
                             <div className="flex items-center gap-2 text-amber-600 text-sm uppercase tracking-wider">
-                                <span>Enter</span>
-                                <ArrowLeft className="w-4 h-4 rotate-180" />
-                            </div>
-                        </div>
-                    </Link>
-
-                    <Link href="/stitching" className="group">
-                        <div className="bg-indigo-50 border-2 border-indigo-200 p-8 hover:border-indigo-500 transition-all duration-300 cursor-pointer h-full">
-                            <h2 className="text-2xl font-light text-indigo-900 mb-3 group-hover:font-medium transition-all">
-                                Stitching Team
-                            </h2>
-                            <p className="text-indigo-700/70 mb-6 text-sm">
-                                Workshop tasks and production queue
-                            </p>
-                            <div className="flex items-center gap-2 text-indigo-600 text-sm uppercase tracking-wider">
                                 <span>Enter</span>
                                 <ArrowLeft className="w-4 h-4 rotate-180" />
                             </div>

@@ -16,7 +16,9 @@ import {
     AlertCircle,
     Calendar,
     Activity,
-    BarChart3
+    BarChart3,
+    MapPin,
+    Navigation as NavigationIcon // Renamed to avoid confusion with Navigation API
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -30,6 +32,7 @@ interface SalesManagerLayoutProps {
 const navItems = [
     { name: 'Dashboard', href: '/sales-manager', icon: LayoutDashboard },
     { name: 'Assignments', href: '/sales-manager/assignments', icon: ClipboardList },
+    { name: 'Live Tracking', href: '/sales-manager/tracking', icon: NavigationIcon }, // Added Live Tracking
     { name: 'Fittings Analytics', href: '/sales-manager/analytics/fittings', icon: Activity },
     { name: 'Fitter Performance', href: '/sales-manager/performance', icon: TrendingUp },
     { name: 'Review Tracking', href: '/sales-manager/reviews', icon: Star },
@@ -81,6 +84,12 @@ export default function SalesManagerLayout({ children }: SalesManagerLayoutProps
                             {item.name === 'Pending Reviews' && (
                                 <span className="bg-rose-600 text-white text-xs font-medium px-2 py-0.5 rounded-full">
                                     12
+                                </span>
+                            )}
+                            {item.name === 'Live Tracking' && (
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                                 </span>
                             )}
                         </Link>
@@ -147,8 +156,8 @@ export default function SalesManagerLayout({ children }: SalesManagerLayoutProps
                     </Sheet>
                 </header>
 
-                <main className="flex-1 p-8 md:p-12 overflow-x-hidden">
-                    <div className="max-w-7xl mx-auto">
+                <main className="flex-1 p-0 overflow-x-hidden md:p-0"> {/* Updated padding to 0 for full width layouts */}
+                    <div className="w-full">
                         {children}
                     </div>
                 </main>
