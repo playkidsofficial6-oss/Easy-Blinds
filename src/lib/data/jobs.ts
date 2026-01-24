@@ -8,6 +8,8 @@ export type ReviewStatus = "received" | "pending" | "none";
 export interface InstallationJob {
     id: string;
     client: string;
+    email: string; // Added email
+    phone: string; // Added phone
     area: string;
     property: string;
     status: JobStatus;
@@ -18,6 +20,7 @@ export interface InstallationJob {
     whatsapp?: string;
     value: number;
     priority: JobPriority;
+    coordinates?: [number, number]; // Added coordinates
 
     // Workload & Analytics Fields
     fitterStatus?: FitterStatus; // Snapshot status for "Right Now" analytics
@@ -36,6 +39,8 @@ export const MOCK_JOBS: InstallationJob[] = [
     {
         id: "J001",
         client: "Ahmed Al Mansoori",
+        email: "ahmed.m@example.com",
+        phone: "+971 50 123 4567",
         area: "Jumeirah Park",
         property: "Villa",
         status: "Installation In Progress",
@@ -49,11 +54,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         fitterStatus: "On-site",
         duration: 240,
         plannedDuration: 180,
-        reviewStatus: "pending"
+        reviewStatus: "pending",
+        coordinates: [25.0441, 55.1522] // Jumeirah Park
     },
     {
         id: "J002",
         client: "Sarah Smith",
+        email: "sarah.smith@example.com",
+        phone: "+971 55 987 6543",
         area: "Dubai Marina",
         property: "Apartment",
         status: "Ready for Installation",
@@ -64,11 +72,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         priority: "Medium",
         fitterStatus: "Travelling",
         reviewStatus: "none",
-        plannedDuration: 120
+        plannedDuration: 120,
+        coordinates: [25.0868, 55.1450] // Dubai Marina
     },
     {
         id: "J003",
         client: "Emaar Properties",
+        email: "contact@emaar.ae",
+        phone: "+971 4 367 3333",
         area: "Downtown Dubai",
         property: "Office",
         status: "Ready for Installation",
@@ -77,11 +88,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         scheduled: "2024-01-23",
         value: 45000,
         priority: "High",
-        reviewStatus: "none"
+        reviewStatus: "none",
+        coordinates: [25.1972, 55.2744] // Downtown
     },
     {
         id: "J004",
         client: "Palm Hotel",
+        email: "maintenance@palmhotel.com",
+        phone: "+971 4 111 2222",
         area: "Palm Jumeirah",
         property: "Hotel",
         status: "Scheduled",
@@ -91,11 +105,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         value: 82000,
         priority: "High",
         reviewStatus: "none",
-        plannedDuration: 480
+        plannedDuration: 480,
+        coordinates: [25.1124, 55.1390] // Palm Jumeirah
     },
     {
         id: "J005",
         client: "John Brown",
+        email: "john.brown@example.com",
+        phone: "+971 52 555 1234",
         area: "Springs 4",
         property: "Villa",
         status: "Pending Team",
@@ -104,11 +121,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         scheduled: "2024-01-26",
         value: 5600,
         priority: "Low",
-        reviewStatus: "none"
+        reviewStatus: "none",
+        coordinates: [25.0487, 55.1765] // Springs 
     },
     {
         id: "J006",
         client: "City Walk Cafe",
+        email: "manager@citywalkcafe.com",
+        phone: "+971 4 222 3333",
         area: "City Walk",
         property: "Retail",
         status: "Completed",
@@ -124,11 +144,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         reviewRating: 5,
         reviewDate: "2024-01-18",
         reviewComment: "Team was very professional and clean.",
-        reviewProofUrl: "/proof/review-j006.jpg"
+        reviewProofUrl: "/proof/review-j006.jpg",
+        coordinates: [25.2073, 55.2577] // City Walk
     },
     {
         id: "J007",
         client: "Marina View Apt",
+        email: "admin@marinaview.com",
+        phone: "+971 4 444 5555",
         area: "Dubai Marina",
         property: "Apartment",
         status: "Completed",
@@ -144,11 +167,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         reviewRating: 4.8,
         reviewDate: "2024-01-15",
         reviewComment: "Great job, quick installation.",
-        reviewProofUrl: "/proof/review-j007.jpg"
+        reviewProofUrl: "/proof/review-j007.jpg",
+        coordinates: [25.0868, 55.1450]
     },
     {
         id: "J008",
         client: "Blue Waters Res",
+        email: "concierge@bluewaters.ae",
+        phone: "+971 4 888 9999",
         area: "Blue Waters",
         property: "Apartment",
         status: "Completed",
@@ -159,11 +185,14 @@ export const MOCK_JOBS: InstallationJob[] = [
         priority: "Medium",
         duration: 130,
         plannedDuration: 120,
-        reviewStatus: "pending" // Completed but no review
+        reviewStatus: "pending",
+        coordinates: [25.0788, 55.1235] // Blue Waters
     },
     {
         id: "J009",
         client: "James Wilson",
+        email: "james.wilson@example.com",
+        phone: "+971 58 123 7890",
         area: "Arabian Ranches",
         property: "Villa",
         status: "Completed",
@@ -178,6 +207,7 @@ export const MOCK_JOBS: InstallationJob[] = [
         reviewRating: 4.2,
         reviewDate: "2024-01-13",
         reviewComment: "Good work but came late.",
-        reviewProofUrl: "/proof/review-j009.jpg"
+        reviewProofUrl: "/proof/review-j009.jpg",
+        coordinates: [25.0298, 55.2917] // Arabian Ranches
     }
 ];

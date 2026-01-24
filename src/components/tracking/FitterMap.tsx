@@ -8,6 +8,7 @@ import L from "leaflet";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Clock, Circle, CheckCircle2, MapPin, Navigation, AlertCircle } from "lucide-react";
 import { format, parse, isPast } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Check for late status helper (same logic as FitterList)
 function isLate(fitter: Fitter) {
@@ -28,6 +29,8 @@ function MapUpdater({ center }: { center: [number, number] }) {
     const map = useMap();
     useEffect(() => {
         map.flyTo(center, 13, { duration: 1.5 });
+        // Force invalidate size to fix tile rendering issues usually caused by dynamic resizing
+        setTimeout(() => map.invalidateSize(), 500);
     }, [center, map]);
     return null;
 }
@@ -44,44 +47,85 @@ const statusConfig: Record<string, { color: string; ringColor: string }> = {
     "In progress": { color: "#2563eb", ringColor: "rgba(37, 99, 235, 0.4)" }, // Blue
     "Completed": { color: "#059669", ringColor: "rgba(5, 150, 105, 0.4)" }, // Emerald
     "Offline": { color: "#94a3b8", ringColor: "rgba(148, 163, 184, 0.4)" }, // Slate
+    "Fully Booked": { color: "#ef4444", ringColor: "rgba(239, 68, 68, 0.4)" }, // Red (Same as Late/Danger)
+    "Available": { color: "#059669", ringColor: "rgba(5, 150, 105, 0.4)" }, // Emerald
 };
 
-const createCustomIcon = (status: FitterStatus, late: boolean) => {
+const createCustomIcon = (status: FitterStatus, late: boolean, avatarUrl?: string, name?: string) => {
     const activeStatus = late ? "Late" : status;
+    // Default to Offline config if unmatched
     const config = statusConfig[activeStatus] || statusConfig['Offline'];
-    const isPulsing = status === 'In progress' || status === 'On the way' || late;
+
+    const isPulsing = status === 'In progress' || status === 'On the way' || late || status === 'Available';
 
     const html = renderToStaticMarkup(
-        <div className="relative flex items-center justify-center w-[40px] h-[40px]">
+        <div className="relative flex items-center justify-center w-[60px] h-[60px]">
+            {/* Pulse Ring */}
             {isPulsing && (
-                <>
-                    <div style={{
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        backgroundColor: config.ringColor,
-                        animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
-                        opacity: 0.75
-                    }}></div>
-                    <div style={{
-                        position: 'absolute',
-                        width: '70%',
-                        height: '70%',
-                        borderRadius: '50%',
-                        backgroundColor: config.ringColor,
-                        opacity: 0.3
-                    }}></div>
-                </>
+                <div style={{
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    backgroundColor: config.ringColor,
+                    animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+                    opacity: 0.75
+                }}></div>
             )}
+
+            {/* White Border / Container */}
             <div style={{
-                backgroundColor: config.color,
-                width: '16px',
-                height: '16px',
+                position: 'relative',
+                width: '48px',
+                height: '48px',
                 borderRadius: '50%',
-                border: `2px solid white`,
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                zIndex: 10
+                backgroundColor: 'white',
+                padding: '2px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+            }}>
+                {/* Status Border */}
+                <div style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    border: `2px solid ${config.color}`,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#f8fafc' // Slate-50 background backup
+                }}>
+                    {/* Avatar Image */}
+                    {avatarUrl ? (
+                        <img
+                            src={avatarUrl}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                            }}
+                            alt={name || "User"}
+                        />
+                    ) : (
+                        <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b' }}>SM</span>
+                    )}
+                </div>
+            </div>
+
+            {/* Status Dot Badge (Bottom Right) */}
+            <div style={{
+                position: 'absolute',
+                bottom: '6px',
+                right: '6px',
+                width: '12px',
+                height: '12px',
+                backgroundColor: config.color,
+                border: '2px solid white',
+                borderRadius: '50%',
+                zIndex: 20
             }}></div>
         </div>
     );
@@ -89,8 +133,8 @@ const createCustomIcon = (status: FitterStatus, late: boolean) => {
     return L.divIcon({
         html: html,
         className: 'custom-map-marker',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20],
+        iconSize: [60, 60],
+        iconAnchor: [30, 30],
     });
 };
 
@@ -105,19 +149,22 @@ export default function FitterMap({ fitters, selectedFitterId, onSelectFitter }:
             style.innerHTML = `
                 @keyframes ping {
                     75%, 100% {
-                        transform: scale(2);
+                        transform: scale(1.5);
                         opacity: 0;
                     }
                 }
             `;
-            document.head.appendChild(style);
+            if (!document.getElementById('map-animations')) {
+                style.id = 'map-animations';
+                document.head.appendChild(style);
+            }
         }
     }, []);
 
     const selectedFitter = fitters.find(f => f.id === selectedFitterId);
     const center: [number, number] = selectedFitter
         ? selectedFitter.location
-        : [25.2048, 55.2708];
+        : [25.2048, 55.2708]; // Dubai Default
 
     if (!mounted) {
         return <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-wide">INITIALIZING MAP...</div>;
@@ -126,9 +173,10 @@ export default function FitterMap({ fitters, selectedFitterId, onSelectFitter }:
     return (
         <MapContainer
             center={center}
-            zoom={11}
+            zoom={12}
             style={{ height: "100%", width: "100%", background: "#f1f5f9" }}
             zoomControl={false}
+            className="h-full w-full relative z-0" // Ensure z-index is correct
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -143,21 +191,14 @@ export default function FitterMap({ fitters, selectedFitterId, onSelectFitter }:
                     <Marker
                         key={fitter.id}
                         position={fitter.location}
-                        icon={createCustomIcon(fitter.status, late)}
+                        icon={createCustomIcon(fitter.status, late, fitter.avatar, fitter.name)}
                         eventHandlers={{
                             click: () => onSelectFitter(fitter.id),
                         }}
                     >
-                        <Tooltip direction="top" offset={[0, -20]} opacity={1} className="custom-tooltip">
-                            <div className="text-[10px] font-bold uppercase tracking-widest p-1">
-                                <p className="text-slate-900 mb-1">{fitter.name}</p>
-                                <div className="flex items-center gap-1.5">
-                                    {late ? (
-                                        <span className="text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> LATE</span>
-                                    ) : (
-                                        <span className="text-slate-500">{fitter.status}</span>
-                                    )}
-                                </div>
+                        <Tooltip direction="top" offset={[0, -30]} opacity={1} className="custom-tooltip bg-white border border-slate-200 shadow-md rounded-sm px-2 py-1">
+                            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
+                                {fitter.name}
                             </div>
                         </Tooltip>
                     </Marker>
