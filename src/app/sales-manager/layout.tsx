@@ -18,6 +18,8 @@ import {
     Activity,
     BarChart3,
     MapPin,
+    LineChart,
+    PlayCircle,
     Navigation as NavigationIcon // Renamed to avoid confusion with Navigation API
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,13 +34,12 @@ interface SalesManagerLayoutProps {
 const navItems = [
     { name: 'Dashboard', href: '/sales-manager', icon: LayoutDashboard },
     { name: 'Assignments', href: '/sales-manager/assignments', icon: ClipboardList },
-    { name: 'Live Tracking', href: '/sales-manager/tracking', icon: NavigationIcon }, // Added Live Tracking
-    { name: 'Fittings Analytics', href: '/sales-manager/analytics/fittings', icon: Activity },
-    { name: 'Fitter Performance', href: '/sales-manager/performance', icon: TrendingUp },
+    { name: 'Fitters', href: '/sales-manager/tracking', icon: NavigationIcon }, // Renamed from Live Tracking
+    { name: 'Fittings Analytics', href: '/sales-manager/analytics', icon: LineChart },
+    { name: 'Fitter Performance', href: '/sales-manager/performance', icon: BarChart3 },
     { name: 'Review Tracking', href: '/sales-manager/reviews', icon: Star },
-    { name: 'Pending Reviews', href: '/sales-manager/reviews/pending', icon: AlertCircle },
-    // Legacy Operational Items
-    { name: 'Fitters', href: '/sales-manager/fitters', icon: Users },
+    { name: 'Pending Reviews', href: '/sales-manager/reviews/pending', icon: PlayCircle },
+    { name: 'Team', href: '/sales-manager/fitters', icon: Users }, // Renamed from Fitters
 ];
 
 export default function SalesManagerLayout({ children }: SalesManagerLayoutProps) {

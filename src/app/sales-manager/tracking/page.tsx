@@ -35,7 +35,7 @@ export default function TrackingPage() {
                     </div>
                     <h1 className="text-5xl font-light tracking-tight text-slate-900">
                         Live
-                        <span className="block font-medium mt-1">Tracking</span>
+                        <span className="block font-medium mt-1">Fitters</span>
                     </h1>
                 </div>
             </div>
@@ -58,8 +58,8 @@ export default function TrackingPage() {
                         onSelectFitter={handleSelectFitter}
                     />
 
-                    {/* Live Indicator Overlay */}
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-4 py-2 flex items-center gap-2 border border-slate-200 shadow-sm z-[1000]">
+                    {/* Live Indicator Overlay - Glassmorphism */}
+                    <div className="absolute top-4 right-4 bg-white/80 backdrop-blur-md px-4 py-2 flex items-center gap-2 border border-white/50 shadow-lg rounded-full z-[1000] ring-1 ring-black/5">
                         <span className="relative flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>

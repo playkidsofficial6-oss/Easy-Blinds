@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { useLiveFitters, Fitter } from "@/lib/live-store";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { JobCard } from "@/components/common/JobCard";
+import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -37,6 +39,14 @@ function getDistKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 // Time slots
 const DAILY_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
+
+// Custom Scrollbar Style
+const customScrollbarStyle = {
+    // We can't easily do pseudo-elements in inline styles, so we'll rely on a global class or a simple component wrapper.
+    // Ideally, we'd use `className="scrollbar-thin scrollbar-thumb-slate-300 ..."` if utilizing a plugin.
+    // For now, we'll try standard utility classes for modern browsers if supported, or leave as is if Tailwind config is unknown.
+    // Instead, let's assume we want to force scrollIntoView.
+};
 
 export default function SmartAssignmentsPage() {
     const { fitters } = useLiveFitters();
@@ -101,7 +111,7 @@ export default function SmartAssignmentsPage() {
 
 
     // Filter Jobs
-    const pendingJobs = jobs.filter(j => j.status === "Ready for Installation" || j.status === "Pending Team" || j.status === "Received");
+    const pendingJobs = jobs.filter(j => j.status === "Ready for Installation" || j.status === "Pending Team");
     const activeJobs = jobs.filter(j => (j.status === "Scheduled" || j.status === "Installation In Progress") && (!j.scheduled || j.scheduled === format(viewDate, "yyyy-MM-dd")));
 
     // Recommendations logic (unchanged)
@@ -175,7 +185,7 @@ export default function SmartAssignmentsPage() {
                 team: dialogState.fitterName,
                 time: timeSlot,
                 scheduled: newDateStr,
-                fitterStatus: "Available"
+                fitterStatus: "Free"
             } : j));
         } else {
             toast.success(`Rescheduled to ${newDateStr} @ ${timeSlot}`);
@@ -213,60 +223,80 @@ export default function SmartAssignmentsPage() {
                         </h1>
                     </div>
 
-                    {/* Date Filters */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-md">
-                            <Button variant="ghost" size="sm" className={cn("text-xs font-medium h-7 px-3 rounded-sm", isToday ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-900")} onClick={() => setViewDate(new Date())}>Today</Button>
-                            <Button variant="ghost" size="sm" className={cn("text-xs font-medium h-7 px-3 rounded-sm", isTomorrow ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-900")} onClick={() => setViewDate(addDays(new Date(), 1))}>Tomorrow</Button>
+                    {/* Date Filters: Toolbar Style */}
+                    <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" className={cn("text-xs font-medium h-7 px-3 rounded-md transition-all", isToday ? "bg-white shadow-sm text-slate-900 border border-slate-200/50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50")} onClick={() => setViewDate(new Date())}>Today</Button>
+                            <Button variant="ghost" size="sm" className={cn("text-xs font-medium h-7 px-3 rounded-md transition-all", isTomorrow ? "bg-white shadow-sm text-slate-900 border border-slate-200/50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50")} onClick={() => setViewDate(addDays(new Date(), 1))}>Tomorrow</Button>
+                        </div>
+                        <div className="flex items-center gap-2 pl-2 border-l border-slate-200 mx-2">
+                            <span className="text-xs text-slate-600 font-semibold">{format(viewDate, "MMM do")}</span>
                             <Popover>
-                                <PopoverTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7 text-slate-500"><CalendarDays className="w-4 h-4" /></Button></PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={viewDate} onSelect={(d) => d && setViewDate(d)} initialFocus /></PopoverContent>
+                                <PopoverTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200/50"><CalendarDays className="w-3.5 h-3.5" /></Button></PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="end"><Calendar mode="single" selected={viewDate} onSelect={(d) => d && setViewDate(d)} initialFocus /></PopoverContent>
                             </Popover>
                         </div>
-                        <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">{format(viewDate, "EEE, MMM do")}</span>
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
+                    {/* Filter & Sort Bar */}
+                    <FilterSortBar
+                        onFilterClick={() => { }}
+                        onSortChange={(sort) => { }}
+                        currentSort="Default Sorting"
+                        className="border-t border-b-0"
+                    />
+
                     <Tabs defaultValue="pending" className="flex-1 flex flex-col">
-                        <div className="px-8 pt-4 bg-white border-b border-slate-200">
-                            <TabsList className="bg-transparent p-0 gap-6">
-                                <TabsTrigger value="pending" className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:text-amber-900 px-0 pb-3 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors bg-transparent shadow-none">Pending ({pendingJobs.length})</TabsTrigger>
-                                <TabsTrigger value="active" className="rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-900 px-0 pb-3 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors bg-transparent shadow-none">Scheduled ({activeJobs.length})</TabsTrigger>
+                        <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
+                            <TabsList className="bg-slate-100 p-1 rounded-xl w-full flex h-auto gap-1">
+                                <TabsTrigger value="pending" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
+                                    <span className="mr-2">Pending</span>
+                                    {pendingJobs.length > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[10px]">{pendingJobs.length}</span>}
+                                </TabsTrigger>
+                                <TabsTrigger value="active" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
+                                    <span className="mr-2">Scheduled</span>
+                                    {activeJobs.length > 0 && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md text-[10px]">{activeJobs.length}</span>}
+                                </TabsTrigger>
                             </TabsList>
                         </div>
 
-                        <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4">
+                        <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container">
+                            <style jsx>{`
+                                .scrollbar-container::-webkit-scrollbar {
+                                    width: 6px;
+                                }
+                                .scrollbar-container::-webkit-scrollbar-track {
+                                    background: transparent; 
+                                }
+                                .scrollbar-container::-webkit-scrollbar-thumb {
+                                    background-color: #cbd5e1; 
+                                    border-radius: 20px;
+                                }
+                                .scrollbar-container::-webkit-scrollbar-thumb:hover {
+                                    background-color: #94a3b8; 
+                                }
+                            `}</style>
                             <div className="space-y-3">
                                 {pendingJobs.map(job => {
                                     const isSelected = selectedJobId === job.id;
                                     return (
-                                        <div key={job.id} onClick={() => setSelectedJobId(isSelected ? null : job.id)} className={cn("cursor-pointer border transition-all p-4 relative group hover:shadow-sm", isSelected ? "bg-amber-50 border-amber-500 shadow-md" : "bg-white border-slate-200 hover:border-amber-300")}>
-                                            <div className="flex justify-between items-start">
-                                                <div>
-                                                    <h4 className="font-medium text-slate-900 text-sm">{job.client}</h4>
-                                                    <div className="flex items-center gap-2 mt-1"><Badge variant="secondary" className="text-[10px] rounded-sm bg-slate-100 text-slate-500">{job.area}</Badge>{job.priority === 'High' && <Badge variant="destructive" className="text-[10px] rounded-sm h-5">HIGH PRIORITY</Badge>}</div>
-                                                </div>
-                                                {isSelected && (<span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span></span>)}
-                                            </div>
-                                            {isSelected && (
-                                                <div className="mt-4 pt-4 border-t border-amber-200/50 animate-in slide-in-from-top-2">
-                                                    <p className="text-[10px] uppercase tracking-widest font-bold text-amber-700 mb-2 flex items-center gap-2"><Briefcase className="w-3 h-3" />AI Recommended Fitters</p>
-                                                    <div className="space-y-2">
-                                                        {recommendedFitters.map((rec, i) => (
-                                                            <div key={rec.id} className="flex items-center justify-between p-2 bg-white/60 rounded border border-amber-100 hover:bg-white transition-colors">
-                                                                <div className="flex items-center gap-3">
-                                                                    <div className="flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 text-[10px] font-bold text-amber-700">{i + 1}</div>
-                                                                    <div><p className="text-xs font-medium text-slate-900">{rec.name}</p><p className="text-[10px] text-slate-500">{rec.dist.toFixed(1)} km away</p></div>
-                                                                </div>
-                                                                <Button size="sm" className="h-6 text-[10px] bg-amber-600 hover:bg-amber-700 text-white" onClick={(e) => { e.stopPropagation(); initiateAssignment(job.id, rec.id); }}>Select</Button>
-                                                            </div>
-                                                        ))}
-                                                        {recommendedFitters.length === 0 && <p className="text-xs text-red-500 italic">No available fitters nearby.</p>}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <JobCard
+                                            key={job.id}
+                                            job={{
+                                                ...job,
+                                                recommendedFitters: recommendedFitters
+                                            }}
+                                            isSelected={isSelected}
+                                            onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
+                                            onAction={(action, payload) => {
+                                                if (action === 'assign') {
+                                                    initiateAssignment(job.id, payload);
+                                                }
+                                            }}
+                                            variant="assignment"
+                                        />
                                     );
                                 })}
                                 {pendingJobs.length === 0 && <div className="text-center py-10 text-slate-300 text-sm font-light">No pending jobs.</div>}
@@ -276,21 +306,20 @@ export default function SmartAssignmentsPage() {
                         <TabsContent value="active" className="flex-1 overflow-y-auto outline-none p-4">
                             <div className="space-y-3">
                                 {activeJobs.map(job => {
-                                    const fitter = getFitterByName(job.team);
                                     return (
-                                        <div key={job.id} className="bg-white border border-slate-200 p-4 relative group hover:border-emerald-300 transition-colors">
-                                            <div className="flex justify-between items-start mb-3">
-                                                <div>
-                                                    <h4 className="font-medium text-slate-900 text-sm">{job.client}</h4>
-                                                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500"><Clock className="w-3 h-3 text-emerald-600" /><span className="font-medium text-emerald-700">{job.time || "Assigned"}</span><span className="text-slate-300">•</span><span>{job.team}</span></div>
-                                                </div>
-                                                <Badge variant="outline" className="text-[10px] border-emerald-200 bg-emerald-50 text-emerald-700">ACTIVE</Badge>
-                                            </div>
-                                            <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                                                <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium uppercase tracking-wider"><MapPin className="w-3 h-3" /> {job.area}</div>
-                                                <Button size="sm" variant="ghost" className="h-6 text-[10px] text-slate-500 hover:text-emerald-700 hover:bg-emerald-50" onClick={() => initiateEdit(fitter ? fitter.id : job.team, job.time!, job.client)}>Manage <ChevronRight className="w-3 h-3 ml-1" /></Button>
-                                            </div>
-                                        </div>
+                                        <JobCard
+                                            key={job.id}
+                                            job={job}
+                                            isSelected={false} // Active jobs generally not selectable for assignment in this view logic
+                                            onSelect={() => { }} // No-op or open manage modal
+                                            onAction={(action) => {
+                                                if (action === 'manage') {
+                                                    const fitter = getFitterByName(job.team);
+                                                    initiateEdit(fitter ? fitter.id : job.team, job.time!, job.client);
+                                                }
+                                            }}
+                                            variant="schedule"
+                                        />
                                     );
                                 })}
                                 {activeJobs.length === 0 && <div className="text-center py-10 text-slate-300 text-sm font-light">No scheduled jobs for this date.</div>}
@@ -303,19 +332,18 @@ export default function SmartAssignmentsPage() {
             {/* RIGHT PANEL MAP (Unchanged visual, logic same) */}
             <div className="flex-1 bg-slate-100 relative">
                 <AssignmentMap fitters={fitters} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} />
-                {/* Legend Overlay */}
-                <div className="absolute bottom-6 left-6 z-[1000] bg-white/95 backdrop-blur border border-slate-200 p-4 shadow-lg rounded-sm max-w-sm">
+                {/* Legend Overlay - Glassmorphism */}
+                <div className="absolute bottom-6 left-6 z-[1000] bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
                     <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
                     <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-medium text-slate-700">
-                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100"></span> Available</div>
-                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-100"></span> In Progress</div>
-                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-100"></span> On the Way</div>
-                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-red-100"></div> Fully Booked</div>
+                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100 shadow-sm relative"><span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-emerald-500"></span></span> Available</div>
+                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-blue-100 shadow-sm"></span> In Progress</div>
+                        <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-100 shadow-sm"></span> On the Way</div>
+                        <div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-red-100 shadow-sm"></div> Fully Booked</div>
                     </div>
                 </div>
-                {/* Selected Fitter Panel */}
                 {selectedMapFitter && (
-                    <div className="absolute top-6 right-6 z-[1000] w-96 bg-white/95 backdrop-blur shadow-2xl border border-slate-200 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-3rem)]">
+                    <div className="absolute top-6 right-6 z-[1000] w-96 bg-white/80 backdrop-blur-md shadow-2xl border border-white/50 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-3rem)] rounded-3xl overflow-hidden ring-1 ring-black/5">
                         {(() => {
                             const f = fitters.find(x => x.id === selectedMapFitter);
                             if (!f) return null;
@@ -323,9 +351,9 @@ export default function SmartAssignmentsPage() {
                             const activeSchedule = isToday ? f.schedule.today : (isTomorrow ? f.schedule.tomorrow : []);
                             return (
                                 <>
-                                    <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50">
+                                    <div className="p-6 border-b border-slate-100/50 flex justify-between items-start bg-slate-50/50">
                                         <div className="flex items-center gap-4">
-                                            <Avatar className="h-14 w-14 rounded-none border border-slate-200 bg-white"><AvatarImage src={f.avatar} /><AvatarFallback>SM</AvatarFallback></Avatar>
+                                            <Avatar className="h-16 w-16 rounded-2xl border-2 border-white shadow-md bg-white"><AvatarImage src={f.avatar} /><AvatarFallback>SM</AvatarFallback></Avatar>
                                             <div>
                                                 <h3 className="text-lg font-light text-slate-900">{f.name}</h3>
                                                 <div className="flex items-center gap-2 text-xs text-slate-500 mt-1"><span className={cn("w-2 h-2 rounded-full", f.status === "Fully Booked" ? "bg-red-500" : "bg-emerald-500")}></span>{f.status}</div>

@@ -23,8 +23,15 @@ export interface FitterJob {
     status: "Pending" | "In Progress" | "Done";
     fabric?: string;
     rooms?: string[];
-    notes?: string;
     coordinates?: [number, number];
+    // Rich Data Fields
+    value?: number;
+    email?: string;
+    phone?: string;
+    brand?: string;
+    property?: string;
+    productType?: "Curtains" | "Blinds" | "Shutters" | "Awning";
+    priority?: "High" | "Medium" | "Low";
 }
 
 export interface Fitter {
@@ -70,8 +77,8 @@ const INITIAL_FITTERS: Fitter[] = [
         schedule: {
             yesterday: [],
             today: [
-                { id: 'j1', client: 'Burj Khalifa', address: 'Downtown', time: '08:00', endTime: '10:00', status: 'Done', coordinates: [25.1970, 55.2740] },
-                { id: 'j2', client: 'Villa 14', address: 'Jumeirah', time: '10:00', endTime: '12:00', status: 'In Progress', coordinates: [25.1972, 55.2744] }
+                { id: 'j1', client: 'Burj Khalifa', address: 'Downtown Dubai', time: '08:00', endTime: '10:00', status: 'Done', coordinates: [25.1970, 55.2740], value: 15000, email: "admin@burj.ae", phone: "+971 4 888 8888", brand: "Oceana", property: "Commercial", productType: "Blinds", priority: "High" },
+                { id: 'j2', client: 'Villa 14', address: 'Villa 14, Dist 7, Jumeirah Park', time: '10:00', endTime: '12:00', status: 'In Progress', coordinates: [25.1972, 55.2744], value: 12500, email: "owner@villa14.com", phone: "+971 50 123 4567", brand: "Easy Blinds", property: "Villa", productType: "Curtains", priority: "Medium" }
             ],
             tomorrow: [],
             upcoming: []
@@ -91,7 +98,7 @@ const INITIAL_FITTERS: Fitter[] = [
         schedule: {
             yesterday: [],
             today: [
-                { id: 'j3', client: 'Marina Apt', address: 'Dubai Marina', time: '10:00', endTime: '12:00', status: 'Pending', coordinates: [25.0773, 55.1388] }
+                { id: 'j3', client: 'Marina Apt', address: 'Apt 2201, Marina Gate 1, Dubai Marina', time: '10:00', endTime: '12:00', status: 'Pending', coordinates: [25.0773, 55.1388], value: 8300, email: "sarah@example.com", phone: "+971 55 987 6543", brand: "My Thread", property: "Apartment", productType: "Blinds", priority: "Low" }
             ],
             tomorrow: [],
             upcoming: []

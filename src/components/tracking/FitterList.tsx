@@ -4,10 +4,15 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MapPin, CheckCircle2, Circle, Clock, MoreVertical, Calendar, History, AlertTriangle, AlertCircle } from "lucide-react";
-import { Fitter, FitterStatus } from "@/lib/live-store";
+import { MapPin, CheckCircle2, Circle, Clock, MoreVertical, Calendar as CalendarIcon, History, AlertTriangle, AlertCircle, User, Phone, Briefcase, ArrowRight, ChevronRight, ChevronLeft } from "lucide-react";
+import { Fitter, FitterStatus, FitterJob } from "@/lib/live-store";
 import { Badge } from "@/components/ui/badge";
-import { format, parse, isPast } from "date-fns";
+import { format, parse, isPast, addDays, isSameDay } from "date-fns";
+import { JobCard, UnifiedJob } from "@/components/common/JobCard";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { FilterSortBar } from "@/components/common/FilterSortBar";
 
 interface FitterListProps {
     fitters: Fitter[];
@@ -20,6 +25,8 @@ const statusConfig: Record<FitterStatus, { color: string; icon: React.ComponentT
     "In progress": { color: "text-blue-600 bg-blue-50 border-blue-200", icon: Circle },
     "Completed": { color: "text-emerald-600 bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
     "Offline": { color: "text-slate-400 bg-slate-50 border-slate-200", icon: Circle },
+    "Fully Booked": { color: "text-red-600 bg-red-50 border-red-200", icon: AlertCircle },
+    "Available": { color: "text-emerald-600 bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
 };
 
 function calculateIsLate(jobTime: string, status: string) {
@@ -35,7 +42,7 @@ function calculateIsLate(jobTime: string, status: string) {
 }
 
 export function FitterList({ fitters, selectedFitterId, onSelectFitter }: FitterListProps) {
-    const [activeTab, setActiveTab] = useState<'today' | 'yesterday' | 'upcoming'>('today');
+    const [viewDate, setViewDate] = useState<Date>(new Date());
 
     const selectedFitter = fitters.find(f => f.id === selectedFitterId);
 
@@ -77,35 +84,42 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                                         key={fitter.id}
                                         onClick={() => onSelectFitter(fitter.id)}
                                         className={cn(
-                                            "flex items-center gap-4 p-6 text-left transition-all hover:bg-slate-50 group",
-                                            hasLateJob ? "bg-red-50/30 hover:bg-red-50/50" : ""
+                                            "flex items-center gap-4 p-5 text-left transition-all relative group rounded-xl border mb-3 mx-4 hover:shadow-md",
+                                            hasLateJob ? "bg-red-50/50 border-red-200" : "bg-white border-slate-200 hover:border-amber-300"
                                         )}
                                     >
-                                        <Avatar className="h-12 w-12 border border-slate-200 rounded-none bg-slate-100">
-                                            <AvatarImage src={fitter.avatar} />
-                                            <AvatarFallback className="rounded-none text-slate-400 font-light">{fitter.name.substring(0, 2)}</AvatarFallback>
-                                        </Avatar>
+                                        <div className="flex-shrink-0 relative">
+                                            <Avatar className="h-14 w-14 border-2 border-white shadow-sm rounded-full bg-slate-100">
+                                                <AvatarImage src={fitter.avatar} />
+                                                <AvatarFallback className="rounded-full text-slate-400 font-light">{fitter.name.substring(0, 2)}</AvatarFallback>
+                                            </Avatar>
+                                            <div className={cn("absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white",
+                                                fitter.status === "Available" ? "bg-emerald-500" :
+                                                    fitter.status === "In progress" ? "bg-blue-500" :
+                                                        fitter.status === "On the way" ? "bg-amber-500" : "bg-slate-400"
+                                            )}></div>
+                                        </div>
 
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start mb-2">
-                                                <p className="font-light text-sm truncate text-slate-900 group-hover:text-black transition-colors">{fitter.name}</p>
+                                            <div className="flex justify-between items-start mb-1">
+                                                <p className="font-semibold text-base truncate text-slate-900 group-hover:text-amber-700 transition-colors">{fitter.name}</p>
                                                 {hasLateJob ? (
-                                                    <span className="text-[9px] uppercase tracking-[0.1em] px-2 py-1 border font-bold flex items-center gap-1.5 text-red-700 bg-red-50 border-red-100 animate-pulse">
-                                                        <AlertCircle className="w-3 h-3" />
-                                                        LATE
-                                                    </span>
+                                                    <Badge variant="destructive" className="text-[9px] h-5 px-1.5 rounded-md animate-pulse">LATE</Badge>
                                                 ) : (
-                                                    <span className={cn("text-[9px] uppercase tracking-[0.1em] px-2 py-1 border font-medium flex items-center gap-1.5", config.color)}>
-                                                        <StatusIcon className="w-3 h-3" />
+                                                    <span className={cn("text-[9px] uppercase tracking-wider font-bold",
+                                                        fitter.status === "Available" ? "text-emerald-600" : "text-slate-400"
+                                                    )}>
                                                         {fitter.status}
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="text-xs text-slate-400 font-light flex items-center gap-2">
+                                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
                                                 <MapPin className="w-3 h-3 text-slate-300" />
-                                                <span>{fitter.jobRef}</span>
+                                                <span className="truncate">{fitter.jobRef || "No active job"}</span>
                                             </div>
                                         </div>
+
+                                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-amber-500 transition-colors" />
                                     </button>
                                 );
                             })}
@@ -135,102 +149,97 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex border-b border-slate-200 bg-white sticky top-0 z-10">
-                            {(['today', 'yesterday', 'upcoming'] as const).map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={cn(
-                                        "flex-1 py-4 text-[10px] uppercase tracking-[0.2em] font-bold transition-colors border-b-2",
-                                        activeTab === tab
-                                            ? "border-amber-600 text-amber-900 bg-amber-50/10"
-                                            : "border-transparent text-slate-300 hover:text-slate-500"
-                                    )}
-                                >
-                                    {tab}
-                                </button>
-                            ))}
+                        {/* Filter & Sort Bar (New) */}
+                        <FilterSortBar
+                            onFilterClick={() => { }}
+                            onSortChange={(sort) => { }}
+                            currentSort="Default Sorting"
+                            className="border-t-0"
+                        />
+
+                        {/* Date Toolbar (Standardized) */}
+                        <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 sticky top-0 z-20">
+                            <div className="flex bg-slate-100 p-1 rounded-lg">
+                                <button onClick={() => setViewDate(new Date())} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, new Date()) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Today</button>
+                                <button onClick={() => setViewDate(addDays(new Date(), 1))} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, addDays(new Date(), 1)) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Tomorrow</button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-slate-500 hidden sm:inline-block">{format(viewDate, "MMMM do, yyyy")}</span>
+                                <div className="h-4 w-px bg-slate-200 mx-2 hidden sm:block"></div>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="icon" className="h-8 w-8 text-slate-500 border-slate-200 hover:text-emerald-700 hover:border-emerald-300">
+                                            <CalendarIcon className="w-4 h-4" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="end">
+                                        <Calendar mode="single" selected={viewDate} onSelect={(date) => date && setViewDate(date)} initialFocus />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
                         </div>
 
                         <ScrollArea className="flex-1 bg-slate-50">
                             <div className="p-8">
-                                {activeTab === 'today' && (
-                                    <div className="space-y-12">
+                                {(() => {
+                                    // Determine jobs based on viewDate
+                                    let jobsToShow: FitterJob[] = [];
+                                    if (isSameDay(viewDate, new Date())) {
+                                        jobsToShow = selectedFitter.schedule.today;
+                                    } else if (isSameDay(viewDate, addDays(new Date(), 1))) {
+                                        jobsToShow = selectedFitter.schedule.tomorrow || [];
+                                    } else {
+                                        // Fallback or empty for other dates in this prototype
+                                        jobsToShow = [];
+                                    }
 
-                                        {/* Activity Log */}
-                                        <div>
-                                            <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-6 flex items-center gap-2">
-                                                <History className="w-3 h-3" />
-                                                Live Activity
-                                            </h4>
-                                            <div className="space-y-0 pl-2 border-l border-slate-200 ml-1">
-                                                {selectedFitter.history.map((event, i) => (
-                                                    <div key={event.id} className="relative pl-8 pb-8 last:pb-0">
-                                                        <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full bg-white ring-1 ring-slate-300"></div>
-                                                        <div className="flex flex-col">
-                                                            <span className="text-[10px] font-mono text-slate-400 mb-1 tracking-wide">{event.time}</span>
-                                                            <span className="text-sm font-medium text-slate-700">{event.action}</span>
-                                                            <span className="text-xs text-slate-400 font-light mt-0.5">{event.location}</span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {selectedFitter.history.length === 0 && (
-                                                    <p className="text-xs text-slate-400 italic pl-6">No activity recorded yet today.</p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Scheduled Jobs */}
-                                        <div>
-                                            <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-6">Schedule</h4>
-                                            <div className="space-y-4">
-                                                {selectedFitter.schedule.today.map(job => {
-                                                    const isLate = calculateIsLate(job.time, job.status);
-                                                    return (
-                                                        <div key={job.id} className="space-y-3 group">
-                                                            {isLate && (
-                                                                <div className="bg-red-50 border border-red-100 p-4 flex items-start gap-4 text-red-900 animate-in slide-in-from-top-1 shadow-sm">
-                                                                    <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                                                                    <div className="text-sm font-light leading-relaxed">
-                                                                        <span className="font-bold block text-xs uppercase tracking-wider mb-1 text-red-700">Attention Required</span>
-                                                                        Fitter is marked as <span className="font-medium">LATE</span> for this appointment. Client notification recommended.
-                                                                    </div>
+                                    return (
+                                        <div className="space-y-12">
+                                            {/* Activity Log (Only for Today) */}
+                                            {isSameDay(viewDate, new Date()) && (
+                                                <div>
+                                                    <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-6 flex items-center gap-2">
+                                                        <History className="w-3 h-3" />
+                                                        Live Activity
+                                                    </h4>
+                                                    <div className="space-y-0 pl-2 border-l border-slate-200 ml-1">
+                                                        {selectedFitter.history.map((event) => (
+                                                            <div key={event.id} className="relative pl-8 pb-8 last:pb-0">
+                                                                <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full bg-white ring-1 ring-slate-300"></div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[10px] font-mono text-slate-400 mb-1 tracking-wide">{event.time}</span>
+                                                                    <span className="text-sm font-medium text-slate-700">{event.action}</span>
+                                                                    <span className="text-xs text-slate-400 font-light mt-0.5">{event.location}</span>
                                                                 </div>
-                                                            )}
-                                                            <div className={cn(
-                                                                "p-6 border transition-all bg-white hover:shadow-md",
-                                                                isLate
-                                                                    ? "border-red-200 shadow-sm"
-                                                                    : "border-slate-100 hover:border-slate-200"
-                                                            )}>
-                                                                <div className="flex justify-between items-start mb-4">
-                                                                    <p className="font-medium text-base text-slate-900">{job.client}</p>
-                                                                    <Badge variant="outline" className={cn(
-                                                                        "text-[10px] uppercase tracking-wider rounded-none font-bold",
-                                                                        isLate ? "border-red-200 bg-red-50 text-red-700" : "bg-slate-50 border-slate-100 text-slate-500"
-                                                                    )}>
-                                                                        {isLate && job.status === "Pending" ? "LATE" : job.status}
-                                                                    </Badge>
-                                                                </div>
-                                                                <div className="flex items-center gap-2 text-xs text-slate-500 font-light mb-2">
-                                                                    <MapPin className="w-3 h-3 text-slate-300" />
-                                                                    {job.address}
-                                                                </div>
-                                                                <p className={cn(
-                                                                    "text-sm font-mono mt-4 flex items-center gap-2 pt-4 border-t border-slate-50",
-                                                                    isLate ? "text-red-600 font-bold" : "text-slate-400"
-                                                                )}>
-                                                                    <Clock className={cn("w-3 h-3", isLate ? "text-red-500" : "text-slate-300")} />
-                                                                    {job.time}
-                                                                </p>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                        ))}
+                                                        {selectedFitter.history.length === 0 && (
+                                                            <p className="text-xs text-slate-400 italic pl-6">No activity recorded yet today.</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Scheduled Jobs */}
+                                            <div>
+                                                <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-6">Schedule</h4>
+                                                <div className="space-y-4">
+                                                    {jobsToShow.length > 0 ? jobsToShow.map(job => (
+                                                        <JobCard
+                                                            key={job.id}
+                                                            job={job}
+                                                            isSelected={false}
+                                                            onSelect={() => { }}
+                                                            variant="schedule"
+                                                        />
+                                                    )) : (
+                                                        <p className="text-sm text-slate-400 italic">No jobs scheduled for this date.</p>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </div>
                         </ScrollArea>
                     </div>
