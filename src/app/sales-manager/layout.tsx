@@ -20,6 +20,7 @@ import {
     MapPin,
     LineChart,
     PlayCircle,
+    BookOpen,
     Navigation as NavigationIcon // Renamed to avoid confusion with Navigation API
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ const navItems = [
     { name: 'Fitter Performance', href: '/sales-manager/performance', icon: BarChart3 },
     { name: 'Review Tracking', href: '/sales-manager/reviews', icon: Star },
     { name: 'Pending Reviews', href: '/sales-manager/reviews/pending', icon: PlayCircle },
+    { name: 'Catalogue', href: '/sales-manager/catalogue', icon: BookOpen },
     { name: 'Team', href: '/sales-manager/fitters', icon: Users }, // Renamed from Fitters
 ];
 
