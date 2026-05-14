@@ -32,6 +32,7 @@ export interface FitterJob {
     property?: string;
     productType?: "Curtains" | "Blinds" | "Shutters" | "Awning";
     priority?: "High" | "Medium" | "Low";
+    notes?: string;
 }
 
 export interface Fitter {
@@ -164,7 +165,13 @@ export function useLiveFitters() {
     }, []);
 
     // Simplified update function for brevity in this step
-    const updateFitterStatus = useCallback(() => { }, []);
+    const updateFitterStatus = useCallback((id: string, status: FitterStatus) => {
+        setFitters(prev => {
+            const newFitters = prev.map(f => f.id === id ? { ...f, status } : f);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newFitters));
+            return newFitters;
+        });
+    }, []);
 
     return { fitters, updateFitterStatus, isLoaded };
 }

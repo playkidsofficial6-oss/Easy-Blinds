@@ -52,7 +52,12 @@ export default function FittersPage() {
             location: "N/A",
             rating: 5.0,
             onTimeRate: 100,
-            reviews: 0
+            reviews: 0,
+            schedule: {
+                history: [],
+                today: [],
+                upcoming: []
+            }
         };
 
         setFitters([...fitters, newTeamMember]);

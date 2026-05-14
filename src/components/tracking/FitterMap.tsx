@@ -12,10 +12,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Check for late status helper (same logic as FitterList)
 function isLate(fitter: Fitter) {
-    if (fitter.status === "Done" || fitter.status === "Offline") return false;
+    if (fitter.status === "Completed" || fitter.status === "Offline") return false;
     // Check if any active job is late
     return fitter.schedule.today.some(job => {
-        if (job.status === "Done" || job.status === "In Progress" || job.status === "Completed") return false;
+        if (job.status === "Done" || job.status === "In Progress") return false;
         try {
             const todayStr = format(new Date(), "yyyy-MM-dd");
             const jobDate = parse(`${todayStr} ${job.time}`, "yyyy-MM-dd hh:mm aa", new Date());
