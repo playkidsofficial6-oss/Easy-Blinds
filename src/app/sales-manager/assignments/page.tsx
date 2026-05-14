@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { MOCK_JOBS, InstallationJob } from "@/lib/data/jobs";
+import { useState, useMemo } from "react";
+import type { DispatchSortKey } from "@/lib/dispatch/types";
+import { useDispatchOperations } from "@/lib/dispatch/client-store";
+import { toLegacyJob } from "@/lib/dispatch/engine";
 import { brands } from "@/lib/brands";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -11,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { useLiveFitters, Fitter } from "@/lib/live-store";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobCard } from "@/components/common/JobCard";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
@@ -27,16 +29,6 @@ const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
     loading: () => <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-[0.2em]">LOADING DATA...</div>
 });
 
-// --- Distance & Logic Helpers ---
-function getDistKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
 // Time slots
 const DAILY_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 
@@ -49,8 +41,8 @@ const customScrollbarStyle = {
 };
 
 export default function SmartAssignmentsPage() {
-    const { fitters } = useLiveFitters();
-    const [jobs, setJobs] = useState<InstallationJob[]>(MOCK_JOBS);
+    const { mapFitters: fitters, isLoading, error, assignJob, rescheduleJob, updateJobStatus, recommendationsFor, queryJobs } = useDispatchOperations();
+    const [sortKey, setSortKey] = useState<DispatchSortKey>("Default Sorting");
     const [selectedMapFitter, setSelectedMapFitter] = useState<string | null>(null);
     const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
@@ -59,6 +51,27 @@ export default function SmartAssignmentsPage() {
 
     const isToday = isSameDay(viewDate, new Date());
     const isTomorrow = isSameDay(viewDate, addDays(new Date(), 1));
+
+    const sortOptions = ["Default Sorting", "Nearest Agent", "Highest Value", "Date: Newest", "Urgent First", "Oldest Pending"];
+    const handleSortChange = (sort: string) => {
+        const map: Record<string, DispatchSortKey> = {
+            "Default Sorting": "Default Sorting",
+            "Nearest Agent": "nearest",
+            "Highest Value": "highest_value",
+            "Date: Newest": "newest",
+            "Urgent First": "urgent_first",
+            "Oldest Pending": "oldest_pending",
+        };
+        setSortKey(map[sort] ?? "Default Sorting");
+    };
+    const currentSortLabel = sortOptions.find(option => ({
+        "Default Sorting": "Default Sorting",
+        "Nearest Agent": "nearest",
+        "Highest Value": "highest_value",
+        "Date: Newest": "newest",
+        "Urgent First": "urgent_first",
+        "Oldest Pending": "oldest_pending",
+    } as Record<string, DispatchSortKey>)[option] === sortKey) ?? "Default Sorting";
 
     // Assignment/Edit Flow State
     const [dialogState, setDialogState] = useState<{
@@ -111,25 +124,20 @@ export default function SmartAssignmentsPage() {
 
 
     // Filter Jobs
-    const pendingJobs = jobs.filter(j => j.status === "Ready for Installation" || j.status === "Pending Team");
-    const activeJobs = jobs.filter(j => (j.status === "Scheduled" || j.status === "Installation In Progress") && (!j.scheduled || j.scheduled === format(viewDate, "yyyy-MM-dd")));
+    const pendingJobs = useMemo(() => queryJobs({ date: format(viewDate, "yyyy-MM-dd"), status: "Pending" }, sortKey).map(toLegacyJob), [queryJobs, sortKey, viewDate]);
+    const activeJobs = useMemo(() => queryJobs({ date: format(viewDate, "yyyy-MM-dd"), status: "All" }, sortKey).filter(job => job.status !== "Pending" && job.status !== "Cancelled").map(toLegacyJob), [queryJobs, sortKey, viewDate]);
 
-    // Recommendations logic (unchanged)
+    // Recommendations logic now comes from the dispatch engine and active agent state.
     const recommendedFitters = useMemo(() => {
         if (!selectedJobId) return [];
-        const job = jobs.find(j => j.id === selectedJobId);
-        if (!job || !job.coordinates) return [];
-        return fitters.map(f => ({ ...f, dist: f.location ? getDistKm(f.location[0], f.location[1], job.coordinates![0], job.coordinates![1]) : 999 }))
-            .filter(f => f.capacity.current < f.capacity.max)
-            .sort((a, b) => a.dist - b.dist)
-            .slice(0, 3);
-    }, [selectedJobId, fitters, jobs]);
+        return recommendationsFor(selectedJobId).slice(0, 3);
+    }, [selectedJobId, recommendationsFor]);
 
 
     // Step 1: Initiate Assignment
     const initiateAssignment = (jobId: string, fitterId: string) => {
         const fitter = fitters.find(f => f.id === fitterId);
-        const job = jobs.find(j => j.id === jobId);
+        const job = [...pendingJobs, ...activeJobs].find(j => j.id === jobId);
         if (!fitter || !job) return;
 
         if (fitter.capacity.remaining <= 0) {
@@ -152,7 +160,7 @@ export default function SmartAssignmentsPage() {
     };
 
     // Step 1b: Initiate Edit
-    const initiateEdit = (fitterId: string, jobTime: string, jobClient: string) => {
+    const initiateEdit = (fitterId: string, jobTime: string, jobClient: string, jobId: string) => {
         const fitter = fitters.find(f => (f.id === fitterId) || (f.name === fitterId));
         if (!fitter) return;
 
@@ -161,7 +169,7 @@ export default function SmartAssignmentsPage() {
 
         setDialogState({
             type: 'edit',
-            jobId: 'mock-id',
+            jobId,
             jobClient: jobClient,
             fitterId,
             fitterName: fitter.name,
@@ -172,36 +180,48 @@ export default function SmartAssignmentsPage() {
     };
 
     // Step 2: Confirm Action
-    const confirmAction = (timeSlot: string) => {
+    const confirmAction = async (timeSlot: string) => {
         if (!dialogState || !rescheduleDate) return;
 
         const newDateStr = format(rescheduleDate, "yyyy-MM-dd");
 
-        if (dialogState.type === 'assign') {
-            toast.success(`Assigned to ${dialogState.fitterName} on ${newDateStr} @ ${timeSlot}`);
-            setJobs(prev => prev.map(j => j.id === dialogState.jobId ? {
-                ...j,
-                status: "Scheduled",
-                team: dialogState.fitterName,
-                time: timeSlot,
-                scheduled: newDateStr,
-                fitterStatus: "Free"
-            } : j));
-        } else {
-            toast.success(`Rescheduled to ${newDateStr} @ ${timeSlot}`);
-            // Update jobs in real app
-        }
+        try {
+            if (dialogState.type === 'assign') {
+                await assignJob(dialogState.jobId, {
+                    agentId: dialogState.fitterId,
+                    appointmentDate: newDateStr,
+                    appointmentTime: timeSlot,
+                    mode: "manual"
+                });
+                toast.success(`Assigned to ${dialogState.fitterName} on ${newDateStr} @ ${timeSlot}`);
+            } else {
+                await rescheduleJob(dialogState.jobId, {
+                    agentId: dialogState.fitterId,
+                    appointmentDate: newDateStr,
+                    appointmentTime: timeSlot,
+                    mode: "manual"
+                });
+                toast.success(`Rescheduled to ${newDateStr} @ ${timeSlot}`);
+            }
 
-        setDialogState(null);
-        setSelectedJobId(null);
-        setSelectedMapFitter(null);
+            setDialogState(null);
+            setSelectedJobId(null);
+            setSelectedMapFitter(null);
+        } catch (caught) {
+            toast.error(caught instanceof Error ? caught.message : "Dispatch operation failed.");
+        }
     };
 
     // Step 3: Unassign
-    const handleUnassign = () => {
+    const handleUnassign = async () => {
         if (!dialogState) return;
-        toast.info("Unassigned. Job returned to pending.");
-        setDialogState(null);
+        try {
+            await updateJobStatus(dialogState.jobId, { status: "Pending", notes: "Returned to pending queue from Smart Dispatch." });
+            toast.info("Unassigned. Job returned to pending.");
+            setDialogState(null);
+        } catch (caught) {
+            toast.error(caught instanceof Error ? caught.message : "Unable to unassign job.");
+        }
     };
 
     // Helper
@@ -242,11 +262,18 @@ export default function SmartAssignmentsPage() {
                 <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
                     {/* Filter & Sort Bar */}
                     <FilterSortBar
-                        onFilterClick={() => { }}
-                        onSortChange={(sort) => { }}
-                        currentSort="Default Sorting"
+                        onFilterClick={() => toast.info("Filtering by service date, status, location, value, and agent is active through the dispatch state.")}
+                        onSortChange={handleSortChange}
+                        currentSort={currentSortLabel}
+                        sortOptions={sortOptions}
                         className="border-t border-b-0"
                     />
+
+                    {(isLoading || error) && (
+                        <div className={cn("px-6 py-2 text-[10px] uppercase tracking-widest font-bold border-b", error ? "bg-red-50 text-red-600 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100")}>
+                            {error ?? "Syncing Smart Dispatch state..."}
+                        </div>
+                    )}
 
                     <Tabs defaultValue="pending" className="flex-1 flex flex-col">
                         <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
@@ -315,7 +342,7 @@ export default function SmartAssignmentsPage() {
                                             onAction={(action) => {
                                                 if (action === 'manage') {
                                                     const fitter = getFitterByName(job.team);
-                                                    initiateEdit(fitter ? fitter.id : job.team, job.time!, job.client);
+                                                    initiateEdit(fitter ? fitter.id : job.team, job.time!, job.client, job.id);
                                                 }
                                             }}
                                             variant="schedule"
@@ -379,7 +406,7 @@ export default function SmartAssignmentsPage() {
                                                                 <div className="flex-1">
                                                                     <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{time}</div>
                                                                     {isBusy ? (
-                                                                        <div className="cursor-pointer" onClick={() => initiateEdit(f.id, time, job.client)}>
+                                                                        <div className="cursor-pointer" onClick={() => initiateEdit(f.id, time, job.client, job.id)}>
                                                                             <div className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors flex items-center justify-between pr-2">
                                                                                 <div className="flex flex-col"><span>{job.client || "Assigned Job"}</span><span className="text-xs text-slate-500 font-normal">{job.address || "On-site"}</span></div>
                                                                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-slate-600"><Pencil className="w-3 h-3" /></Button>

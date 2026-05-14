@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { MOCK_JOBS, InstallationJob } from "@/lib/data/jobs";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -22,27 +21,41 @@ export default function NewJobPage() {
 
         const formData = new FormData(e.currentTarget);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        try {
+            const response = await fetch("/api/dispatch/jobs", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    customerName: formData.get("client") as string,
+                    phone: (formData.get("whatsapp") as string) || "Not provided",
+                    email: "not-provided@easy-blinds.local",
+                    whatsapp: formData.get("whatsapp") as string,
+                    address: formData.get("area") as string,
+                    area: formData.get("area") as string,
+                    propertyType: formData.get("property") as string,
+                    productCategory: "Blinds",
+                    priority: formData.get("priority") as string,
+                    installationStage: "Installation",
+                    appointmentDate: formData.get("scheduled") as string,
+                    appointmentTime: formData.get("time") as string,
+                    quotationAmount: Number(formData.get("value")),
+                    leadSource: "Sales Manager",
+                    tags: ["manual-entry", "smart-dispatch"],
+                }),
+            });
 
-        const newJob: InstallationJob = {
-            id: `J${Math.floor(Math.random() * 1000)}`,
-            client: formData.get("client") as string,
-            area: formData.get("area") as string,
-            property: formData.get("property") as string,
-            status: "Ready for Installation",
-            team: "Unassigned",
-            scheduled: formData.get("scheduled") as string,
-            time: formData.get("time") as string,
-            whatsapp: formData.get("whatsapp") as string,
-            value: Number(formData.get("value")),
-            priority: formData.get("priority") as any,
-        };
+            if (!response.ok) {
+                const body = await response.json().catch(() => ({}));
+                throw new Error(body.message ?? "Unable to create job.");
+            }
 
-        MOCK_JOBS.unshift(newJob);
-
-        toast.success("Job created successfully");
-        router.push("/sales-manager/assignments");
+            toast.success("Job created successfully");
+            router.push("/sales-manager/assignments");
+        } catch (caught) {
+            toast.error(caught instanceof Error ? caught.message : "Unable to create job.");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
