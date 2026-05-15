@@ -33,19 +33,18 @@ export default function NewJobPage() {
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
-    const quantity = Number(formData.get("quantity") || 1);
+    const projectValueRaw = formData.get("projectValue");
+    const projectValue = projectValueRaw ? Number(projectValueRaw) : undefined;
 
     try {
       await createJob({
         customerName: String(formData.get("customerName") || "").trim(),
-        customerEmail: String(formData.get("customerEmail") || "").trim(),
         customerPhone: String(formData.get("customerPhone") || "").trim(),
         address: String(formData.get("address") || "").trim(),
-        productType: String(formData.get("productType") || "").trim(),
-        quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+        propertyType: String(formData.get("propertyType") || "").trim() || undefined,
+        projectValue: Number.isFinite(projectValue) ? projectValue : undefined,
         priority: String(formData.get("priority") || "medium") as JobPriority,
         status: "pending",
-        notes: String(formData.get("notes") || "").trim() || undefined,
         scheduledAt: buildScheduledAt(formData.get("scheduledDate"), formData.get("scheduledTime")),
       });
 
@@ -67,7 +66,7 @@ export default function NewJobPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-light text-stone-900 dark:text-white">New Job</h1>
-          <p className="text-stone-500 dark:text-neutral-400">Create a new job.</p>
+          <p className="text-stone-500 dark:text-neutral-400">Manually add a new installation job</p>
         </div>
       </div>
 
@@ -77,42 +76,46 @@ export default function NewJobPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="customerName">Customer Name</Label>
-                <Input id="customerName" name="customerName" required minLength={2} maxLength={120} placeholder="e.g. John Doe" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="customerEmail">Customer Email</Label>
-                <Input id="customerEmail" name="customerEmail" type="email" required placeholder="customer@example.com" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="customerPhone">Customer Phone</Label>
-                <Input id="customerPhone" name="customerPhone" type="tel" required placeholder="+971501234567" />
-                <p className="text-xs text-stone-500">Use international format, for example +971501234567.</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="productType">Product Type</Label>
-                <Input id="productType" name="productType" required minLength={2} maxLength={80} placeholder="e.g. Motorized Blinds" />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="customerName">Client Name</Label>
+              <Input id="customerName" name="customerName" required minLength={2} maxLength={120} placeholder="e.g. John Doe" />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Installation Address</Label>
-              <Input id="address" name="address" required minLength={5} maxLength={250} placeholder="Full address or area" />
+              <Label htmlFor="customerPhone">WhatsApp Number</Label>
+              <Input id="customerPhone" name="customerPhone" type="tel" required placeholder="+971 50 123 4567" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity</Label>
-                <Input id="quantity" name="quantity" type="number" required min={1} defaultValue={1} />
+                <Label htmlFor="address">Area / Location</Label>
+                <Input id="address" name="address" required minLength={5} maxLength={250} placeholder="e.g. Downtown Dubai" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectValue">Project Value (AED)</Label>
+                <Input id="projectValue" name="projectValue" type="number" step="0.01" min="0" placeholder="0.00" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="propertyType">Property Type</Label>
+                <Select name="propertyType">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Villa">Villa</SelectItem>
+                    <SelectItem value="Apartment">Apartment</SelectItem>
+                    <SelectItem value="Townhouse">Townhouse</SelectItem>
+                    <SelectItem value="Office">Office</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="priority">Priority</Label>
-                <Select name="priority" defaultValue="medium" required>
+                <Select name="priority" defaultValue="" required>
                   <SelectTrigger>
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
@@ -136,16 +139,11 @@ export default function NewJobPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Input id="notes" name="notes" maxLength={1000} placeholder="Optional customer or installation notes" />
-            </div>
-
             <div className="pt-4 flex justify-end gap-4">
               <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="bg-black text-white hover:bg-stone-800">
                 {isLoading ? "Saving..." : "Create Job"}
               </Button>
             </div>

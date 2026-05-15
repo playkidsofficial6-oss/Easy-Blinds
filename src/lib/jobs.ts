@@ -7,11 +7,13 @@ export type JobPriority = "low" | "medium" | "high";
 export interface Job {
   _id: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail?: string;
   customerPhone: string;
   address: string;
-  productType: string;
-  quantity: number;
+  productType?: string;
+  propertyType?: string;
+  projectValue?: number;
+  quantity?: number;
   status: JobStatus;
   priority: JobPriority;
   notes?: string;
@@ -22,11 +24,13 @@ export interface Job {
 
 export interface CreateJobInput {
   customerName: string;
-  customerEmail: string;
+  customerEmail?: string;
   customerPhone: string;
   address: string;
-  productType: string;
-  quantity: number;
+  productType?: string;
+  propertyType?: string;
+  projectValue?: number;
+  quantity?: number;
   status?: JobStatus;
   priority?: JobPriority;
   notes?: string;
