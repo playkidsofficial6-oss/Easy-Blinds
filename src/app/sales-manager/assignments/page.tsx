@@ -80,12 +80,12 @@ function toUnifiedJob(job: Job): UnifiedJob {
     priority: priorityLabel,
     address: job.address,
     area: job.address,
-    property: `Qty ${job.quantity}`,
+    property: `Qty ${job.quantity ?? 1}`,
     status: statusLabel,
     time: toDisplayTime(job.scheduledAt),
     endTime: undefined,
     team: extractAssignedFitter(job),
-    value: job.quantity * 1000,
+    value: (job.quantity ?? 1) * 1000,
   } as UnifiedJob & { team: string };
 }
 
@@ -97,12 +97,12 @@ function toFitterJob(job: Job): FitterJob {
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
     endTime: "",
     status: job.status === "in_progress" ? "In Progress" : job.status === "completed" ? "Done" : "Pending",
-    value: job.quantity * 1000,
+    value: (job.quantity ?? 1) * 1000,
     email: job.customerEmail,
     phone: job.customerPhone,
     notes: job.notes,
     brand: "Easy Blinds",
-    property: `Qty ${job.quantity}`,
+    property: `Qty ${job.quantity ?? 1}`,
     productType: "Blinds",
     priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
   };
@@ -389,7 +389,7 @@ export default function SmartAssignmentsPage() {
             </div>
           )}
 
-          <Tabs defaultValue="pending" className="flex-1 flex flex-col">
+          <Tabs defaultValue="pending" className="flex-1 flex flex-col min-h-0">
             <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
               <TabsList className="bg-slate-100 p-1 rounded-xl w-full flex h-auto gap-1">
                 <TabsTrigger value="pending" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
@@ -403,7 +403,7 @@ export default function SmartAssignmentsPage() {
               </TabsList>
             </div>
 
-            <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container">
+            <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container min-h-0">
               <style jsx>{`
                 .scrollbar-container::-webkit-scrollbar { width: 6px; }
                 .scrollbar-container::-webkit-scrollbar-track { background: transparent; }
@@ -432,7 +432,7 @@ export default function SmartAssignmentsPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="active" className="flex-1 overflow-y-auto outline-none p-4">
+            <TabsContent value="active" className="flex-1 overflow-y-auto outline-none p-4 min-h-0">
               <div className="space-y-3">
                 {activeJobs.map((job) => (
                   <JobCard
