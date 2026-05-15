@@ -233,7 +233,16 @@ export function useLiveFitters() {
     setError(null);
 
     try {
-      const [allUsers, jobsResponse] = await Promise.all([getUsers(), getJobs({ limit: 500 })]);
+      // Fetch users (fitters) and jobs separately so one failure doesn't kill the other
+      const allUsers = await getUsers();
+      let jobItems: Job[] = [];
+      try {
+        const jobsResponse = await getJobs({ limit: 500 });
+        jobItems = jobsResponse?.items ?? [];
+      } catch (jobErr) {
+        console.warn("[useLiveFitters] Could not load jobs, fitters will show with empty schedules:", jobErr);
+      }
+
       const fitterProfiles: FitterProfileRecord[] = allUsers
         .filter((user) => user.role === "fitter")
         .map((user) => ({
@@ -245,8 +254,9 @@ export function useLiveFitters() {
           capacity: user.maxDailyJobs || 5,
           skills: [],
         }));
-      setFitters(fitterProfiles.map((profile) => buildFitter(profile, jobsResponse.items)));
+      setFitters(fitterProfiles.map((profile) => buildFitter(profile, jobItems)));
     } catch (loadError) {
+      console.error("[useLiveFitters] Failed to load fitters:", loadError);
       setError(loadError instanceof Error ? loadError.message : "Unable to load live fitter data from backend.");
       setFitters([]);
     } finally {

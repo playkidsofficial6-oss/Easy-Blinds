@@ -86,7 +86,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     endTime: undefined,
     team: extractAssignedFitter(job),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
-  } as UnifiedJob & { team: string };
+  };
 }
 
 function toFitterJob(job: Job): FitterJob {

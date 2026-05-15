@@ -142,24 +142,33 @@ export default function FitterMap({ fitters, selectedFitterId, onSelectFitter }:
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        const mountTimer = window.setTimeout(() => setMounted(true), 0);
+        // Fix Leaflet's default icon paths (broken in webpack/Next.js builds)
+        // This MUST run before any Leaflet map is rendered
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+            iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+            shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+        });
 
-        // Add ping keyframe if not exists
-        const style = document.createElement('style');
-        style.innerHTML = `
-            @keyframes ping {
-                75%, 100% {
-                    transform: scale(1.5);
-                    opacity: 0;
-                }
-            }
-        `;
+        // Add ping keyframe animation for status indicators
         if (!document.getElementById('map-animations')) {
+            const style = document.createElement('style');
             style.id = 'map-animations';
+            style.innerHTML = `
+                @keyframes ping {
+                    75%, 100% {
+                        transform: scale(1.5);
+                        opacity: 0;
+                    }
+                }
+            `;
             document.head.appendChild(style);
         }
 
-        return () => window.clearTimeout(mountTimer);
+        // Set mounted AFTER all Leaflet patches are applied
+        setMounted(true);
     }, []);
 
     const fittersWithLocation = fitters.filter((fitter): fitter is Fitter & { location: [number, number] } => Boolean(fitter.location));

@@ -22,6 +22,7 @@ export interface UnifiedJob {
     endTime?: string;
     // For Assignments Page Logic
     recommendedFitters?: Array<{ id: string; name: string; dist?: number }>;
+    team?: string; // Assigned fitter name
 }
 
 interface JobCardProps {
@@ -73,19 +74,24 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                     </div>
                 </div>
 
-                {/* Contact Details Grid */}
-                {(job.email || job.phone) && (
-                    <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
-                        <a href={`mailto:${job.email}`} className="text-xs text-slate-500 hover:text-amber-600 flex items-center gap-2 truncate p-1 hover:bg-white rounded transition-colors" title={job.email} onClick={(e) => e.stopPropagation()}>
-                            <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400"><User className="w-3 h-3" /></div>
-                            <span className="truncate">{job.email || "--"}</span>
-                        </a>
-                        <a href={`tel:${job.phone}`} className="text-xs text-slate-500 hover:text-amber-600 flex items-center gap-2 truncate p-1 hover:bg-white rounded transition-colors" title={job.phone} onClick={(e) => e.stopPropagation()}>
-                            <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Phone className="w-3 h-3" /></div>
-                            <span className="truncate">{job.phone || "--"}</span>
-                        </a>
+                {/* Contact Details Grid — always shown: assigned fitter + phone */}
+                <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
+                    <div
+                        className="text-xs text-slate-500 flex items-center gap-2 truncate p-1"
+                        title={job.team || job.email || "Not assigned"}
+                    >
+                        <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                            <User className="w-3 h-3" />
+                        </div>
+                        <span className={`truncate font-medium ${job.team && job.team !== "Assigned Team" ? "text-amber-700" : "text-slate-400"}`}>
+                            {job.team && job.team !== "Assigned Team" ? job.team : (job.email || "--")}
+                        </span>
                     </div>
-                )}
+                    <a href={`tel:${job.phone}`} className="text-xs text-slate-500 hover:text-amber-600 flex items-center gap-2 truncate p-1 hover:bg-white rounded transition-colors" title={job.phone} onClick={(e) => e.stopPropagation()}>
+                        <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Phone className="w-3 h-3" /></div>
+                        <span className="truncate">{job.phone || "--"}</span>
+                    </a>
+                </div>
 
                 {/* Footer: Location & Meta */}
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
