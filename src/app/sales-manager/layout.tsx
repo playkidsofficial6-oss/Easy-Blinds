@@ -137,7 +137,7 @@ export default function SalesManagerLayout({ children }: SalesManagerLayoutProps
     );
 
     return (
-        <ProtectedRoute allowedRoles={["admin", "owner", "sales_manager"]}>
+        <ProtectedRoute allowedRoles={["sales_manager"]}>
         <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex">
             {/* Desktop Sidebar */}
             <aside className="hidden md:block w-72 border-r border-neutral-200 bg-neutral-900 fixed inset-y-0 z-50">

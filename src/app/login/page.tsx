@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/components/providers/auth-provider";
+import { getSafePortalRedirect } from "@/lib/role-routing";
 
 function getErrorMessage(error: unknown) {
   if (error instanceof AxiosError) {
@@ -37,16 +38,16 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const nextUrl = searchParams.get("next") || "/owner";
+  const nextUrl = searchParams.get("next");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      const response = await login({ email, password });
       toast.success("Signed in successfully.");
-      router.replace(nextUrl);
+      router.replace(getSafePortalRedirect(response.user.role, nextUrl));
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {

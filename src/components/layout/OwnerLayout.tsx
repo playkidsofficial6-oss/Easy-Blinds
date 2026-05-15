@@ -117,7 +117,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     );
 
     return (
-        <ProtectedRoute allowedRoles={["admin", "owner"]}>
+        <ProtectedRoute allowedRoles={["owner"]}>
         <div className="min-h-screen bg-neutral-50 flex">
             {/* Desktop Sidebar */}
             <aside className="hidden md:block w-72 border-r border-neutral-200 bg-neutral-900 fixed inset-y-0 z-50">

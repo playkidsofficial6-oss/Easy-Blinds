@@ -5,6 +5,7 @@ export type UserRole =
   | "owner"
   | "sales_manager"
   | "salesman"
+  | "sales_man"
   | "field"
   | "fitter"
   | "stitching"

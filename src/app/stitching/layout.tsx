@@ -66,7 +66,7 @@ export default function StitchingLayout({ children }: { children: React.ReactNod
     );
 
     return (
-        <ProtectedRoute allowedRoles={["admin", "owner", "stitching"]}>
+        <ProtectedRoute allowedRoles={["stitching"]}>
         <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex font-sans">
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex flex-col w-64 bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 fixed h-full z-30">
