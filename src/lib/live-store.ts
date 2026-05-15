@@ -119,19 +119,19 @@ function toFitterJob(job: Job): FitterJob {
     time: toDisplayTime(job.scheduledAt),
     endTime: toDisplayEndTime(job.scheduledAt),
     status: job.status === "completed" ? "Done" : job.status === "in_progress" ? "In Progress" : "Pending",
-    value: job.quantity * 1000,
+    value: (job.quantity ?? 0) * 1000,
     email: job.customerEmail,
     phone: job.customerPhone,
     notes: job.notes,
     brand: "Easy Blinds",
-    property: `Qty ${job.quantity}`,
+    property: `Qty ${job.quantity ?? 0}`,
     productType: normalizeProductType(job.productType),
     priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
   };
 }
 
-function normalizeProductType(productType: string): FitterJob["productType"] {
-  const normalized = productType.toLowerCase();
+function normalizeProductType(productType?: string): FitterJob["productType"] {
+  const normalized = productType?.toLowerCase() ?? "";
 
   if (normalized.includes("curtain")) return "Curtains";
   if (normalized.includes("shutter")) return "Shutters";
