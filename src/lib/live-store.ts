@@ -28,11 +28,11 @@ export interface FitterJob {
     value?: number;
     email?: string;
     phone?: string;
+    notes?: string;
     brand?: string;
     property?: string;
     productType?: "Curtains" | "Blinds" | "Shutters" | "Awning";
     priority?: "High" | "Medium" | "Low";
-    notes?: string;
 }
 
 export interface Fitter {
@@ -164,12 +164,23 @@ export function useLiveFitters() {
         setIsLoaded(true);
     }, []);
 
-    // Simplified update function for brevity in this step
-    const updateFitterStatus = useCallback((id: string, status: FitterStatus) => {
-        setFitters(prev => {
-            const newFitters = prev.map(f => f.id === id ? { ...f, status } : f);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newFitters));
-            return newFitters;
+    const updateFitterStatus = useCallback((fitterId: string, status: FitterStatus) => {
+        setFitters((currentFitters) => {
+            const nextFitters = currentFitters.map((fitter) =>
+                fitter.id === fitterId
+                    ? {
+                          ...fitter,
+                          status,
+                          lastUpdated: "Just now",
+                      }
+                    : fitter,
+            );
+
+            if (typeof window !== "undefined") {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextFitters));
+            }
+
+            return nextFitters;
         });
     }, []);
 

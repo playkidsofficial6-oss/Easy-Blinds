@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/static-components */
 
 import { useState } from "react";
 import Link from "next/link";
@@ -10,14 +11,8 @@ import {
     LogOut,
     Menu,
     PlusCircle,
-    Briefcase,
-    TrendingUp,
     Star,
-    AlertCircle,
-    Calendar,
-    Activity,
     BarChart3,
-    MapPin,
     LineChart,
     PlayCircle,
     BookOpen,
@@ -27,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { useAuth } from "@/components/providers/auth-provider";
 
 interface SalesManagerLayoutProps {
     children: React.ReactNode;
@@ -47,6 +44,13 @@ const navItems = [
 export default function SalesManagerLayout({ children }: SalesManagerLayoutProps) {
     const pathname = usePathname();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const { user, logout } = useAuth();
+    const initials = user?.name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "SM";
 
     const NavContent = () => (
         <div className="flex flex-col h-full bg-neutral-900 text-white">
@@ -111,23 +115,21 @@ export default function SalesManagerLayout({ children }: SalesManagerLayoutProps
                 <div className="flex items-center gap-3 mb-4">
                     <Avatar>
                         <AvatarImage src="/placeholder-user.jpg" />
-                        <AvatarFallback className="bg-amber-600">SM</AvatarFallback>
+                        <AvatarFallback className="bg-amber-600">{initials}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">
-                            Sales Manager
+                            {user?.name ?? "Sales Manager"}
                         </p>
                         <p className="text-xs text-neutral-400 truncate">
-                            Operations
+                            {user?.role.replaceAll("_", " ") ?? "Operations"}
                         </p>
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <Button asChild variant="ghost" size="sm" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
-                        <Link href="/">
-                            <LogOut className="w-4 h-4 mr-2" />
-                            Exit Portal
-                        </Link>
+                    <Button onClick={() => logout()} variant="ghost" size="sm" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Exit Portal
                     </Button>
                 </div>
             </div>
@@ -135,6 +137,7 @@ export default function SalesManagerLayout({ children }: SalesManagerLayoutProps
     );
 
     return (
+        <ProtectedRoute allowedRoles={["admin", "owner", "sales_manager"]}>
         <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex">
             {/* Desktop Sidebar */}
             <aside className="hidden md:block w-72 border-r border-neutral-200 bg-neutral-900 fixed inset-y-0 z-50">
@@ -166,5 +169,6 @@ export default function SalesManagerLayout({ children }: SalesManagerLayoutProps
                 </main>
             </div>
         </div>
+        </ProtectedRoute>
     );
 }

@@ -1,15 +1,19 @@
 "use client";
+/* eslint-disable react-hooks/static-components */
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, LayoutDashboard, Ruler, FileText, Hammer, Users, Briefcase, Menu, LogOut, Settings, Star, ChevronDown, Check } from "lucide-react";
+import { Package, LayoutDashboard, Ruler, FileText, Menu, LogOut, Settings, Star, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { useBrand } from "@/components/providers/brand-provider";
+import { useAuth } from "@/components/providers/auth-provider";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import type { UserRole } from "@/lib/auth";
 import { brands } from "@/lib/brands";
 import {
     DropdownMenu,
@@ -20,6 +24,7 @@ import {
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
+    allowedRoles?: UserRole[];
 }
 
 const navItems = [
@@ -30,10 +35,17 @@ const navItems = [
     { href: "/field/reviews", label: "Reviews", icon: Star },
 ];
 
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps) {
     const pathname = usePathname();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { selectedBrand, setSelectedBrand } = useBrand();
+    const { user, logout } = useAuth();
+    const initials = user?.name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "EB";
 
     const NavContent = () => (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800">
@@ -92,14 +104,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <div className="flex items-center gap-3 mb-4">
                     <Avatar>
                         <AvatarImage src="/placeholder-user.jpg" />
-                        <AvatarFallback>JD</AvatarFallback>
+                        <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-stone-900 dark:text-white truncate">
-                            John Doe
+                            {user?.name ?? "Easy Blinds User"}
                         </p>
                         <p className="text-xs text-stone-500 truncate">
-                            Senior Measurer
+                            {user?.role.replaceAll("_", " ") ?? "Portal User"}
                         </p>
                     </div>
                 </div>
@@ -108,7 +120,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
                     </Button>
-                    <Button variant="ghost" size="sm" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
+                    <Button onClick={() => logout()} variant="ghost" size="sm" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50">
                         <LogOut className="w-4 h-4 mr-2" />
                         Sign Out
                     </Button>
@@ -121,6 +133,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     );
 
     return (
+        <ProtectedRoute allowedRoles={allowedRoles}>
         <div className="min-h-screen bg-stone-50 dark:bg-neutral-950 flex">
             {/* Desktop Sidebar */}
             <aside className="hidden md:block w-64 border-r border-stone-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 fixed inset-y-0 z-50">
@@ -150,5 +163,6 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </main>
             </div>
         </div>
+        </ProtectedRoute>
     );
 }

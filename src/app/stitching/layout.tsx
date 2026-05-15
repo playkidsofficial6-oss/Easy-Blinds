@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/static-components */
 
 import { useState } from "react";
 import Link from "next/link";
@@ -14,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { useAuth } from "@/components/providers/auth-provider";
 
 const navItems = [
     { name: 'Dashboard', href: '/stitching', icon: LayoutDashboard },
@@ -25,6 +28,7 @@ const navItems = [
 export default function StitchingLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const { logout } = useAuth();
 
     const NavContent = () => (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-950">
@@ -53,17 +57,16 @@ export default function StitchingLayout({ children }: { children: React.ReactNod
                 })}
             </nav>
             <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
-                <Button asChild variant="ghost" className="w-full justify-start text-neutral-500 hover:text-red-600">
-                    <Link href="/">
-                        <LogOut className="w-4 h-4 mr-2" />
-                        Exit
-                    </Link>
+                <Button onClick={() => logout()} variant="ghost" className="w-full justify-start text-neutral-500 hover:text-red-600">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Exit
                 </Button>
             </div>
         </div>
     );
 
     return (
+        <ProtectedRoute allowedRoles={["admin", "owner", "stitching"]}>
         <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex font-sans">
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex flex-col w-64 bg-white dark:bg-neutral-950 border-r border-neutral-200 dark:border-neutral-800 fixed h-full z-30">
@@ -92,6 +95,7 @@ export default function StitchingLayout({ children }: { children: React.ReactNod
                 </main>
             </div>
         </div>
+        </ProtectedRoute>
     );
 }
 
