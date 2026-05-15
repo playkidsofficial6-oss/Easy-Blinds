@@ -7,9 +7,18 @@ export interface LiveLocationCoordinates {
   lng: number;
 }
 
+export interface GeoJsonPoint {
+  type: "Point";
+  coordinates: [number, number];
+}
+
 export interface BackendLiveLocationCoordinates {
   latitude: number;
   longitude: number;
+}
+
+export interface BackendGeoJsonLiveLocationCoordinates {
+  location: GeoJsonPoint;
 }
 
 export interface UpdateLiveLocationPayload extends LiveLocationCoordinates {
@@ -19,7 +28,8 @@ export interface UpdateLiveLocationPayload extends LiveLocationCoordinates {
   isOnline?: boolean;
 }
 
-export type BackendUpdateLiveLocationPayload = BackendLiveLocationCoordinates &
+export type BackendUpdateLiveLocationPayload = BackendGeoJsonLiveLocationCoordinates &
+  Partial<BackendLiveLocationCoordinates> &
   Omit<UpdateLiveLocationPayload, keyof LiveLocationCoordinates>;
 
 export interface LiveLocationRecord extends LiveLocationCoordinates {
@@ -38,7 +48,8 @@ export interface LiveLocationRecord extends LiveLocationCoordinates {
 
 export type BackendLiveLocationRecord = Omit<LiveLocationRecord, keyof LiveLocationCoordinates> &
   Partial<LiveLocationCoordinates> &
-  Partial<BackendLiveLocationCoordinates>;
+  Partial<BackendLiveLocationCoordinates> &
+  Partial<BackendGeoJsonLiveLocationCoordinates>;
 
 export interface ApiResponseEnvelope<T> {
   success?: boolean;

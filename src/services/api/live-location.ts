@@ -21,11 +21,33 @@ function unwrapApiEnvelope<T>(payload: T | ApiResponseEnvelope<T>): T {
   return payload as T;
 }
 
+function getGeoJsonCoordinates(payload: BackendLiveLocationRecord) {
+  if (
+    payload.location?.type !== "Point" ||
+    !Array.isArray(payload.location.coordinates)
+  ) {
+    return null;
+  }
+
+  const [longitude, latitude] = payload.location.coordinates;
+
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    return null;
+  }
+
+  return { lat: latitude, lng: longitude };
+}
+
 export function normalizeLiveLocationRecord(
   payload: BackendLiveLocationRecord,
 ): LiveLocationRecord | null {
-  const lat = typeof payload.lat === "number" ? payload.lat : payload.latitude;
-  const lng = typeof payload.lng === "number" ? payload.lng : payload.longitude;
+  const geoJsonCoordinates = getGeoJsonCoordinates(payload);
+  const lat =
+    geoJsonCoordinates?.lat ??
+    (typeof payload.lat === "number" ? payload.lat : payload.latitude);
+  const lng =
+    geoJsonCoordinates?.lng ??
+    (typeof payload.lng === "number" ? payload.lng : payload.longitude);
 
   if (typeof lat !== "number" || typeof lng !== "number" || !payload.userId) {
     return null;
@@ -87,6 +109,10 @@ function toBackendUpdatePayload(
   payload: UpdateLiveLocationPayload,
 ): BackendUpdateLiveLocationPayload {
   return {
+    location: {
+      type: "Point",
+      coordinates: [payload.lng, payload.lat],
+    },
     latitude: payload.lat,
     longitude: payload.lng,
     accuracy: payload.accuracy,

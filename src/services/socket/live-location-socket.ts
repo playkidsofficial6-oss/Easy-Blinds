@@ -24,9 +24,13 @@ function resolveLocationPayload(
   payload: BackendLiveLocationRecord | LiveLocationUpdatedEvent,
 ): LiveLocationRecord | null {
   if (isRecord(payload) && "location" in payload) {
-    return normalizeLiveLocationRecord(
-      payload.location as BackendLiveLocationRecord,
-    );
+    const nestedLocation = payload.location;
+
+    if (isRecord(nestedLocation) && "userId" in nestedLocation) {
+      return normalizeLiveLocationRecord(
+        nestedLocation as unknown as BackendLiveLocationRecord,
+      );
+    }
   }
 
   if (isRecord(payload) && "data" in payload) {
