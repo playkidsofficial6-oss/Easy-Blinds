@@ -120,20 +120,25 @@ function isTimedOutOffline(location: LiveLocationRecord, now: number) {
 }
 
 function buildFitterMarker(
-  fitter: Fitter & { location: [number, number] },
+  fitter: Fitter,
   liveLocation?: LiveLocationRecord,
-): LiveMapMarker {
+): LiveMapMarker | null {
   const lastUpdatedAt = liveLocation?.lastUpdatedAt ?? liveLocation?.updatedAt;
   const status = normalizeStatus(fitter.status, liveLocation?.isOnline ?? fitter.status !== "Offline");
+  const position = liveLocation
+    ? ([liveLocation.lat, liveLocation.lng] as [number, number])
+    : fitter.location;
+
+  if (!position) {
+    return null;
+  }
 
   return {
     id: fitter.id,
     name: fitter.name,
     role: "Fitter",
     status,
-    position: liveLocation
-      ? [liveLocation.lat, liveLocation.lng]
-      : fitter.location,
+    position,
     avatar: fitter.avatar,
     lastUpdated: lastUpdatedAt ? toReadableLastUpdated(lastUpdatedAt) : fitter.lastUpdated,
     lastUpdatedAt,
@@ -277,10 +282,10 @@ function buildMapMarkers(
   );
 
   const fitterMarkers = fitters
-    .filter((fitter): fitter is Fitter & { location: [number, number] } => Boolean(fitter.location))
-    .map((fitter) => buildFitterMarker(fitter, liveLocationByUserId[fitter.id]));
+    .map((fitter) => buildFitterMarker(fitter, liveLocationByUserId[fitter.id]))
+    .filter((marker): marker is LiveMapMarker => Boolean(marker));
 
-  const knownFitterIds = new Set(fitters.map((fitter) => fitter.id));
+  const knownFitterIds = new Set(fitterMarkers.map((marker) => marker.id));
   const liveOnlyMarkers = activeLiveLocations
     .filter((location) => !knownFitterIds.has(location.userId))
     .map(buildLiveLocationMarker);
