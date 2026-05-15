@@ -21,7 +21,7 @@ export interface UnifiedJob {
     time?: string;
     endTime?: string;
     // For Assignments Page Logic
-    recommendedFitters?: Array<{ id: string; name: string; dist: number }>;
+    recommendedFitters?: Array<{ id: string; name: string; dist?: number }>;
 }
 
 interface JobCardProps {
@@ -117,7 +117,7 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-slate-700 text-xs font-bold border border-slate-200 shadow-sm transition-colors group-hover/fitter:bg-amber-500 group-hover/fitter:text-white group-hover/fitter:border-amber-500">{i + 1}</div>
                                         <div>
                                             <p className="text-sm font-semibold text-slate-800 group-hover/fitter:text-slate-900 transition-colors">{rec.name}</p>
-                                            <p className="text-[10px] text-slate-500 group-hover/fitter:text-amber-600/80">{rec.dist.toFixed(1)} km from site</p>
+                                            <p className="text-[10px] text-slate-500 group-hover/fitter:text-amber-600/80">{typeof rec.dist === "number" ? `${rec.dist.toFixed(1)} km from site` : "Available fitter"}</p>
                                         </div>
                                     </div>
                                     <div className="h-8 w-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-300 group-hover/fitter:text-amber-500 group-hover/fitter:border-amber-200 transition-all">

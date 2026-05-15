@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { addDays, format, isSameDay, parseISO } from "date-fns";
 
+import { getFitters, type FitterProfileRecord, type FitterProfileStatus } from "./fitters-api";
 import { getJobs, type Job } from "./jobs";
-import { getUsers, updateUser, type UserRecord } from "./users";
+import { updateUser, type UserRecord } from "./users";
 
 export type FitterStatus = "On the way" | "In progress" | "Completed" | "Offline" | "Fully Booked" | "Available";
 
@@ -67,16 +68,12 @@ export interface Fitter {
 const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
-function isFitterUser(user: UserRecord) {
-  return String(user.role).trim().toLowerCase() === "fitter";
-}
-
 function extractAssignedFitter(job: Job) {
   const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
   return match?.[1]?.trim();
 }
 
-function isAssignedToFitter(job: Job, fitter: UserRecord) {
+function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name">) {
   const assignedName = extractAssignedFitter(job);
   if (!assignedName) return false;
 
@@ -142,8 +139,8 @@ function normalizeProductType(productType: string): FitterJob["productType"] {
   return "Blinds";
 }
 
-function getLastUpdated(user: UserRecord) {
-  const source = user.location?.updatedAt ?? user.updatedAt;
+function getLastUpdated(profile: FitterProfileRecord) {
+  const source = profile.location?.updatedAt ?? profile.updatedAt ?? profile.user.location?.updatedAt ?? profile.user.updatedAt;
   if (!source) return "Not updated";
 
   try {
@@ -153,13 +150,20 @@ function getLastUpdated(user: UserRecord) {
   }
 }
 
-function getStatus(user: UserRecord, todayJobs: FitterJob[], capacityRemaining: number): FitterStatus {
+function toLiveStatus(status: FitterProfileStatus): FitterStatus {
+  if (status === "fully_booked") return "Fully Booked";
+  if (status === "in_progress") return "In progress";
+  if (status === "on_the_way") return "On the way";
+  return "Available";
+}
+
+function getStatus(profile: FitterProfileRecord, todayJobs: FitterJob[], capacityRemaining: number): FitterStatus {
   if (capacityRemaining <= 0) return "Fully Booked";
   if (todayJobs.some((job) => job.status === "In Progress")) return "In progress";
   if (todayJobs.some((job) => job.status === "Pending")) return "On the way";
-  if (user.liveStatus === "Offline") return "Offline";
-  if (user.liveStatus === "Completed") return "Completed";
-  return "Available";
+  if (profile.user.liveStatus === "Offline") return "Offline";
+  if (profile.user.liveStatus === "Completed") return "Completed";
+  return toLiveStatus(profile.status);
 }
 
 function getCurrentJobStartTime(jobs: Job[]) {
@@ -173,7 +177,8 @@ function getCurrentJobStartTime(jobs: Job[]) {
   }
 }
 
-function buildFitter(user: UserRecord, jobs: Job[]): Fitter {
+function buildFitter(profile: FitterProfileRecord, jobs: Job[]): Fitter {
+  const user = profile.user;
   const today = new Date();
   const tomorrow = addDays(today, 1);
   const assignedJobs = jobs.filter((job) => ["scheduled", "in_progress", "completed"].includes(job.status) && isAssignedToFitter(job, user));
@@ -182,25 +187,25 @@ function buildFitter(user: UserRecord, jobs: Job[]): Fitter {
   const upcomingJobs = assignedJobs
     .filter((job) => job.scheduledAt && !isJobForDate(job, today) && !isJobForDate(job, tomorrow))
     .map(toFitterJob);
-  const maxCapacity = user.maxDailyJobs ?? 5;
+  const maxCapacity = profile.capacity;
   const currentCapacity = todayJobs.length;
   const remainingCapacity = Math.max(0, maxCapacity - currentCapacity);
   const busySlots = todayJobs.map((job) => job.time).filter(Boolean);
   const nextAvailableSlot = TIME_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
   const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending");
-  const location = user.location ? ([user.location.lat, user.location.lng] as [number, number]) : undefined;
+  const location = profile.location ? ([profile.location.lat, profile.location.lng] as [number, number]) : undefined;
 
   return {
     id: user._id,
     name: user.name,
     jobRef: activeJob?.id ?? "--",
-    status: getStatus(user, todayJobs, remainingCapacity),
+    status: getStatus(profile, todayJobs, remainingCapacity),
     location,
-    locationLabel: user.location?.address,
-    lastUpdated: getLastUpdated(user),
+    locationLabel: profile.location?.address,
+    lastUpdated: getLastUpdated(profile),
     avatar: user.avatar,
     email: user.email,
-    phone: user.phone,
+    phone: profile.phone ?? user.phone,
     history: [],
     schedule: {
       yesterday: [],
@@ -228,9 +233,8 @@ export function useLiveFitters() {
     setError(null);
 
     try {
-      const [users, jobsResponse] = await Promise.all([getUsers(), getJobs({ limit: 500 })]);
-      const fitterUsers = users.filter(isFitterUser);
-      setFitters(fitterUsers.map((user) => buildFitter(user, jobsResponse.items)));
+      const [fitterProfiles, jobsResponse] = await Promise.all([getFitters(), getJobs({ limit: 500 })]);
+      setFitters(fitterProfiles.map((profile) => buildFitter(profile, jobsResponse.items)));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load live fitter data from backend.");
       setFitters([]);
