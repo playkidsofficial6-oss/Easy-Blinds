@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { format, parse, isPast, isToday } from "date-fns";
 import { MapPin, Navigation, ChevronRight, CheckCircle, Clock, Calendar, ArrowLeft, Camera, ShieldCheck, Ruler, ClipboardList, Info, AlertCircle, X, Check, Menu, Timer, Wallet, AlertTriangle } from "lucide-react";
 import { useLiveFitters, FitterJob, FitterStatus } from "@/lib/live-store";
+import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 
@@ -15,11 +16,12 @@ const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
 type Tab = "today" | "tomorrow" | "upcoming" | "completed";
 
 export default function FitterPage() {
+    const { user } = useAuth();
     const { fitters, updateFitterStatus } = useLiveFitters();
     const [activeTab, setActiveTab] = useState<Tab>("today");
     const [selectedJob, setSelectedJob] = useState<FitterJob | null>(null);
 
-    const currentFitter = fitters.find(f => f.id === "1");
+    const currentFitter = user?.role === "fitter" ? fitters.find(f => f.id === user._id) : null;
 
     if (!currentFitter) return <div className="p-8 text-center text-slate-500 font-light">Loading Fitter Data...</div>;
 
@@ -221,23 +223,29 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (job.status === "In Progress" && jobStartTime) {
-            const updateTimer = () => {
-                const now = Date.now();
-                const diff = Math.max(0, now - jobStartTime);
-                const hrs = Math.floor(diff / 3600000);
-                const mins = Math.floor((diff % 3600000) / 60000);
-                const secs = Math.floor((diff % 60000) / 1000);
-                setElapsedTime(
-                    `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-                );
-            };
-            updateTimer();
-            interval = setInterval(updateTimer, 1000);
-        } else {
-            setElapsedTime("00:00:00");
-        }
-        return () => clearInterval(interval);
+        const timeout = setTimeout(() => {
+            if (job.status === "In Progress" && jobStartTime) {
+                const updateTimer = () => {
+                    const now = Date.now();
+                    const diff = Math.max(0, now - jobStartTime);
+                    const hrs = Math.floor(diff / 3600000);
+                    const mins = Math.floor((diff % 3600000) / 60000);
+                    const secs = Math.floor((diff % 60000) / 1000);
+                    setElapsedTime(
+                        `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+                    );
+                };
+                updateTimer();
+                interval = setInterval(updateTimer, 1000);
+            } else {
+                setElapsedTime("00:00:00");
+            }
+        }, 0);
+
+        return () => {
+            clearTimeout(timeout);
+            clearInterval(interval);
+        };
     }, [job.status, jobStartTime]);
 
     const coordinates = job.coordinates || [25.1972, 55.2744];

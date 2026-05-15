@@ -35,9 +35,19 @@ export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role"
   password?: string;
 };
 
+type UsersListPayload = UserRecord[] | { items?: UserRecord[]; users?: UserRecord[]; data?: UserRecord[] };
+
+function normalizeUsersPayload(payload: UsersListPayload): UserRecord[] {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.items)) return payload.items;
+  if (Array.isArray(payload.users)) return payload.users;
+  if (Array.isArray(payload.data)) return payload.data;
+  return [];
+}
+
 export async function getUsers(): Promise<UserRecord[]> {
-  const { data } = await api.get<UserRecord[]>("/users");
-  return data;
+  const { data } = await api.get<UsersListPayload>("/users");
+  return normalizeUsersPayload(data);
 }
 
 export async function updateUser(id: string, input: UpdateUserInput): Promise<UserRecord> {

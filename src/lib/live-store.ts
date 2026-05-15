@@ -68,7 +68,7 @@ const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
 function isFitterUser(user: UserRecord) {
-  return user.role === "fitter";
+  return String(user.role).trim().toLowerCase() === "fitter";
 }
 
 function extractAssignedFitter(job: Job) {
