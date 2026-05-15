@@ -1,7 +1,9 @@
 import { io, type Socket } from "socket.io-client";
 
 import { getStoredAuthToken } from "@/services/api";
+import { normalizeLiveLocationRecord } from "@/services/api/live-location";
 import type {
+  BackendLiveLocationRecord,
   LiveLocationPresenceEvent,
   LiveLocationRecord,
   LiveLocationSocketListeners,
@@ -14,14 +16,33 @@ import {
 
 let liveLocationSocket: Socket | null = null;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function resolveLocationPayload(
-  payload: LiveLocationRecord | LiveLocationUpdatedEvent,
-): LiveLocationRecord {
-  if (payload && typeof payload === "object" && "location" in payload) {
-    return payload.location;
+  payload: BackendLiveLocationRecord | LiveLocationUpdatedEvent,
+): LiveLocationRecord | null {
+  if (isRecord(payload) && "location" in payload) {
+    return normalizeLiveLocationRecord(
+      payload.location as BackendLiveLocationRecord,
+    );
   }
 
-  return payload as LiveLocationRecord;
+  if (isRecord(payload) && "data" in payload) {
+    return normalizeLiveLocationRecord(payload.data as BackendLiveLocationRecord);
+  }
+
+  return normalizeLiveLocationRecord(payload as BackendLiveLocationRecord);
+}
+
+function normalizePresencePayload(
+  payload: LiveLocationPresenceEvent,
+): LiveLocationPresenceEvent {
+  return {
+    ...payload,
+    timestamp: payload.timestamp ?? payload.lastUpdatedAt,
+  };
 }
 
 export function getLiveLocationSocket(): Socket | null {
@@ -78,17 +99,21 @@ export function listenToLocationUpdates(
   }
 
   const handleLocationUpdated = (
-    payload: LiveLocationRecord | LiveLocationUpdatedEvent,
+    payload: BackendLiveLocationRecord | LiveLocationUpdatedEvent,
   ) => {
-    listeners.onLocationUpdated?.(resolveLocationPayload(payload));
+    const location = resolveLocationPayload(payload);
+
+    if (location) {
+      listeners.onLocationUpdated?.(location);
+    }
   };
 
   const handleUserOnline = (payload: LiveLocationPresenceEvent) => {
-    listeners.onUserOnline?.(payload);
+    listeners.onUserOnline?.(normalizePresencePayload(payload));
   };
 
   const handleUserOffline = (payload: LiveLocationPresenceEvent) => {
-    listeners.onUserOffline?.(payload);
+    listeners.onUserOffline?.(normalizePresencePayload(payload));
   };
 
   const handleConnect = () => {

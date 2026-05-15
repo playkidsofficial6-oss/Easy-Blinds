@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   getAllLiveLocations,
+  normalizeLiveLocationRecord,
   updateLiveLocation,
 } from "@/services/api";
 import {
@@ -40,7 +41,11 @@ function applyPresenceEvent(
   isOnline: boolean,
 ): LiveLocationRecord[] {
   if (event.location) {
-    return upsertLocation(locations, { ...event.location, isOnline });
+    const normalizedLocation = normalizeLiveLocationRecord(event.location);
+
+    if (normalizedLocation) {
+      return upsertLocation(locations, { ...normalizedLocation, isOnline });
+    }
   }
 
   return locations.map((location) =>

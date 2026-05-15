@@ -7,11 +7,20 @@ export interface LiveLocationCoordinates {
   lng: number;
 }
 
+export interface BackendLiveLocationCoordinates {
+  latitude: number;
+  longitude: number;
+}
+
 export interface UpdateLiveLocationPayload extends LiveLocationCoordinates {
   accuracy?: number;
   speed?: number;
   heading?: number;
+  isOnline?: boolean;
 }
+
+export type BackendUpdateLiveLocationPayload = BackendLiveLocationCoordinates &
+  Omit<UpdateLiveLocationPayload, keyof LiveLocationCoordinates>;
 
 export interface LiveLocationRecord extends LiveLocationCoordinates {
   _id?: string;
@@ -27,16 +36,34 @@ export interface LiveLocationRecord extends LiveLocationCoordinates {
   updatedAt?: string;
 }
 
+export type BackendLiveLocationRecord = Omit<LiveLocationRecord, keyof LiveLocationCoordinates> &
+  Partial<LiveLocationCoordinates> &
+  Partial<BackendLiveLocationCoordinates>;
+
+export interface ApiResponseEnvelope<T> {
+  success?: boolean;
+  message?: string;
+  data?: T;
+}
+
 export type LiveLocationListPayload =
   | LiveLocationRecord[]
+  | BackendLiveLocationRecord[]
+  | ApiResponseEnvelope<BackendLiveLocationRecord[]>
   | {
-      items?: LiveLocationRecord[];
-      locations?: LiveLocationRecord[];
-      data?: LiveLocationRecord[];
+      items?: BackendLiveLocationRecord[];
+      locations?: BackendLiveLocationRecord[];
+      data?: BackendLiveLocationRecord[];
     };
 
+export type LiveLocationPayload =
+  | LiveLocationRecord
+  | BackendLiveLocationRecord
+  | ApiResponseEnvelope<BackendLiveLocationRecord>;
+
 export interface LiveLocationUpdatedEvent {
-  location: LiveLocationRecord;
+  location?: BackendLiveLocationRecord;
+  data?: BackendLiveLocationRecord;
 }
 
 export interface LiveLocationPresenceEvent {
@@ -44,7 +71,8 @@ export interface LiveLocationPresenceEvent {
   role?: LiveLocationRole;
   isOnline?: boolean;
   timestamp?: string;
-  location?: LiveLocationRecord;
+  lastUpdatedAt?: string;
+  location?: BackendLiveLocationRecord;
 }
 
 export interface LiveLocationSocketListeners {

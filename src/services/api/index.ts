@@ -9,5 +9,6 @@ export {
 export {
   getAllLiveLocations,
   getUserLocation,
+  normalizeLiveLocationRecord,
   updateLiveLocation,
 } from "./live-location";
