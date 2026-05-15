@@ -132,7 +132,7 @@ export default function RegisterPage() {
               <CardHeader className="px-0">
                 <CardTitle className="text-3xl font-light tracking-tight">Create portal access</CardTitle>
                 <CardDescription>
-                  Register a real Easy Blinds user through the backend API. The account will be saved in MongoDB and signed in immediately.
+                  Register a real Easy Blinds user through the Poratl.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-0">

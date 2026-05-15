@@ -139,9 +139,9 @@ export default function SalesManagerDashboard() {
           <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 dark:from-neutral-800 to-transparent" />
         </div>
         <div className="space-y-px bg-neutral-200 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-800">
-          {isLoading && <div className="bg-white dark:bg-neutral-900 p-8 text-sm text-neutral-500">Loading MongoDB jobs...</div>}
+          {isLoading && <div className="bg-white dark:bg-neutral-900 p-8 text-sm text-neutral-500">Loading jobs...</div>}
           {!isLoading && recentJobs.length === 0 && (
-            <div className="bg-white dark:bg-neutral-900 p-8 text-sm text-neutral-500">No MongoDB jobs found yet. Create a new job to see it here.</div>
+            <div className="bg-white dark:bg-neutral-900 p-8 text-sm text-neutral-500">No jobs found yet. Create a new job to see it here.</div>
           )}
           {!isLoading && recentJobs.map((job) => (
             <div key={job._id} className="bg-white dark:bg-neutral-900 p-8 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between">

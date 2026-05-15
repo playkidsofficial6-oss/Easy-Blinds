@@ -146,7 +146,7 @@ export default function SmartAssignmentsPage() {
       const response = await getJobs({ limit: 100 });
       setJobs(response.items);
     } catch (error) {
-      const message = getJobErrorMessage(error, "Unable to load jobs from MongoDB.");
+      const message = getJobErrorMessage(error, "Unable to load jobs.");
       setLoadError(message);
       toast.error(message);
     } finally {
@@ -374,7 +374,7 @@ export default function SmartAssignmentsPage() {
         <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
           <FilterSortBar
             onFilterClick={() => {
-              toast.info("This view is connected to MongoDB jobs. Use the date picker and status tabs to narrow dispatch work.");
+              toast.info("This view is connected to jobs. Use the date picker and status tabs to narrow dispatch work.");
               loadJobs();
             }}
             onSortChange={handleSortChange}
@@ -385,7 +385,7 @@ export default function SmartAssignmentsPage() {
 
           {(isLoading || loadError) && (
             <div className={cn("px-6 py-2 text-[10px] uppercase tracking-widest font-bold border-b", loadError ? "bg-red-50 text-red-600 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100")}>
-              {loadError ?? "Syncing Smart Dispatch jobs from MongoDB..."}
+              {loadError ?? "Syncing Smart Dispatch jobs..."}
             </div>
           )}
 
