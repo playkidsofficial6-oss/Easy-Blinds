@@ -17,6 +17,7 @@ import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
 import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
+import { getUserErrorMessage, getUsers, type UserRecord } from "@/lib/users";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
   ssr: false,
@@ -125,10 +126,59 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
   }
 }
 
+function isSalesmanUser(user: UserRecord) {
+  return user.role === "salesman" || user.role === "sales_man";
+}
+
+function toSalesmanWorkforceMember(user: UserRecord): Fitter {
+  return {
+    id: user._id,
+    name: user.name,
+    role: "Salesman",
+    jobRef: "--",
+    status: user.liveStatus ?? "Available",
+    location: user.location
+      ? ([user.location.lat, user.location.lng] as [number, number])
+      : undefined,
+    locationLabel: user.location?.address,
+    lastUpdated: user.location?.updatedAt
+      ? toReadableLastUpdated(user.location.updatedAt)
+      : "Not updated",
+    avatar: user.avatar,
+    email: user.email,
+    phone: user.phone,
+    history: [],
+    schedule: {
+      yesterday: [],
+      today: [],
+      tomorrow: [],
+      upcoming: [],
+    },
+    capacity: {
+      max: user.maxDailyJobs || 5,
+      current: 0,
+      remaining: user.maxDailyJobs || 5,
+    },
+    nextAvailableSlot: "Available",
+  };
+}
+
+function toReadableLastUpdated(source?: string) {
+  if (!source) return "Not updated";
+
+  try {
+    return format(parseISO(source), "MMM d, HH:mm");
+  } catch {
+    return "Not updated";
+  }
+}
+
 export default function SmartAssignmentsPage() {
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<DispatchSortKey>("Default Sorting");
   const [selectedMapFitter, setSelectedMapFitter] = useState<string | null>(null);
@@ -157,6 +207,24 @@ export default function SmartAssignmentsPage() {
   useEffect(() => {
     loadJobs();
   }, [loadJobs]);
+
+  const loadSalesmen = useCallback(async () => {
+    setIsLoadingUsers(true);
+
+    try {
+      const users = await getUsers();
+      setSalesmanUsers(users.filter(isSalesmanUser));
+    } catch (error) {
+      const message = getUserErrorMessage(error, "Unable to load salesmen for live assignment map.");
+      toast.error(message);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSalesmen();
+  }, [loadSalesmen]);
 
   const sortOptions = ["Default Sorting", "Nearest Agent", "Highest Value", "Date: Newest", "Urgent First", "Oldest Pending"];
   const handleSortChange = (sort: string) => {
@@ -226,6 +294,14 @@ export default function SmartAssignmentsPage() {
       };
     });
   }, [baseFitters, jobs, isToday, isTomorrow]);
+
+  const salesmen = useMemo<Fitter[]>(() => {
+    return salesmanUsers.map(toSalesmanWorkforceMember);
+  }, [salesmanUsers]);
+
+  const workforceMembers = useMemo<Fitter[]>(() => {
+    return [...fitters, ...salesmen];
+  }, [fitters, salesmen]);
 
   const rescheduleSlots = useMemo(() => {
     if (!dialogState || !rescheduleDate) return [];
@@ -339,7 +415,7 @@ export default function SmartAssignmentsPage() {
   };
 
   const getFitterByName = (name: string) => fitters.find((item) => item.name === name);
-  const isLoading = !isLoaded || isLoadingJobs;
+  const isLoading = !isLoaded || isLoadingJobs || isLoadingUsers;
 
   return (
     <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-white">
@@ -457,7 +533,7 @@ export default function SmartAssignmentsPage() {
       </div>
 
       <div className="flex-1 bg-slate-100 relative">
-        <AssignmentMap fitters={fitters} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} />
+        <AssignmentMap fitters={workforceMembers} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} />
         <div className="absolute bottom-6 left-6 z-[1000] bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
           <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
           <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-medium text-slate-700">
@@ -470,7 +546,7 @@ export default function SmartAssignmentsPage() {
         {selectedMapFitter && (
           <div className="absolute top-6 right-6 z-[1000] w-96 bg-white/80 backdrop-blur-md shadow-2xl border border-white/50 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-3rem)] rounded-3xl overflow-hidden ring-1 ring-black/5">
             {(() => {
-              const fitter = fitters.find((item) => item.id === selectedMapFitter);
+              const fitter = workforceMembers.find((item) => item.id === selectedMapFitter);
               if (!fitter) return null;
               const activeSchedule = isToday ? fitter.schedule.today : isTomorrow ? fitter.schedule.tomorrow : [];
               const capacityPercent = (activeSchedule.length / fitter.capacity.max) * 100;
@@ -478,10 +554,10 @@ export default function SmartAssignmentsPage() {
                 <>
                   <div className="p-6 border-b border-slate-100/50 flex justify-between items-start bg-slate-50/50">
                     <div className="flex items-center gap-4">
-                      <Avatar className="h-16 w-16 rounded-2xl border-2 border-white shadow-md bg-white"><AvatarImage src={fitter.avatar} /><AvatarFallback>SM</AvatarFallback></Avatar>
+                      <Avatar className="h-16 w-16 rounded-2xl border-2 border-white shadow-md bg-white"><AvatarImage src={fitter.avatar} /><AvatarFallback>{fitter.role === "Salesman" ? "SM" : "FT"}</AvatarFallback></Avatar>
                       <div>
                         <h3 className="text-lg font-light text-slate-900">{fitter.name}</h3>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1"><span className={cn("w-2 h-2 rounded-full", fitter.status === "Fully Booked" ? "bg-red-500" : "bg-emerald-500")}></span>{fitter.status}</div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1"><span className={cn("w-2 h-2 rounded-full", fitter.status === "Fully Booked" || fitter.status === "Offline" ? "bg-red-500" : "bg-emerald-500")}></span>{fitter.role ?? "Fitter"} · {fitter.status}</div>
                       </div>
                     </div>
                     <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>

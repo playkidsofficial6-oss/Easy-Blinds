@@ -54,6 +54,7 @@ export interface FitterJob {
 export interface Fitter {
   id: string;
   name: string;
+  role?: "Fitter" | "Salesman";
   jobRef: string;
   status: FitterStatus;
   location?: [number, number];
@@ -238,6 +239,7 @@ function buildFitter(
   return {
     id: user._id,
     name: user.name,
+    role: "Fitter",
     jobRef: activeJob?.id ?? "--",
     status: getStatus(profile, todayJobs, remainingCapacity, liveLocation),
     location,

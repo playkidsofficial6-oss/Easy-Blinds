@@ -136,7 +136,7 @@ function buildFitterMarker(
   return {
     id: fitter.id,
     name: fitter.name,
-    role: "Fitter",
+    role: fitter.role ?? "Fitter",
     status,
     position,
     avatar: fitter.avatar,
