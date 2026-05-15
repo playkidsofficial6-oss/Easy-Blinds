@@ -260,7 +260,6 @@ export default function SmartAssignmentsPage() {
 
     return fitters
       .filter((fitter) => fitter.capacity.remaining > 0)
-      .slice(0, 3)
       .map((fitter) => ({ id: fitter.id, name: fitter.name }));
   }, [selectedJobId, fitters]);
 

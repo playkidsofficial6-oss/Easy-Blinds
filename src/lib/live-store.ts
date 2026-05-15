@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { addDays, format, isSameDay, parseISO } from "date-fns";
 
-import { getFitters, type FitterProfileRecord, type FitterProfileStatus } from "./fitters-api";
+import { type FitterProfileRecord, type FitterProfileStatus } from "./fitters-api";
 import { getJobs, type Job } from "./jobs";
-import { updateUser, type UserRecord } from "./users";
+import { getUsers, updateUser, type UserRecord } from "./users";
 
 export type FitterStatus = "On the way" | "In progress" | "Completed" | "Offline" | "Fully Booked" | "Available";
 
@@ -233,7 +233,18 @@ export function useLiveFitters() {
     setError(null);
 
     try {
-      const [fitterProfiles, jobsResponse] = await Promise.all([getFitters(), getJobs({ limit: 500 })]);
+      const [allUsers, jobsResponse] = await Promise.all([getUsers(), getJobs({ limit: 500 })]);
+      const fitterProfiles: FitterProfileRecord[] = allUsers
+        .filter((user) => user.role === "fitter")
+        .map((user) => ({
+          userId: user._id,
+          user,
+          phone: user.phone,
+          location: user.location,
+          status: "available",
+          capacity: user.maxDailyJobs || 5,
+          skills: [],
+        }));
       setFitters(fitterProfiles.map((profile) => buildFitter(profile, jobsResponse.items)));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load live fitter data from backend.");
