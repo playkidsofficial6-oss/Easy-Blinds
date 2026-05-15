@@ -130,8 +130,8 @@ function toFitterJob(job: Job): FitterJob {
   };
 }
 
-function normalizeProductType(productType: string): FitterJob["productType"] {
-  const normalized = productType.toLowerCase();
+function normalizeProductType(productType?: string): FitterJob["productType"] {
+  const normalized = productType?.toLowerCase() ?? "";
 
   if (normalized.includes("curtain")) return "Curtains";
   if (normalized.includes("shutter")) return "Shutters";
