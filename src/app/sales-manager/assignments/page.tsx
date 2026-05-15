@@ -85,7 +85,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     time: toDisplayTime(job.scheduledAt),
     endTime: undefined,
     team: extractAssignedFitter(job),
-    value: (job.quantity ?? 1) * 1000,
+    value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
   } as UnifiedJob & { team: string };
 }
 
@@ -97,7 +97,7 @@ function toFitterJob(job: Job): FitterJob {
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
     endTime: "",
     status: job.status === "in_progress" ? "In Progress" : job.status === "completed" ? "Done" : "Pending",
-    value: (job.quantity ?? 1) * 1000,
+    value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
     phone: job.customerPhone,
     notes: job.notes,
@@ -204,7 +204,7 @@ export default function SmartAssignmentsPage() {
       const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
       const tomorrow = assignedJobs.filter((job) => isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob);
       const current = isToday ? today.length : isTomorrow ? tomorrow.length : 0;
-      const remaining = Math.max(0, fitter.capacity.max - current);
+      const remaining = Math.max(0, (fitter.capacity?.max || 5) - current);
       const busySlots = isToday ? today.map((job) => job.time) : isTomorrow ? tomorrow.map((job) => job.time) : [];
       const nextAvailableSlot = DAILY_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
 
@@ -218,7 +218,7 @@ export default function SmartAssignmentsPage() {
           upcoming: assignedJobs.filter((job) => job.scheduledAt && !isJobForDate(job, new Date()) && !isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob),
         },
         capacity: {
-          max: fitter.capacity.max,
+          max: fitter.capacity?.max || 5,
           current,
           remaining,
         },
