@@ -7,26 +7,31 @@ import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { getJobErrorMessage, getJobs, type Job } from "@/lib/jobs";
-import { MOCK_TEAM } from "@/lib/data/team";
+import { getUsers, type UserRecord } from "@/lib/users";
 
 export default function SalesManagerDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadJobs() {
+    async function loadData() {
       setIsLoading(true);
       try {
-        const response = await getJobs({ limit: 100 });
-        setJobs(response.items);
+        const [jobsResponse, usersResponse] = await Promise.all([
+          getJobs({ limit: 100 }),
+          getUsers(),
+        ]);
+        setJobs(jobsResponse.items);
+        setUsers(usersResponse);
       } catch (error) {
-        toast.error(getJobErrorMessage(error, "Unable to load sales-manager jobs from MongoDB."));
+        toast.error(getJobErrorMessage(error, "Unable to load dashboard data."));
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadJobs();
+    loadData();
   }, []);
 
   const unassignedJobs = useMemo(() => jobs.filter((job) => job.status === "pending").length, [jobs]);
@@ -42,7 +47,7 @@ export default function SalesManagerDashboard() {
     }).length;
   }, [jobs]);
 
-  const activeFitters = MOCK_TEAM.length;
+  const activeFitters = useMemo(() => users.filter((u) => u.role === "fitter").length, [users]);
   const pendingReviews = 0;
 
   const stats = [
@@ -55,7 +60,7 @@ export default function SalesManagerDashboard() {
     },
     {
       title: "Active Fitters",
-      value: activeFitters,
+      value: isLoading ? "..." : activeFitters,
       icon: Users,
       trend: "Team data",
       trendColor: "text-emerald-600",
