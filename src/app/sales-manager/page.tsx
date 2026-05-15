@@ -135,7 +135,7 @@ export default function SalesManagerDashboard() {
 
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <h2 className="text-3xl font-light text-neutral-900 dark:text-white">Recent Backend Jobs</h2>
+          <h2 className="text-3xl font-light text-neutral-900 dark:text-white">Recent Jobs</h2>
           <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 dark:from-neutral-800 to-transparent" />
         </div>
         <div className="space-y-px bg-neutral-200 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-800">

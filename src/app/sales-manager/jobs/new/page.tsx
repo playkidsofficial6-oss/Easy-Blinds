@@ -49,7 +49,7 @@ export default function NewJobPage() {
         scheduledAt: buildScheduledAt(formData.get("scheduledDate"), formData.get("scheduledTime")),
       });
 
-      toast.success("Job created and saved to MongoDB.");
+      toast.success("Job created and saved successfully.");
       router.push("/sales-manager/assignments");
       router.refresh();
     } catch (error) {
@@ -67,7 +67,7 @@ export default function NewJobPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-light text-stone-900 dark:text-white">New Job</h1>
-          <p className="text-stone-500 dark:text-neutral-400">Create a real backend job saved in MongoDB.</p>
+          <p className="text-stone-500 dark:text-neutral-400">Create a new job.</p>
         </div>
       </div>
 

@@ -106,10 +106,10 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
             {isSelected && variant === "assignment" && job.recommendedFitters && (
                 <div className="px-5 pb-5 pt-0 animate-in slide-in-from-top-2 fade-in duration-300">
                     <div className="pt-4 border-t border-slate-100">
-                        <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3 flex items-center gap-2">
+                        <div className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3 flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
                             AI Recommended Fitters
-                        </p>
+                        </div>
                         <div className="space-y-2">
                             {job.recommendedFitters.map((rec, i) => (
                                 <div key={rec.id} className="group/fitter flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-amber-500/50 hover:bg-white hover:shadow-md transition-all cursor-pointer" onClick={(e) => { e.stopPropagation(); onAction && onAction("assign", rec.id); }}>
