@@ -182,7 +182,16 @@ function createCustomIcon(
     .toUpperCase() || (role === "Salesman" ? "SM" : "FT");
 
   const html = renderToStaticMarkup(
-    <div className="relative flex items-center justify-center w-[60px] h-[60px]">
+    <div
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "60px",
+        height: "60px",
+      }}
+    >
       {isPulsing && (
         <div
           style={{
@@ -321,6 +330,12 @@ export default function FitterMap({
             transform: scale(1.5);
             opacity: 0;
           }
+        }
+
+        .custom-map-marker {
+          background: transparent !important;
+          border: 0 !important;
+          overflow: visible !important;
         }
       `;
       document.head.appendChild(style);
