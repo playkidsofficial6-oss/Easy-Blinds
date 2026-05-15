@@ -1,188 +1,255 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
+import { addDays, format, isSameDay, parseISO } from "date-fns";
+
+import { getJobs, type Job } from "./jobs";
+import { getUsers, updateUser, type UserRecord } from "./users";
 
 export type FitterStatus = "On the way" | "In progress" | "Completed" | "Offline" | "Fully Booked" | "Available";
 
 export interface FitterEvent {
-    id: string;
-    type: 'status_change' | 'check_in' | 'completion';
-    action: string;
-    time: string;
-    location: string;
-    coordinates: [number, number];
+  id: string;
+  type: "status_change" | "check_in" | "completion";
+  action: string;
+  time: string;
+  location: string;
+  coordinates?: [number, number];
 }
 
 export interface FitterJob {
-    id: string;
-    client: string;
-    address: string;
-    time: string; // Start time e.g. "08:00"
-    endTime: string; // Calculated (Start + 2hrs)
-    status: "Pending" | "In Progress" | "Done";
-    fabric?: string;
-    rooms?: string[];
-    coordinates?: [number, number];
-    // Rich Data Fields
-    value?: number;
-    email?: string;
-    phone?: string;
-    notes?: string;
-    brand?: string;
-    property?: string;
-    productType?: "Curtains" | "Blinds" | "Shutters" | "Awning";
-    priority?: "High" | "Medium" | "Low";
+  id: string;
+  client: string;
+  address: string;
+  time: string;
+  endTime: string;
+  status: "Pending" | "In Progress" | "Done";
+  fabric?: string;
+  rooms?: string[];
+  coordinates?: [number, number];
+  value?: number;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  brand?: string;
+  property?: string;
+  productType?: "Curtains" | "Blinds" | "Shutters" | "Awning";
+  priority?: "High" | "Medium" | "Low";
 }
 
 export interface Fitter {
-    id: string;
-    name: string;
-    jobRef: string;
-    status: FitterStatus;
-    location: [number, number];
-    lastUpdated: string;
-    avatar?: string;
-    history: FitterEvent[];
-    schedule: {
-        today: FitterJob[];
-        yesterday: FitterJob[];
-        tomorrow: FitterJob[];
-        upcoming: FitterJob[];
-    }
-    currentJobStartTime?: number | null;
-
-    // Smart Capacity Fields
-    capacity: {
-        max: number; // 5
-        current: number; // calculated
-        remaining: number;
-    };
-    nextAvailableSlot: string; // e.g. "14:00" or "None"
+  id: string;
+  name: string;
+  jobRef: string;
+  status: FitterStatus;
+  location?: [number, number];
+  locationLabel?: string;
+  lastUpdated: string;
+  avatar?: string;
+  email?: string;
+  phone?: string;
+  history: FitterEvent[];
+  schedule: {
+    today: FitterJob[];
+    yesterday: FitterJob[];
+    tomorrow: FitterJob[];
+    upcoming: FitterJob[];
+  };
+  currentJobStartTime?: number | null;
+  capacity: {
+    max: number;
+    current: number;
+    remaining: number;
+  };
+  nextAvailableSlot: string;
 }
 
-// Helper to generate slots: 08:00, 10:00, 12:00, 14:00, 16:00
 const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
+const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
-const INITIAL_FITTERS: Fitter[] = [
-    {
-        id: "1",
-        name: "Mr Zishan",
-        jobRef: "JOB-2024-001",
-        status: "In progress", // Currently working
-        location: [25.1972, 55.2744],
-        lastUpdated: "2m ago",
-        currentJobStartTime: Date.now() - 1000 * 60 * 45,
-        avatar: "https://randomuser.me/api/portraits/men/1.jpg",
-        history: [],
-        schedule: {
-            yesterday: [],
-            today: [
-                { id: 'j1', client: 'Burj Khalifa', address: 'Downtown Dubai', time: '08:00', endTime: '10:00', status: 'Done', coordinates: [25.1970, 55.2740], value: 15000, email: "admin@burj.ae", phone: "+971 4 888 8888", brand: "Oceana", property: "Commercial", productType: "Blinds", priority: "High" },
-                { id: 'j2', client: 'Villa 14', address: 'Villa 14, Dist 7, Jumeirah Park', time: '10:00', endTime: '12:00', status: 'In Progress', coordinates: [25.1972, 55.2744], value: 12500, email: "owner@villa14.com", phone: "+971 50 123 4567", brand: "Easy Blinds", property: "Villa", productType: "Curtains", priority: "Medium" }
-            ],
-            tomorrow: [],
-            upcoming: []
-        },
-        capacity: { max: 5, current: 2, remaining: 3 },
-        nextAvailableSlot: "12:00"
-    },
-    {
-        id: "2",
-        name: "Mr Ikram",
-        jobRef: "JOB-2024-002",
-        status: "On the way",
-        location: [25.0773, 55.1388],
-        lastUpdated: "5m ago",
-        avatar: "https://randomuser.me/api/portraits/men/32.jpg",
-        history: [],
-        schedule: {
-            yesterday: [],
-            today: [
-                { id: 'j3', client: 'Marina Apt', address: 'Apt 2201, Marina Gate 1, Dubai Marina', time: '10:00', endTime: '12:00', status: 'Pending', coordinates: [25.0773, 55.1388], value: 8300, email: "sarah@example.com", phone: "+971 55 987 6543", brand: "My Thread", property: "Apartment", productType: "Blinds", priority: "Low" }
-            ],
-            tomorrow: [],
-            upcoming: []
-        },
-        capacity: { max: 5, current: 1, remaining: 4 },
-        nextAvailableSlot: "12:00" // Assuming 08:00 passed or skipped
-    },
-    {
-        id: "3",
-        name: "Mr Sulyman",
-        jobRef: "JOB-2024-003",
-        status: "Fully Booked", // Logic test
-        location: [25.2769, 55.2962],
-        lastUpdated: "1h ago",
-        avatar: "https://randomuser.me/api/portraits/men/44.jpg",
-        history: [],
-        schedule: {
-            yesterday: [],
-            today: [
-                { id: 'j4', client: 'Job A', address: 'Deira', time: '08:00', endTime: '10:00', status: 'Done' },
-                { id: 'j5', client: 'Job B', address: 'Deira', time: '10:00', endTime: '12:00', status: 'Done' },
-                { id: 'j6', client: 'Job C', address: 'Deira', time: '12:00', endTime: '14:00', status: 'In Progress' },
-                { id: 'j7', client: 'Job D', address: 'Deira', time: '14:00', endTime: '16:00', status: 'Pending' },
-                { id: 'j8', client: 'Job E', address: 'Deira', time: '16:00', endTime: '18:00', status: 'Pending' }
-            ],
-            tomorrow: [],
-            upcoming: []
-        },
-        capacity: { max: 5, current: 5, remaining: 0 },
-        nextAvailableSlot: "None"
-    },
-    {
-        id: "4",
-        name: "Mr Irtza",
-        jobRef: "--",
-        status: "Available", // Free
-        location: [25.1124, 55.3904],
-        lastUpdated: "Just now",
-        avatar: "https://randomuser.me/api/portraits/men/5.jpg",
-        history: [],
-        schedule: { yesterday: [], today: [], tomorrow: [], upcoming: [] },
-        capacity: { max: 5, current: 0, remaining: 5 },
-        nextAvailableSlot: "10:00" // Assuming current time allows
-    }
-];
+function isFitterUser(user: UserRecord) {
+  return user.role === "fitter";
+}
 
-const STORAGE_KEY = "eb_live_fitters_v4"; // Bump payload version
+function extractAssignedFitter(job: Job) {
+  const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
+  return match?.[1]?.trim();
+}
+
+function isAssignedToFitter(job: Job, fitter: UserRecord) {
+  const assignedName = extractAssignedFitter(job);
+  if (!assignedName) return false;
+
+  return assignedName.toLowerCase() === fitter.name.toLowerCase();
+}
+
+function isJobForDate(job: Job, date: Date) {
+  if (!job.scheduledAt) return false;
+
+  try {
+    return isSameDay(parseISO(job.scheduledAt), date);
+  } catch {
+    return false;
+  }
+}
+
+function toDisplayTime(value?: string) {
+  if (!value) return "";
+
+  try {
+    return format(parseISO(value), "HH:mm");
+  } catch {
+    return "";
+  }
+}
+
+function toDisplayEndTime(value?: string) {
+  if (!value) return "";
+
+  try {
+    const start = parseISO(value);
+    return format(new Date(start.getTime() + 2 * 60 * 60 * 1000), "HH:mm");
+  } catch {
+    return "";
+  }
+}
+
+function toFitterJob(job: Job): FitterJob {
+  return {
+    id: job._id,
+    client: job.customerName,
+    address: job.address,
+    time: toDisplayTime(job.scheduledAt),
+    endTime: toDisplayEndTime(job.scheduledAt),
+    status: job.status === "completed" ? "Done" : job.status === "in_progress" ? "In Progress" : "Pending",
+    value: job.quantity * 1000,
+    email: job.customerEmail,
+    phone: job.customerPhone,
+    notes: job.notes,
+    brand: "Easy Blinds",
+    property: `Qty ${job.quantity}`,
+    productType: normalizeProductType(job.productType),
+    priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
+  };
+}
+
+function normalizeProductType(productType: string): FitterJob["productType"] {
+  const normalized = productType.toLowerCase();
+
+  if (normalized.includes("curtain")) return "Curtains";
+  if (normalized.includes("shutter")) return "Shutters";
+  if (normalized.includes("awning")) return "Awning";
+  return "Blinds";
+}
+
+function getLastUpdated(user: UserRecord) {
+  const source = user.location?.updatedAt ?? user.updatedAt;
+  if (!source) return "Not updated";
+
+  try {
+    return format(parseISO(source), "MMM d, HH:mm");
+  } catch {
+    return "Not updated";
+  }
+}
+
+function getStatus(user: UserRecord, todayJobs: FitterJob[], capacityRemaining: number): FitterStatus {
+  if (capacityRemaining <= 0) return "Fully Booked";
+  if (todayJobs.some((job) => job.status === "In Progress")) return "In progress";
+  if (todayJobs.some((job) => job.status === "Pending")) return "On the way";
+  if (user.liveStatus === "Offline") return "Offline";
+  if (user.liveStatus === "Completed") return "Completed";
+  return "Available";
+}
+
+function getCurrentJobStartTime(jobs: Job[]) {
+  const activeJob = jobs.find((job) => job.status === "in_progress" && job.scheduledAt);
+  if (!activeJob?.scheduledAt) return null;
+
+  try {
+    return parseISO(activeJob.scheduledAt).getTime();
+  } catch {
+    return null;
+  }
+}
+
+function buildFitter(user: UserRecord, jobs: Job[]): Fitter {
+  const today = new Date();
+  const tomorrow = addDays(today, 1);
+  const assignedJobs = jobs.filter((job) => ["scheduled", "in_progress", "completed"].includes(job.status) && isAssignedToFitter(job, user));
+  const todayJobs = assignedJobs.filter((job) => isJobForDate(job, today)).map(toFitterJob);
+  const tomorrowJobs = assignedJobs.filter((job) => isJobForDate(job, tomorrow)).map(toFitterJob);
+  const upcomingJobs = assignedJobs
+    .filter((job) => job.scheduledAt && !isJobForDate(job, today) && !isJobForDate(job, tomorrow))
+    .map(toFitterJob);
+  const maxCapacity = user.maxDailyJobs ?? 5;
+  const currentCapacity = todayJobs.length;
+  const remainingCapacity = Math.max(0, maxCapacity - currentCapacity);
+  const busySlots = todayJobs.map((job) => job.time).filter(Boolean);
+  const nextAvailableSlot = TIME_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
+  const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending");
+  const location = user.location ? ([user.location.lat, user.location.lng] as [number, number]) : undefined;
+
+  return {
+    id: user._id,
+    name: user.name,
+    jobRef: activeJob?.id ?? "--",
+    status: getStatus(user, todayJobs, remainingCapacity),
+    location,
+    locationLabel: user.location?.address,
+    lastUpdated: getLastUpdated(user),
+    avatar: user.avatar,
+    email: user.email,
+    phone: user.phone,
+    history: [],
+    schedule: {
+      yesterday: [],
+      today: todayJobs,
+      tomorrow: tomorrowJobs,
+      upcoming: upcomingJobs,
+    },
+    currentJobStartTime: getCurrentJobStartTime(assignedJobs),
+    capacity: {
+      max: maxCapacity,
+      current: currentCapacity,
+      remaining: remainingCapacity,
+    },
+    nextAvailableSlot,
+  };
+}
 
 export function useLiveFitters() {
-    const [fitters, setFitters] = useState<Fitter[]>([]);
-    const [isLoaded, setIsLoaded] = useState(false);
+  const [fitters, setFitters] = useState<Fitter[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            setFitters(JSON.parse(stored));
-        } else {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_FITTERS));
-            setFitters(INITIAL_FITTERS);
-        }
-        setIsLoaded(true);
-    }, []);
+  const loadFitters = useCallback(async () => {
+    setIsLoaded(false);
+    setError(null);
 
-    const updateFitterStatus = useCallback((fitterId: string, status: FitterStatus) => {
-        setFitters((currentFitters) => {
-            const nextFitters = currentFitters.map((fitter) =>
-                fitter.id === fitterId
-                    ? {
-                          ...fitter,
-                          status,
-                          lastUpdated: "Just now",
-                      }
-                    : fitter,
-            );
+    try {
+      const [users, jobsResponse] = await Promise.all([getUsers(), getJobs({ limit: 500 })]);
+      const fitterUsers = users.filter(isFitterUser);
+      setFitters(fitterUsers.map((user) => buildFitter(user, jobsResponse.items)));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Unable to load live fitter data from backend.");
+      setFitters([]);
+    } finally {
+      setIsLoaded(true);
+    }
+  }, []);
 
-            if (typeof window !== "undefined") {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(nextFitters));
-            }
+  useEffect(() => {
+    loadFitters();
+  }, [loadFitters]);
 
-            return nextFitters;
-        });
-    }, []);
+  const updateFitterStatus = useCallback(
+    async (fitterId: string, status: FitterStatus) => {
+      await updateUser(fitterId, { liveStatus: status });
+      await loadFitters();
+    },
+    [loadFitters],
+  );
 
-    return { fitters, updateFitterStatus, isLoaded };
+  return { fitters, updateFitterStatus, isLoaded, error, reload: loadFitters };
 }
