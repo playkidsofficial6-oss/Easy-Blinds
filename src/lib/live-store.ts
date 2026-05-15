@@ -3,9 +3,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { addDays, format, isSameDay, parseISO } from "date-fns";
 
-import { type FitterProfileRecord, type FitterProfileStatus } from "./fitters-api";
+import {
+  getFitters,
+  type FitterProfileRecord,
+  type FitterProfileStatus,
+} from "./fitters-api";
 import { getJobs, type Job } from "./jobs";
 import { getUsers, updateUser, type UserRecord } from "./users";
+import { getAllLiveLocations } from "@/services/api";
+import {
+  disconnectSocket,
+  listenToLocationUpdates,
+} from "@/services/socket";
+import type {
+  LiveLocationPresenceEvent,
+  LiveLocationRecord,
+} from "@/types/live-location";
 
 export type FitterStatus = "On the way" | "In progress" | "Completed" | "Offline" | "Fully Booked" | "Available";
 
@@ -139,8 +152,7 @@ function normalizeProductType(productType?: string): FitterJob["productType"] {
   return "Blinds";
 }
 
-function getLastUpdated(profile: FitterProfileRecord) {
-  const source = profile.location?.updatedAt ?? profile.updatedAt ?? profile.user.location?.updatedAt ?? profile.user.updatedAt;
+function toReadableLastUpdated(source?: string) {
   if (!source) return "Not updated";
 
   try {
@@ -150,6 +162,20 @@ function getLastUpdated(profile: FitterProfileRecord) {
   }
 }
 
+function getLastUpdated(
+  profile: FitterProfileRecord,
+  liveLocation?: LiveLocationRecord,
+) {
+  return toReadableLastUpdated(
+    liveLocation?.lastUpdatedAt ??
+      liveLocation?.updatedAt ??
+      profile.location?.updatedAt ??
+      profile.updatedAt ??
+      profile.user.location?.updatedAt ??
+      profile.user.updatedAt,
+  );
+}
+
 function toLiveStatus(status: FitterProfileStatus): FitterStatus {
   if (status === "fully_booked") return "Fully Booked";
   if (status === "in_progress") return "In progress";
@@ -157,7 +183,13 @@ function toLiveStatus(status: FitterProfileStatus): FitterStatus {
   return "Available";
 }
 
-function getStatus(profile: FitterProfileRecord, todayJobs: FitterJob[], capacityRemaining: number): FitterStatus {
+function getStatus(
+  profile: FitterProfileRecord,
+  todayJobs: FitterJob[],
+  capacityRemaining: number,
+  liveLocation?: LiveLocationRecord,
+): FitterStatus {
+  if (liveLocation && !liveLocation.isOnline) return "Offline";
   if (capacityRemaining <= 0) return "Fully Booked";
   if (todayJobs.some((job) => job.status === "In Progress")) return "In progress";
   if (todayJobs.some((job) => job.status === "Pending")) return "On the way";
@@ -177,7 +209,11 @@ function getCurrentJobStartTime(jobs: Job[]) {
   }
 }
 
-function buildFitter(profile: FitterProfileRecord, jobs: Job[]): Fitter {
+function buildFitter(
+  profile: FitterProfileRecord,
+  jobs: Job[],
+  liveLocation?: LiveLocationRecord,
+): Fitter {
   const user = profile.user;
   const today = new Date();
   const tomorrow = addDays(today, 1);
@@ -193,16 +229,20 @@ function buildFitter(profile: FitterProfileRecord, jobs: Job[]): Fitter {
   const busySlots = todayJobs.map((job) => job.time).filter(Boolean);
   const nextAvailableSlot = TIME_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
   const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending");
-  const location = profile.location ? ([profile.location.lat, profile.location.lng] as [number, number]) : undefined;
+  const location = liveLocation
+    ? ([liveLocation.lat, liveLocation.lng] as [number, number])
+    : profile.location
+      ? ([profile.location.lat, profile.location.lng] as [number, number])
+      : undefined;
 
   return {
     id: user._id,
     name: user.name,
     jobRef: activeJob?.id ?? "--",
-    status: getStatus(profile, todayJobs, remainingCapacity),
+    status: getStatus(profile, todayJobs, remainingCapacity, liveLocation),
     location,
     locationLabel: profile.location?.address,
-    lastUpdated: getLastUpdated(profile),
+    lastUpdated: getLastUpdated(profile, liveLocation),
     avatar: user.avatar,
     email: user.email,
     phone: profile.phone ?? user.phone,
@@ -223,6 +263,56 @@ function buildFitter(profile: FitterProfileRecord, jobs: Job[]): Fitter {
   };
 }
 
+function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
+  return users
+    .filter((user) => user.role === "fitter")
+    .map((user) => ({
+      userId: user._id,
+      user,
+      phone: user.phone,
+      location: user.location,
+      status: "available",
+      capacity: user.maxDailyJobs || 5,
+      skills: [],
+    }));
+}
+
+function applyLiveLocationToFitters(
+  currentFitters: Fitter[],
+  liveLocation: LiveLocationRecord,
+): Fitter[] {
+  return currentFitters.map((fitter) =>
+    fitter.id === liveLocation.userId
+      ? {
+          ...fitter,
+          location: [liveLocation.lat, liveLocation.lng],
+          status: liveLocation.isOnline ? fitter.status : "Offline",
+          lastUpdated: toReadableLastUpdated(
+            liveLocation.lastUpdatedAt ?? liveLocation.updatedAt,
+          ),
+        }
+      : fitter,
+  );
+}
+
+function applyPresenceToFitters(
+  currentFitters: Fitter[],
+  event: LiveLocationPresenceEvent,
+  isOnline: boolean,
+): Fitter[] {
+  return currentFitters.map((fitter) =>
+    fitter.id === event.userId
+      ? {
+          ...fitter,
+          status: isOnline && fitter.status === "Offline" ? "Available" : isOnline ? fitter.status : "Offline",
+          lastUpdated: event.timestamp
+            ? toReadableLastUpdated(event.timestamp)
+            : fitter.lastUpdated,
+        }
+      : fitter,
+  );
+}
+
 export function useLiveFitters() {
   const [fitters, setFitters] = useState<Fitter[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -233,8 +323,6 @@ export function useLiveFitters() {
     setError(null);
 
     try {
-      // Fetch users (fitters) and jobs separately so one failure doesn't kill the other
-      const allUsers = await getUsers();
       let jobItems: Job[] = [];
       try {
         const jobsResponse = await getJobs({ limit: 500 });
@@ -243,18 +331,32 @@ export function useLiveFitters() {
         console.warn("[useLiveFitters] Could not load jobs, fitters will show with empty schedules:", jobErr);
       }
 
-      const fitterProfiles: FitterProfileRecord[] = allUsers
-        .filter((user) => user.role === "fitter")
-        .map((user) => ({
-          userId: user._id,
-          user,
-          phone: user.phone,
-          location: user.location,
-          status: "available",
-          capacity: user.maxDailyJobs || 5,
-          skills: [],
-        }));
-      setFitters(fitterProfiles.map((profile) => buildFitter(profile, jobItems)));
+      let fitterProfiles: FitterProfileRecord[] = [];
+      try {
+        fitterProfiles = await getFitters();
+      } catch (fittersErr) {
+        console.warn("[useLiveFitters] Could not load /fitters, falling back to /users:", fittersErr);
+        const allUsers = await getUsers();
+        fitterProfiles = buildProfilesFromUsers(allUsers);
+      }
+
+      let liveLocations: LiveLocationRecord[] = [];
+      try {
+        liveLocations = await getAllLiveLocations();
+      } catch (locationErr) {
+        console.warn("[useLiveFitters] Could not load live locations, using fitter profile locations:", locationErr);
+      }
+
+      const liveLocationByUserId = liveLocations.reduce<Record<string, LiveLocationRecord>>((accumulator, liveLocation) => {
+        accumulator[liveLocation.userId] = liveLocation;
+        return accumulator;
+      }, {});
+
+      setFitters(
+        fitterProfiles.map((profile) =>
+          buildFitter(profile, jobItems, liveLocationByUserId[profile.userId]),
+        ),
+      );
     } catch (loadError) {
       console.error("[useLiveFitters] Failed to load fitters:", loadError);
       setError(loadError instanceof Error ? loadError.message : "Unable to load live fitter data from backend.");
@@ -267,6 +369,34 @@ export function useLiveFitters() {
   useEffect(() => {
     loadFitters();
   }, [loadFitters]);
+
+  useEffect(() => {
+    const cleanupListeners = listenToLocationUpdates({
+      onLocationUpdated: (liveLocation) => {
+        setFitters((currentFitters) =>
+          applyLiveLocationToFitters(currentFitters, liveLocation),
+        );
+      },
+      onUserOnline: (event) => {
+        setFitters((currentFitters) =>
+          applyPresenceToFitters(currentFitters, event, true),
+        );
+      },
+      onUserOffline: (event) => {
+        setFitters((currentFitters) =>
+          applyPresenceToFitters(currentFitters, event, false),
+        );
+      },
+      onError: (socketError) => {
+        console.warn("[useLiveFitters] Live-location socket error:", socketError);
+      },
+    });
+
+    return () => {
+      cleanupListeners();
+      disconnectSocket();
+    };
+  }, []);
 
   const updateFitterStatus = useCallback(
     async (fitterId: string, status: FitterStatus) => {
