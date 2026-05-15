@@ -189,7 +189,7 @@ export default function ReviewPage() {
     const stats = {
         total: filteredReviews.length,
         posted: filteredReviews.filter(r => r.status === "posted").length,
-        notPosted: filteredReviews.filter(r => r.status === "not-posted").length
+        notPosted: filteredReviews.filter(r => r.status === "pending").length
     };
 
     return (

@@ -172,12 +172,12 @@ export default function TeamPage() {
                             <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-neutral-500">Conversion Rate</span>
-                                    <span className="font-medium text-neutral-900 dark:text-white">{stat.rate}%</span>
+                                    <span className="font-medium text-neutral-900 dark:text-white">{stat.conversionRate}%</span>
                                 </div>
                                 <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
                                     <div
                                         className={`h-full ${i === 0 ? 'bg-amber-500' : 'bg-neutral-500'} transition-all duration-500`}
-                                        style={{ width: `${stat.rate}%` }}
+                                        style={{ width: `${stat.conversionRate}%` }}
                                     ></div>
                                 </div>
                             </div>

@@ -23,12 +23,12 @@ export function Navbar() {
                         </Link>
                     </div>
                     <div className="flex items-center gap-4">
-                        <Link href="/dashboard">
+                        <Link href="/login">
                             <Button variant="ghost" className="text-neutral-600 hover:text-neutral-900">
                                 Log in
                             </Button>
                         </Link>
-                        <Link href="/dashboard">
+                        <Link href="/register">
                             <Button className="bg-neutral-900 text-white hover:bg-neutral-800 rounded-full px-6">
                                 Get Started
                             </Button>

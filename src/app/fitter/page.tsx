@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { format, parse, isPast, isToday } from "date-fns";
-import { MapPin, Navigation, ChevronRight, CheckCircle, Clock, Calendar, ArrowLeft, Camera, ShieldCheck, Ruler, ClipboardList, Info, AlertCircle, X, Check, Menu, Timer, Wallet, AlertTriangle } from "lucide-react";
+import { format, parse, isPast } from "date-fns";
+import { MapPin, Navigation, CheckCircle, Clock, ArrowLeft, Camera, Ruler, ClipboardList, Info, AlertCircle, X, Check, Timer, Wallet, AlertTriangle } from "lucide-react";
 import { useLiveFitters, FitterJob, FitterStatus } from "@/lib/live-store";
+import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
+import { updateLiveLocation } from "@/services/api/live-location";
 
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
     ssr: false,
@@ -15,11 +17,12 @@ const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
 type Tab = "today" | "tomorrow" | "upcoming" | "completed";
 
 export default function FitterPage() {
+    const { user } = useAuth();
     const { fitters, updateFitterStatus } = useLiveFitters();
     const [activeTab, setActiveTab] = useState<Tab>("today");
     const [selectedJob, setSelectedJob] = useState<FitterJob | null>(null);
 
-    const currentFitter = fitters.find(f => f.id === "1");
+    const currentFitter = user?.role === "fitter" ? fitters.find(f => f.id === user._id) : null;
 
     if (!currentFitter) return <div className="p-8 text-center text-slate-500 font-light">Loading Fitter Data...</div>;
 
@@ -54,7 +57,8 @@ export default function FitterPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 sm:gap-6">
+                    <FitterGpsControl />
                     <div className="text-right hidden sm:block">
                         <div className="text-sm font-medium text-white">{currentFitter.name}</div>
                         <div className="text-xs text-slate-400 font-light">{format(new Date(), "EEEE, d MMM")}</div>
@@ -140,6 +144,162 @@ export default function FitterPage() {
     );
 }
 
+type GpsTrackingStatus = "idle" | "requesting" | "tracking" | "error";
+
+interface GpsSnapshot {
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    syncedAt?: string;
+}
+
+function FitterGpsControl() {
+    const [status, setStatus] = useState<GpsTrackingStatus>("idle");
+    const [lastFix, setLastFix] = useState<GpsSnapshot | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const watchIdRef = useRef<number | null>(null);
+    const lastFixRef = useRef<GpsSnapshot | null>(null);
+    const mountedRef = useRef(true);
+
+    useEffect(() => {
+        return () => {
+            mountedRef.current = false;
+
+            if (watchIdRef.current !== null && "geolocation" in navigator) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+        };
+    }, []);
+
+    const stopTracking = async () => {
+        if (watchIdRef.current !== null && "geolocation" in navigator) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+        }
+
+        setStatus("idle");
+
+        const lastKnownFix = lastFixRef.current;
+        if (!lastKnownFix) return;
+
+        try {
+            await updateLiveLocation({
+                lat: lastKnownFix.lat,
+                lng: lastKnownFix.lng,
+                accuracy: lastKnownFix.accuracy,
+                isOnline: false,
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
+            setErrorMessage(message);
+        }
+    };
+
+    const startTracking = () => {
+        if (!("geolocation" in navigator)) {
+            setStatus("error");
+            setErrorMessage("This browser does not support GPS location access.");
+            return;
+        }
+
+        if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+        }
+
+        setStatus("requesting");
+        setErrorMessage(null);
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
+            async (position) => {
+                const nextFix: GpsSnapshot = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : undefined,
+                    syncedAt: new Date().toISOString(),
+                };
+
+                lastFixRef.current = nextFix;
+                setLastFix(nextFix);
+
+                try {
+                    await updateLiveLocation({
+                        lat: nextFix.lat,
+                        lng: nextFix.lng,
+                        accuracy: nextFix.accuracy,
+                        speed: typeof position.coords.speed === "number" ? position.coords.speed : undefined,
+                        heading: typeof position.coords.heading === "number" ? position.coords.heading : undefined,
+                        isOnline: true,
+                    });
+
+                    if (!mountedRef.current) return;
+                    setStatus("tracking");
+                    setErrorMessage(null);
+                } catch (error) {
+                    if (!mountedRef.current) return;
+                    if (watchIdRef.current !== null) {
+                        navigator.geolocation.clearWatch(watchIdRef.current);
+                        watchIdRef.current = null;
+                    }
+
+                    const message = error instanceof Error ? error.message : "Unable to save your GPS location.";
+                    setStatus("error");
+                    setErrorMessage(message);
+                }
+            },
+            (error) => {
+                const message = error.code === error.PERMISSION_DENIED
+                    ? "GPS permission was denied. Please allow location access for this site."
+                    : error.message || "Unable to read GPS location.";
+
+                if (watchIdRef.current !== null) {
+                    navigator.geolocation.clearWatch(watchIdRef.current);
+                    watchIdRef.current = null;
+                }
+
+                setStatus("error");
+                setErrorMessage(message);
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 20000,
+            },
+        );
+    };
+
+    const isTracking = status === "tracking" || status === "requesting";
+    const statusLabel = status === "requesting"
+        ? "Starting GPS"
+        : status === "tracking"
+            ? "GPS On"
+            : status === "error"
+                ? "GPS Error"
+                : "Enable GPS";
+
+    return (
+        <div className="flex flex-col items-end gap-1">
+            <button
+                type="button"
+                onClick={isTracking ? stopTracking : startTracking}
+                className={cn(
+                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-colors",
+                    status === "tracking" ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20" :
+                        status === "error" ? "border-red-400/40 bg-red-500/10 text-red-200 hover:bg-red-500/20" :
+                            "border-blue-400/40 bg-blue-500/10 text-blue-100 hover:bg-blue-500/20",
+                )}
+            >
+                {status === "tracking" ? <CheckCircle className="h-4 w-4" /> : status === "error" ? <AlertCircle className="h-4 w-4" /> : <Navigation className="h-4 w-4" />}
+                {statusLabel}
+            </button>
+            <div className="max-w-[240px] text-right text-[10px] font-light text-slate-400">
+                {errorMessage ? errorMessage : lastFix ? `Synced ${lastFix.lat.toFixed(5)}, ${lastFix.lng.toFixed(5)}` : "Share location with sales manager"}
+            </div>
+        </div>
+    );
+}
+
 function calculateIsLate(jobTime: string, status: string) {
     if (status === "Done" || status === "In Progress" || status === "Completed") return false;
 
@@ -151,7 +311,7 @@ function calculateIsLate(jobTime: string, status: string) {
         // If current time > job time + 15 mins buffer, it's late
         const fifteenMinsAfter = new Date(jobDate.getTime() + 15 * 60000);
         return isPast(fifteenMinsAfter);
-    } catch (e) {
+    } catch {
         return false;
     }
 }
@@ -221,23 +381,29 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (job.status === "In Progress" && jobStartTime) {
-            const updateTimer = () => {
-                const now = Date.now();
-                const diff = Math.max(0, now - jobStartTime);
-                const hrs = Math.floor(diff / 3600000);
-                const mins = Math.floor((diff % 3600000) / 60000);
-                const secs = Math.floor((diff % 60000) / 1000);
-                setElapsedTime(
-                    `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-                );
-            };
-            updateTimer();
-            interval = setInterval(updateTimer, 1000);
-        } else {
-            setElapsedTime("00:00:00");
-        }
-        return () => clearInterval(interval);
+        const timeout = setTimeout(() => {
+            if (job.status === "In Progress" && jobStartTime) {
+                const updateTimer = () => {
+                    const now = Date.now();
+                    const diff = Math.max(0, now - jobStartTime);
+                    const hrs = Math.floor(diff / 3600000);
+                    const mins = Math.floor((diff % 3600000) / 60000);
+                    const secs = Math.floor((diff % 60000) / 1000);
+                    setElapsedTime(
+                        `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+                    );
+                };
+                updateTimer();
+                interval = setInterval(updateTimer, 1000);
+            } else {
+                setElapsedTime("00:00:00");
+            }
+        }, 0);
+
+        return () => {
+            clearTimeout(timeout);
+            clearInterval(interval);
+        };
     }, [job.status, jobStartTime]);
 
     const coordinates = job.coordinates || [25.1972, 55.2744];

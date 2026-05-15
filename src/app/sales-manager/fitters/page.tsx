@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { MOCK_TEAM } from "@/lib/data/team";
+import { useMemo, useState, type ComponentProps } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, MapPin, Clock, CheckCircle2, Phone, MoreHorizontal, Plus, UserPlus } from "lucide-react";
+import { Star, MapPin, Phone, MoreHorizontal, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -20,9 +18,32 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { FitterDetailsSheet } from "@/components/sales/fitter-details-sheet";
+import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
+
+function toLocationLabel(fitter: Fitter) {
+    if (fitter.locationLabel) return fitter.locationLabel;
+    if (fitter.location) return `${fitter.location[0].toFixed(5)}, ${fitter.location[1].toFixed(5)}`;
+    return undefined;
+}
+
+function isAssignedStatus(status: Fitter["status"]) {
+    return status === "On the way" || status === "In progress" || status === "Fully Booked";
+}
+
+function toScheduleItem(job: FitterJob, date: string) {
+    return {
+        id: job.id,
+        client: job.client,
+        area: job.address,
+        status: job.status === "Done" ? "Completed" : job.status,
+        time: job.time,
+        date,
+        type: job.productType ?? "Job",
+    };
+}
 
 export default function FittersPage() {
-    const [fitters, setFitters] = useState(MOCK_TEAM);
+    const { fitters: liveFitters } = useLiveFitters();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [newFitter, setNewFitter] = useState({
         name: "",
@@ -30,44 +51,53 @@ export default function FittersPage() {
         phone: "",
         status: "Available"
     });
-    const [selectedFitter, setSelectedFitter] = useState<any>(null); // State for selected fitter details
+    const [selectedFitter, setSelectedFitter] = useState<ComponentProps<typeof FitterDetailsSheet>["fitter"]>(null);
+
+    const fitters = useMemo(() => liveFitters.map((fitter) => {
+        const completedJobs = [
+            ...fitter.schedule.today,
+            ...fitter.schedule.yesterday,
+            ...fitter.schedule.tomorrow,
+            ...fitter.schedule.upcoming,
+        ].filter((job) => job.status === "Done");
+
+        return {
+            ...fitter,
+            role: "Fitter",
+            location: toLocationLabel(fitter),
+            todayVisits: fitter.schedule.today.length,
+            completedToday: fitter.schedule.today.filter((job) => job.status === "Done").length,
+            upcomingVisits: [...fitter.schedule.tomorrow, ...fitter.schedule.upcoming],
+            totalCompleted: completedJobs.length,
+            rating: undefined,
+            onTimeRate: undefined,
+            reviews: undefined,
+                        schedule: {
+                history: [],
+                today: fitter.schedule.today.map((job) => toScheduleItem(job, "Today")),
+                upcoming: [
+                    ...fitter.schedule.tomorrow.map((job) => toScheduleItem(job, "Tomorrow")),
+                    ...fitter.schedule.upcoming.map((job) => toScheduleItem(job, "Upcoming")),
+                ],
+            },
+
+        };
+    }), [liveFitters]);
 
     const handleAddFitter = () => {
-        if (!newFitter.name || !newFitter.phone) {
-            toast.error("Please fill in all required fields");
-            return;
-        }
-
-        const newTeamMember = {
-            id: `T${Math.floor(Math.random() * 1000)} `,
-            name: newFitter.name,
-            role: newFitter.role,
-            avatar: "/placeholder.jpg",
-            todayVisits: 0,
-            completedToday: 0,
-            upcomingVisits: [],
-            totalCompleted: 0,
-            phone: newFitter.phone,
-            status: newFitter.status,
-            location: "N/A",
-            rating: 5.0,
-            onTimeRate: 100,
-            reviews: 0
-        };
-
-        setFitters([...fitters, newTeamMember]);
-        setIsAddOpen(false);
-        setNewFitter({ name: "", role: "Fitter", phone: "", status: "Available" });
-        toast.success("New team member added successfully");
+        toast.error("Please create fitter users in the backend so this page stays connected to real data only.");
     };
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "Busy":
+            case "In progress":
+            case "On the way":
+            case "Fully Booked":
                 return "bg-amber-50 text-amber-700 border-amber-200";
             case "Available":
+            case "Completed":
                 return "bg-emerald-50 text-emerald-700 border-emerald-200";
-            case "Off Duty":
+            case "Offline":
                 return "bg-neutral-100 text-neutral-600 border-neutral-200";
             default:
                 return "bg-neutral-50 text-neutral-600 border-neutral-200";
@@ -171,7 +201,7 @@ export default function FittersPage() {
                                         <AvatarImage src={fitter.avatar} />
                                         <AvatarFallback className="bg-neutral-900 text-white text-lg">{fitter.name.split(' ')[1]?.[0] || fitter.name[0]}</AvatarFallback>
                                     </Avatar>
-                                    <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${fitter.status === 'Available' ? 'bg-emerald-500' : fitter.status === 'Busy' ? 'bg-amber-500' : 'bg-neutral-400'}`}></span>
+                                    <span className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-white ${fitter.status === 'Available' ? 'bg-emerald-500' : isAssignedStatus(fitter.status) ? 'bg-amber-500' : 'bg-neutral-400'}`}></span>
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-light text-neutral-900 dark:text-white">{fitter.name}</h3>
@@ -200,11 +230,10 @@ export default function FittersPage() {
                                 </div>
                             </div>
 
-                            {/* Timeline Interaction (Mock) */}
+                            {/* Timeline Interaction */}
                             <div className="flex-1 px-4 md:px-12">
                                 <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full relative overflow-hidden">
-                                    {/* Busy segments mock */}
-                                    {fitter.status === 'Busy' && (
+                                    {isAssignedStatus(fitter.status) && (
                                         <div className="absolute top-0 left-0 h-full w-2/3 bg-amber-200 dark:bg-amber-900/40 rounded-full">
                                             <div className="absolute top-0 right-0 h-full w-20 bg-amber-500 animate-pulse"></div>
                                         </div>
@@ -261,7 +290,7 @@ export default function FittersPage() {
                                         {fitter.name.split(' ')[1]?.[0] || fitter.name[0]}
                                     </div>
                                     <div className="flex items-center gap-1 text-amber-400">
-                                        <span className="text-2xl font-semibold">{fitter.rating}</span>
+                                        <span className="text-2xl font-semibold">{fitter.rating ?? "—"}</span>
                                         <Star className="w-4 h-4 fill-amber-400" />
                                     </div>
                                 </div>
@@ -275,7 +304,7 @@ export default function FittersPage() {
                                         <div className="text-xs uppercase tracking-wider text-neutral-500">Jobs Done</div>
                                     </div>
                                     <div>
-                                        <div className="text-3xl font-light mb-1 text-emerald-400">{fitter.onTimeRate}%</div>
+                                        <div className="text-3xl font-light mb-1 text-emerald-400">{fitter.onTimeRate ?? "—"}{typeof fitter.onTimeRate === "number" ? "%" : ""}</div>
                                         <div className="text-xs uppercase tracking-wider text-neutral-500">On Time</div>
                                     </div>
                                 </div>
@@ -284,6 +313,12 @@ export default function FittersPage() {
                     </Card>
                 ))}
             </div>
+
+            <FitterDetailsSheet
+                fitter={selectedFitter}
+                isOpen={Boolean(selectedFitter)}
+                onClose={() => setSelectedFitter(null)}
+            />
         </div>
     );
 }

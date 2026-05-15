@@ -1,17 +1,16 @@
 "use client";
+/* eslint-disable react-hooks/static-components */
 
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-    LayoutDashboard,
     TrendingUp,
     Users,
     MapPin,
     Settings,
     LogOut,
     BarChart3,
-    Map as MapIcon,
     PieChart,
     Star,
     Award
@@ -21,6 +20,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu } from "lucide-react";
+import { ProtectedRoute } from "@/components/auth/protected-route";
+import { useAuth } from "@/components/providers/auth-provider";
 
 interface OwnerLayoutProps {
     children: React.ReactNode;
@@ -40,6 +41,13 @@ const navItems = [
 export function OwnerLayout({ children }: OwnerLayoutProps) {
     const pathname = usePathname();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const { user, logout } = useAuth();
+    const initials = user?.name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "OW";
 
     const NavContent = () => (
         <div className="flex flex-col h-full bg-neutral-900 text-white">
@@ -83,14 +91,14 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                 <div className="flex items-center gap-3 mb-4">
                     <Avatar>
                         <AvatarImage src="/placeholder-user.jpg" />
-                        <AvatarFallback className="bg-amber-600">OW</AvatarFallback>
+                        <AvatarFallback className="bg-amber-600">{initials}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">
-                            Owner
+                            {user?.name ?? "Owner"}
                         </p>
                         <p className="text-xs text-neutral-400 truncate">
-                            Full Access
+                            {user?.role.replaceAll("_", " ") ?? "Full Access"}
                         </p>
                     </div>
                 </div>
@@ -99,7 +107,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
                     </Button>
-                    <Button variant="ghost" size="sm" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
+                    <Button onClick={() => logout()} variant="ghost" size="sm" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
                         <LogOut className="w-4 h-4 mr-2" />
                         Sign Out
                     </Button>
@@ -109,6 +117,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     );
 
     return (
+        <ProtectedRoute allowedRoles={["owner"]}>
         <div className="min-h-screen bg-neutral-50 flex">
             {/* Desktop Sidebar */}
             <aside className="hidden md:block w-72 border-r border-neutral-200 bg-neutral-900 fixed inset-y-0 z-50">
@@ -140,5 +149,6 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
                 </main>
             </div>
         </div>
+        </ProtectedRoute>
     );
 }

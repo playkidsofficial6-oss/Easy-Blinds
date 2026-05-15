@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle2, MapPin, Search, Menu, Bell, User } from "lucide-react";
+import { ArrowRight, CheckCircle2, MapPin, Search, Bell, User } from "lucide-react";
 
 export function Hero() {
     return (
@@ -25,7 +25,7 @@ export function Hero() {
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 w-full justify-center mb-16">
-                    <Link href="/dashboard">
+                    <Link href="/trial/free">
                         <Button size="lg" className="h-12 px-8 rounded-full text-base bg-neutral-900 hover:bg-neutral-800 text-white w-full sm:w-auto shadow-lg hover:shadow-xl transition-all">
                             Start Free Trial
                             <ArrowRight className="ml-2 w-4 h-4" />
@@ -108,7 +108,7 @@ export function Hero() {
                                 {/* Cards Row */}
                                 <div className="grid grid-cols-3 gap-6 mb-8">
                                     <div className="bg-white p-6 rounded-none border border-neutral-200 shadow-sm relative overflow-hidden">
-                                        <div className="text-sm uppercase tracking-wider text-neutral-500 mb-2">Today's Visits</div>
+                                        <div className="text-sm uppercase tracking-wider text-neutral-500 mb-2">Today&apos;s Visits</div>
                                         <div className="text-4xl font-light text-neutral-900">12</div>
                                     </div>
                                     <div className="bg-white p-6 rounded-none border border-neutral-200 shadow-sm relative overflow-hidden">
