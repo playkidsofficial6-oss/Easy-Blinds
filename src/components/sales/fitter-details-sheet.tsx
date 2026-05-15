@@ -27,7 +27,7 @@ interface Fitter {
     id: string;
     name: string;
     role: string;
-    avatar: string;
+    avatar?: string;
     status: string;
     location?: string;
     phone?: string;
@@ -122,8 +122,8 @@ export function FitterDetailsSheet({ fitter, isOpen, onClose }: FitterDetailsShe
                                     <span>•</span>
                                     <span className={cn(
                                         "capitalize px-2 py-0.5 rounded text-xs font-medium border",
-                                        fitter.status === "Available" ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30" :
-                                            fitter.status === "Busy" ? "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30" :
+                                        fitter.status === "Available" || fitter.status === "Completed" ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-900/30" :
+                                            fitter.status === "In progress" || fitter.status === "On the way" || fitter.status === "Fully Booked" ? "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30" :
                                                 "bg-neutral-100 text-neutral-600 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700"
                                     )}>
                                         {fitter.status}
@@ -140,7 +140,7 @@ export function FitterDetailsSheet({ fitter, isOpen, onClose }: FitterDetailsShe
 
                         <div className="grid grid-cols-3 gap-4 mt-8">
                             <div className="text-center p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-100 dark:border-neutral-800">
-                                <div className="text-xl font-light text-neutral-900 dark:text-white">{fitter.rating}</div>
+                                <div className="text-xl font-light text-neutral-900 dark:text-white">{fitter.rating ?? "—"}</div>
                                 <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium flex items-center justify-center gap-1">
                                     Rating <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                                 </div>
@@ -150,7 +150,7 @@ export function FitterDetailsSheet({ fitter, isOpen, onClose }: FitterDetailsShe
                                 <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium">Jobs Done</div>
                             </div>
                             <div className="text-center p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-neutral-100 dark:border-neutral-800">
-                                <div className="text-xl font-light text-emerald-600 dark:text-emerald-400">{fitter.onTimeRate}%</div>
+                                <div className="text-xl font-light text-emerald-600 dark:text-emerald-400">{fitter.onTimeRate ?? "—"}{typeof fitter.onTimeRate === "number" ? "%" : ""}</div>
                                 <div className="text-[10px] uppercase tracking-wider text-neutral-500 font-medium">On Time</div>
                             </div>
                         </div>

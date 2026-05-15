@@ -142,29 +142,29 @@ export default function FitterMap({ fitters, selectedFitterId, onSelectFitter }:
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        const mountTimer = window.setTimeout(() => setMounted(true), 0);
+
         // Add ping keyframe if not exists
-        if (typeof window !== "undefined") {
-            const style = document.createElement('style');
-            style.innerHTML = `
-                @keyframes ping {
-                    75%, 100% {
-                        transform: scale(1.5);
-                        opacity: 0;
-                    }
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes ping {
+                75%, 100% {
+                    transform: scale(1.5);
+                    opacity: 0;
                 }
-            `;
-            if (!document.getElementById('map-animations')) {
-                style.id = 'map-animations';
-                document.head.appendChild(style);
             }
+        `;
+        if (!document.getElementById('map-animations')) {
+            style.id = 'map-animations';
+            document.head.appendChild(style);
         }
+
+        return () => window.clearTimeout(mountTimer);
     }, []);
 
-    const selectedFitter = fitters.find(f => f.id === selectedFitterId);
-    const center: [number, number] = selectedFitter
-        ? selectedFitter.location
-        : [25.2048, 55.2708]; // Dubai Default
+    const fittersWithLocation = fitters.filter((fitter): fitter is Fitter & { location: [number, number] } => Boolean(fitter.location));
+    const selectedFitter = fittersWithLocation.find(f => f.id === selectedFitterId);
+    const center: [number, number] = selectedFitter?.location ?? fittersWithLocation[0]?.location ?? [25.2048, 55.2708];
 
     if (!mounted) {
         return <div className="h-full w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-wide">INITIALIZING MAP...</div>;
@@ -185,7 +185,7 @@ export default function FitterMap({ fitters, selectedFitterId, onSelectFitter }:
 
             <MapUpdater center={center} />
 
-            {fitters.map((fitter) => {
+            {fittersWithLocation.map((fitter) => {
                 const late = isLate(fitter);
                 return (
                     <Marker
