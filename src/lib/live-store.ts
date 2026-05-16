@@ -267,7 +267,7 @@ function buildFitter(
 
 function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
   return users
-    .filter((user) => user.role === "fitter")
+    .filter((user) => user.role?.toLowerCase() === "fitter")
     .map((user) => ({
       userId: user._id,
       user,

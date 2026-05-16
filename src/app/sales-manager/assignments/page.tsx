@@ -127,7 +127,8 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
 }
 
 function isSalesmanUser(user: UserRecord) {
-  return user.role === "salesman" || user.role === "sales_man";
+  const role = user.role?.toLowerCase() ?? "";
+  return role === "salesman" || role === "sales_man";
 }
 
 function toSalesmanWorkforceMember(user: UserRecord): Fitter {

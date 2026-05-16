@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -17,7 +17,7 @@ import { format, isPast, parse, parseISO } from "date-fns";
 import { useLiveLocation } from "@/hooks";
 import type { LiveLocationRecord } from "@/types/live-location";
 
-const OFFLINE_LOCATION_TIMEOUT_MS = 5 * 60 * 1000;
+const OFFLINE_LOCATION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 type LiveMarkerStatus = "Available" | "Working" | "On The Way" | "Offline";
 type LiveMarkerRole = "Salesman" | "Fitter";
@@ -33,6 +33,8 @@ interface LiveMapMarker {
   lastUpdatedAt?: string;
   isLate: boolean;
   isLiveLocation: boolean;
+  clusterIndex?: number;
+  clusterTotal?: number;
 }
 
 // Check for late status helper (same logic as FitterList)
@@ -170,6 +172,8 @@ function createCustomIcon(
   avatarUrl?: string,
   name?: string,
   role?: LiveMarkerRole,
+  clusterIndex = 0,
+  clusterTotal = 1,
 ) {
   const activeStatus = late ? "Late" : status;
   const config = statusConfig[activeStatus];
@@ -181,6 +185,15 @@ function createCustomIcon(
     .slice(0, 2)
     .toUpperCase() || (role === "Salesman" ? "SM" : "FT");
 
+  let offsetX = 0;
+  let offsetY = 0;
+  if (clusterTotal > 1) {
+    const angle = (clusterIndex / clusterTotal) * Math.PI * 2;
+    // Push them out radially by 32px so they don't perfectly overlap
+    offsetX = Math.cos(angle) * 32;
+    offsetY = Math.sin(angle) * 32;
+  }
+
   const html = renderToStaticMarkup(
     <div
       style={{
@@ -190,6 +203,9 @@ function createCustomIcon(
         justifyContent: "center",
         width: "60px",
         height: "60px",
+        transform: `translate(${offsetX}px, ${offsetY}px)`,
+        transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        zIndex: clusterIndex,
       }}
     >
       {isPulsing && (
@@ -274,6 +290,34 @@ function createCustomIcon(
   });
 }
 
+function groupIdenticalMarkers(markers: LiveMapMarker[]): LiveMapMarker[] {
+  const coordGroups: Record<string, LiveMapMarker[]> = {};
+
+  for (const marker of markers) {
+    // 4 decimal places is roughly 11 meters accuracy
+    const key = `${marker.position[0].toFixed(4)},${marker.position[1].toFixed(4)}`;
+    if (!coordGroups[key]) coordGroups[key] = [];
+    coordGroups[key].push(marker);
+  }
+
+  const result: LiveMapMarker[] = [];
+  for (const group of Object.values(coordGroups)) {
+    if (group.length === 1) {
+      result.push(group[0]);
+    } else {
+      group.forEach((marker, index) => {
+        result.push({
+          ...marker,
+          clusterIndex: index,
+          clusterTotal: group.length,
+        });
+      });
+    }
+  }
+
+  return result;
+}
+
 function buildMapMarkers(
   fitters: Fitter[],
   liveLocations: LiveLocationRecord[],
@@ -299,7 +343,7 @@ function buildMapMarkers(
     .filter((location) => !knownFitterIds.has(location.userId))
     .map(buildLiveLocationMarker);
 
-  return [...fitterMarkers, ...liveOnlyMarkers];
+  return groupIdenticalMarkers([...fitterMarkers, ...liveOnlyMarkers]);
 }
 
 export default function FitterMap({
@@ -311,7 +355,16 @@ export default function FitterMap({
     locations: liveLocations,
     isLoaded: liveLocationsLoaded,
     error: liveLocationError,
+    reload: reloadLiveLocations,
   } = useLiveLocation();
+
+  // Poll every 30 s so the map refreshes without a page reload
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      void reloadLiveLocations().catch(() => undefined);
+    }, 30_000);
+    return () => clearInterval(intervalId);
+  }, [reloadLiveLocations]);
 
   useEffect(() => {
     delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
@@ -376,6 +429,8 @@ export default function FitterMap({
               marker.avatar,
               marker.name,
               marker.role,
+              marker.clusterIndex,
+              marker.clusterTotal,
             )}
             eventHandlers={{
               click: () => onSelectFitter(marker.id),
