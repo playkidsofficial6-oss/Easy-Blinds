@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JobCard, type UnifiedJob } from "@/components/common/JobCard";
+import { useAuth } from "@/components/providers/auth-provider";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
@@ -59,8 +60,16 @@ function toDisplayTime(value?: string) {
 }
 
 function extractAssignedFitter(job: Job) {
+  if (job.assignedTo) return job.assignedTo;
   const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
   return match?.[1]?.trim() || "Assigned Team";
+}
+
+function isAssignedToFitter(job: Job, fitter: UserRecord) {
+  const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
+  const assignedName = job.assignedTo || match?.[1]?.trim();
+  if (!assignedName) return false;
+  return assignedName.toLowerCase() === fitter.name.toLowerCase();
 }
 
 function toUnifiedJob(job: Job): UnifiedJob {
@@ -86,6 +95,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     time: toDisplayTime(job.scheduledAt),
     endTime: undefined,
     team: extractAssignedFitter(job),
+    assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
   };
 }
@@ -175,6 +185,7 @@ function toReadableLastUpdated(source?: string) {
 }
 
 export default function SmartAssignmentsPage() {
+  const { user } = useAuth();
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
@@ -337,7 +348,11 @@ export default function SmartAssignmentsPage() {
 
     return fitters
       .filter((fitter) => fitter.capacity.remaining > 0)
-      .map((fitter) => ({ id: fitter.id, name: fitter.name }));
+      .map((fitter) => ({
+        id: fitter.id,
+        name: fitter.name,
+        workDetails: `${fitter.schedule.today.length}/${fitter.capacity.max} Jobs Today • Next slot: ${fitter.nextAvailableSlot === "None" ? "N/A" : fitter.nextAvailableSlot}`
+      }));
   }, [selectedJobId, fitters]);
 
   const initiateAssignment = (jobId: string, fitterId: string) => {
@@ -387,7 +402,9 @@ export default function SmartAssignmentsPage() {
       const updated = await updateJob(dialogState.jobId, {
         status: "scheduled",
         scheduledAt,
-        notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by Sales Manager from Smart Dispatch.`,
+        assignedTo: dialogState.fitterName,
+        assignedBy: user?.name || "Sales Manager",
+        notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
       toast.success(dialogState.type === "assign" ? `Assigned to ${dialogState.fitterName} on ${newDateStr} @ ${timeSlot}` : `Rescheduled to ${newDateStr} @ ${timeSlot}`);
@@ -405,6 +422,8 @@ export default function SmartAssignmentsPage() {
     try {
       const updated = await updateJob(dialogState.jobId, {
         status: "pending",
+        assignedTo: "",
+        assignedBy: "",
         notes: "Returned to pending queue from Smart Dispatch.",
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));

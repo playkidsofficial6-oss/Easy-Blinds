@@ -102,20 +102,33 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
 
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-start mb-1">
-                                                <p className="font-semibold text-base truncate text-slate-900 group-hover:text-amber-700 transition-colors">{fitter.name}</p>
-                                                {hasLateJob ? (
-                                                    <Badge variant="destructive" className="text-[9px] h-5 px-1.5 rounded-md animate-pulse">LATE</Badge>
-                                                ) : (
-                                                    <span className={cn("text-[9px] uppercase tracking-wider font-bold",
-                                                        fitter.status === "Available" ? "text-emerald-600" : "text-slate-400"
-                                                    )}>
-                                                        {fitter.status}
-                                                    </span>
-                                                )}
+                                                <div className="flex flex-col">
+                                                    <p className="font-semibold text-base truncate text-slate-900 group-hover:text-emerald-700 transition-colors">{fitter.name}</p>
+                                                    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{fitter.role || "Fitter"}</span>
+                                                </div>
+                                                <div className="flex flex-col items-end">
+                                                    {hasLateJob ? (
+                                                        <Badge variant="destructive" className="text-[9px] h-5 px-1.5 rounded-md animate-pulse">LATE</Badge>
+                                                    ) : (
+                                                        <span className={cn("text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full",
+                                                            fitter.status === "Available" ? "bg-emerald-100 text-emerald-700" :
+                                                                fitter.status === "Offline" ? "bg-slate-100 text-slate-500" : "bg-amber-100 text-amber-700"
+                                                        )}>
+                                                            {fitter.status}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5">
-                                                <MapPin className="w-3 h-3 text-slate-300" />
-                                                <span className="truncate">{fitter.jobRef || "No active job"}</span>
+
+                                            <div className="flex items-center gap-3 mt-3 text-xs">
+                                                <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                                    <Briefcase className="w-3 h-3 text-slate-400" />
+                                                    <span className="font-medium">{fitter.schedule.today.length}/{fitter.capacity.max} Jobs</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                                    <Clock className="w-3 h-3 text-slate-400" />
+                                                    <span className="font-medium truncate max-w-[80px]" title={fitter.nextAvailableSlot}>{fitter.nextAvailableSlot}</span>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -129,20 +142,53 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                     // Enhanced Viewing Mode for Selected Fitter
                     <div className="flex flex-col h-full bg-slate-50">
                         {/* Selected Header */}
-                        <div className="p-8 bg-white border-b border-slate-100">
-                            <button onClick={() => onSelectFitter("")} className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 hover:text-amber-600 mb-6 flex items-center gap-2 transition-colors">
+                        <div className="p-6 bg-white border-b border-slate-100 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8 opacity-5">
+                                <User className="w-32 h-32" />
+                            </div>
+                            <button onClick={() => onSelectFitter("")} className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 hover:text-emerald-600 mb-6 flex items-center gap-2 transition-colors relative z-10">
                                 <ArrowLeft className="w-3 h-3" /> Back to Fleet
                             </button>
-                            <div className="flex items-center gap-6">
-                                <Avatar className="h-20 w-20 border border-slate-200 rounded-none bg-slate-50">
-                                    <AvatarImage src={selectedFitter.avatar} />
-                                    <AvatarFallback className="rounded-none text-xl font-light text-slate-400">{selectedFitter.name.substring(0, 2)}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <h3 className="text-2xl font-light text-slate-900 mb-1">{selectedFitter.name}</h3>
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-normal text-slate-500 bg-slate-50 rounded-none border-slate-200">{selectedFitter.status}</Badge>
-                                        <span className="text-xs text-slate-400 font-light">Updated {selectedFitter.lastUpdated}</span>
+                            <div className="flex flex-col gap-4 relative z-10">
+                                <div className="flex items-center gap-4">
+                                    <Avatar className="h-20 w-20 border-2 border-white shadow-md rounded-2xl bg-slate-50">
+                                        <AvatarImage src={selectedFitter.avatar} className="object-cover" />
+                                        <AvatarFallback className="rounded-2xl text-2xl font-light text-slate-400">{selectedFitter.name.substring(0, 2)}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                        <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mb-1">{selectedFitter.name}</h3>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <Badge variant="outline" className={cn("text-[10px] uppercase tracking-wider font-bold border-transparent px-2", 
+                                                selectedFitter.status === "Available" ? "bg-emerald-100 text-emerald-700" :
+                                                selectedFitter.status === "Offline" ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-700"
+                                            )}>
+                                                {selectedFitter.status}
+                                            </Badge>
+                                            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">• {selectedFitter.role || "Fitter"}</span>
+                                            <span className="text-[10px] text-slate-400 flex items-center gap-1 ml-auto">
+                                                <Clock className="w-3 h-3" /> Updated {selectedFitter.lastUpdated}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                        <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Workload ({format(viewDate, "MMM do")})</div>
+                                        <div className="flex items-end justify-between">
+                                            <span className="text-lg font-semibold text-slate-700">{selectedFitter.schedule.today.filter(j => j.status === 'Done').length} <span className="text-sm font-normal text-slate-400">/ {selectedFitter.schedule.today.length}</span></span>
+                                            <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ASSIGNMENTS</span>
+                                        </div>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col justify-center">
+                                        {selectedFitter.phone && (
+                                            <div className="flex items-center gap-2 text-xs text-slate-600 mb-1.5">
+                                                <Phone className="w-3 h-3 text-slate-400" /> {selectedFitter.phone}
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                                            <MapPin className="w-3 h-3 text-slate-400" /> {selectedFitter.jobRef || "No active location"}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -194,49 +240,86 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                                     }
 
                                     return (
-                                        <div className="space-y-12">
+                                        <div className="space-y-8">
+                                            {/* Scheduled Jobs / Timeline */}
+                                            <div>
+                                                <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-4 flex items-center gap-2">
+                                                    <CalendarIcon className="w-3 h-3" />
+                                                    Timeline: {format(viewDate, "EEE, dd MMM")}
+                                                </h4>
+                                                
+                                                <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-4">
+                                                    {jobsToShow.length > 0 ? jobsToShow.map((job, idx) => (
+                                                        <div key={job.id} className="relative pl-6">
+                                                            <div className={cn("absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 bg-white",
+                                                                job.status === "Done" ? "border-emerald-500" :
+                                                                job.status === "In Progress" ? "border-blue-500" : "border-slate-300"
+                                                            )}></div>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                                <span className="text-xs font-bold text-slate-700">{job.time}</span>
+                                                                <Badge variant="outline" className={cn("text-[9px] uppercase px-1.5 py-0",
+                                                                    job.status === "Done" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+                                                                    job.status === "In Progress" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-slate-50 text-slate-500 border-slate-200"
+                                                                )}>{job.status}</Badge>
+                                                            </div>
+                                                            <JobCard
+                                                                job={job}
+                                                                isSelected={false}
+                                                                onSelect={() => { }}
+                                                                variant="schedule"
+                                                            />
+                                                        </div>
+                                                    )) : (
+                                                        <>
+                                                            {/* Show Empty Timeline Slots if no jobs */}
+                                                            {["08:00", "10:00", "12:00", "14:00", "16:00"].map((time, idx) => (
+                                                                <div key={idx} className="relative pl-6">
+                                                                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-slate-200"></div>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-xs font-bold text-slate-400">{time}</span>
+                                                                        <span className="text-[10px] font-bold text-emerald-500 uppercase">Free</span>
+                                                                    </div>
+                                                                    <div className="text-xs text-slate-400 italic mt-1 bg-slate-50 p-2 rounded border border-dashed border-slate-200">
+                                                                        Available Slot
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+
                                             {/* Activity Log (Only for Today) */}
                                             {isSameDay(viewDate, new Date()) && (
-                                                <div>
-                                                    <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-6 flex items-center gap-2">
+                                                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                                                    <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-5 flex items-center gap-2">
                                                         <History className="w-3 h-3" />
-                                                        Live Activity
+                                                        Live GPS Activity
                                                     </h4>
-                                                    <div className="space-y-0 pl-2 border-l border-slate-200 ml-1">
+                                                    <div className="space-y-0 pl-2 border-l-2 border-slate-100 ml-1">
                                                         {selectedFitter.history.map((event) => (
-                                                            <div key={event.id} className="relative pl-8 pb-8 last:pb-0">
-                                                                <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full bg-white ring-1 ring-slate-300"></div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-[10px] font-mono text-slate-400 mb-1 tracking-wide">{event.time}</span>
-                                                                    <span className="text-sm font-medium text-slate-700">{event.action}</span>
-                                                                    <span className="text-xs text-slate-400 font-light mt-0.5">{event.location}</span>
+                                                            <div key={event.id} className="relative pl-6 pb-6 last:pb-0">
+                                                                <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full bg-white ring-2 ring-emerald-400"></div>
+                                                                <div className="flex flex-col bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                                                    <div className="flex justify-between items-center mb-1">
+                                                                        <span className="text-xs font-semibold text-slate-700">{event.action}</span>
+                                                                        <span className="text-[10px] font-mono text-slate-400 tracking-wide">{event.time}</span>
+                                                                    </div>
+                                                                    <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                                                                        <MapPin className="w-3 h-3 text-slate-400" /> {event.location}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         ))}
                                                         {selectedFitter.history.length === 0 && (
-                                                            <p className="text-xs text-slate-400 italic pl-6">No activity recorded yet today.</p>
+                                                            <div className="relative pl-6">
+                                                                <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full bg-slate-200"></div>
+                                                                <p className="text-xs text-slate-400 italic">No activity recorded yet today.</p>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
                                             )}
-
-                                            {/* Scheduled Jobs */}
-                                            <div>
-                                                <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-6">Schedule</h4>
-                                                <div className="space-y-4">
-                                                    {jobsToShow.length > 0 ? jobsToShow.map(job => (
-                                                        <JobCard
-                                                            key={job.id}
-                                                            job={job}
-                                                            isSelected={false}
-                                                            onSelect={() => { }}
-                                                            variant="schedule"
-                                                        />
-                                                    )) : (
-                                                        <p className="text-sm text-slate-400 italic">No jobs scheduled for this date.</p>
-                                                    )}
-                                                </div>
-                                            </div>
                                         </div>
                                     );
                                 })()}

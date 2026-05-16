@@ -22,8 +22,8 @@ export default function TrackingPage() {
     };
 
     return (
-        <div className="space-y-8 h-[calc(100vh-6rem)] flex flex-col">
-            <div className="flex items-end justify-between px-1 flex-shrink-0">
+        <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex items-end justify-between px-8 py-6 flex-shrink-0">
                 <div className="space-y-4">
                     <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold">
                         <Link href="/sales-manager" className="hover:text-amber-600 transition-colors flex items-center gap-2">
@@ -40,9 +40,9 @@ export default function TrackingPage() {
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col md:flex-row border-t border-slate-200 bg-white shadow-sm min-h-0">
-                {/* Sidebar */}
-                <div className="w-full md:w-96 flex-shrink-0 border-r border-slate-200 z-10 bg-white">
+            <div className="flex-1 flex flex-col md:flex-row border-t border-slate-200 bg-white shadow-sm overflow-hidden min-h-0">
+                {/* Sidebar — fixed width, full remaining height, scrolls internally via FitterList */}
+                <div className="w-full md:w-96 flex-shrink-0 border-r border-slate-200 z-10 bg-white flex flex-col h-full overflow-y-auto scrollbar-thin">
                     <FitterList
                         fitters={fitters}
                         selectedFitterId={selectedFitterId}

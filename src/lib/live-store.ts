@@ -83,12 +83,13 @@ const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
 function extractAssignedFitter(job: Job) {
+  if (job.assignedTo) return job.assignedTo;
   const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
   return match?.[1]?.trim();
 }
 
 function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name">) {
-  const assignedName = extractAssignedFitter(job);
+  const assignedName = job.assignedTo || extractAssignedFitter(job);
   if (!assignedName) return false;
 
   return assignedName.toLowerCase() === fitter.name.toLowerCase();
@@ -327,7 +328,7 @@ export function useLiveFitters() {
     try {
       let jobItems: Job[] = [];
       try {
-        const jobsResponse = await getJobs({ limit: 500 });
+        const jobsResponse = await getJobs({ limit: 100 });
         jobItems = jobsResponse?.items ?? [];
       } catch (jobErr) {
         console.warn("[useLiveFitters] Could not load jobs, fitters will show with empty schedules:", jobErr);
