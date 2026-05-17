@@ -59,15 +59,24 @@ function toDisplayTime(value?: string) {
   }
 }
 
-function extractAssignedFitter(job: Job) {
-  if (job.assignedTo) return job.assignedTo;
+// Returns the display name of the assigned fitter.
+// Prefers looking up fitterId in the lookup map; falls back to legacy note-parsing.
+function resolveAssignedFitterName(job: Job, fitterNameById: Map<string, string>): string {
+  if (job.assignedTo) {
+    // New format: assignedTo is a userId
+    const name = fitterNameById.get(job.assignedTo);
+    if (name) return name;
+    // Legacy fallback: assignedTo might still be a name string
+    return job.assignedTo;
+  }
+  // Oldest legacy: name embedded in notes
   const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
   return match?.[1]?.trim() || "Assigned Team";
 }
 
 function isAssignedToFitter(job: Job, fitter: UserRecord) {
   const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
-  const assignedName = job.assignedTo || match?.[1]?.trim();
+  const assignedName = match?.[1]?.trim();
   if (!assignedName) return false;
   return assignedName.toLowerCase() === fitter.name.toLowerCase();
 }
@@ -94,7 +103,8 @@ function toUnifiedJob(job: Job): UnifiedJob {
     status: statusLabel,
     time: toDisplayTime(job.scheduledAt),
     endTime: undefined,
-    team: extractAssignedFitter(job),
+    // team is resolved at call site where fitterNameById is available
+    team: job.assignedTo,
     assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
   };
@@ -271,14 +281,26 @@ export default function SmartAssignmentsPage() {
 
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
 
+  const fitterNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    baseFitters.forEach((f) => map.set(f.id, f.name));
+    return map;
+  }, [baseFitters]);
+
   const fitters = useMemo<Fitter[]>(() => {
     return baseFitters.map((fitter) => {
       const assignedJobs = jobs.filter((job) => {
         if (!["scheduled", "in_progress", "completed"].includes(job.status)) {
           return false;
         }
-
-        return extractAssignedFitter(job).toLowerCase() === fitter.name.toLowerCase();
+        // Match by userId (new) or name (legacy)
+        if (job.assignedTo) {
+          if (job.assignedTo === fitter.id) return true;
+          if (job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
+          return false;
+        }
+        const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
+        return match?.[1]?.trim().toLowerCase() === fitter.name.toLowerCase();
       });
 
       const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
@@ -337,10 +359,17 @@ export default function SmartAssignmentsPage() {
     });
   }, [rescheduleDate, dialogState, fitters]);
 
-  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending").map(toUnifiedJob), sortKey), [jobs, sortKey]);
+  const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
+    const raw = toUnifiedJob(job);
+    // Resolve team (fitter display name) from the stored userId or legacy name
+    const team = resolveAssignedFitterName(job, fitterNameById);
+    return { ...raw, team };
+  }, [fitterNameById]);
+
+  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending").map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
   const activeJobs = useMemo(
-    () => sortUnifiedJobs(jobs.filter((job) => ["scheduled", "in_progress"].includes(job.status) && isJobForDate(job, viewDate)).map(toUnifiedJob), sortKey),
-    [jobs, sortKey, viewDate],
+    () => sortUnifiedJobs(jobs.filter((job) => ["scheduled", "in_progress"].includes(job.status) && isJobForDate(job, viewDate)).map(resolveUnifiedJob), sortKey),
+    [jobs, sortKey, viewDate, resolveUnifiedJob],
   );
 
   const recommendedFitters = useMemo(() => {
@@ -402,8 +431,8 @@ export default function SmartAssignmentsPage() {
       const updated = await updateJob(dialogState.jobId, {
         status: "scheduled",
         scheduledAt,
-        assignedTo: dialogState.fitterName,
-        assignedBy: user?.name || "Sales Manager",
+        assignedTo: dialogState.fitterId,
+        assignedBy: user?._id || user?.name || "Sales Manager",
         notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
