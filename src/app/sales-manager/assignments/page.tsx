@@ -193,6 +193,7 @@ export default function SmartAssignmentsPage() {
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
+  const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -229,6 +230,7 @@ export default function SmartAssignmentsPage() {
 
     try {
       const users = await getUsers();
+      setAllUsers(users);
       setSalesmanUsers(users.filter(isSalesmanUser));
     } catch (error) {
       const message = getUserErrorMessage(error, "Unable to load salesmen for live assignment map.");
@@ -276,11 +278,12 @@ export default function SmartAssignmentsPage() {
 
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
 
-  const fitterNameById = useMemo(() => {
+  const userNameById = useMemo(() => {
     const map = new Map<string, string>();
+    allUsers.forEach((u) => map.set(u._id, u.name));
     baseFitters.forEach((f) => map.set(f.id, f.name));
     return map;
-  }, [baseFitters]);
+  }, [baseFitters, allUsers]);
 
   const fitters = useMemo<Fitter[]>(() => {
     return baseFitters.map((fitter) => {
@@ -364,9 +367,16 @@ export default function SmartAssignmentsPage() {
   const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
     const raw = toUnifiedJob(job);
     // Resolve team (fitter display name) from the stored userId or legacy name
-    const team = resolveAssignedFitterName(job, fitterNameById);
-    return { ...raw, team };
-  }, [fitterNameById]);
+    const team = resolveAssignedFitterName(job, userNameById);
+    
+    // Resolve assignedBy (sales manager name) from the stored userId
+    let assignedBy = raw.assignedBy;
+    if (assignedBy && userNameById.has(assignedBy)) {
+      assignedBy = userNameById.get(assignedBy);
+    }
+    
+    return { ...raw, team, assignedBy };
+  }, [userNameById]);
 
   const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending").map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
   const activeJobs = useMemo(
