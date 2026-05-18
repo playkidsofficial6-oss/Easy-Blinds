@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { format } from "date-fns";
 
 export type QuoteStatus = "Approved" | "Sent" | "Negotiation" | "Rejected" | "Draft";
 
@@ -17,6 +16,12 @@ export interface Quote {
     id: string;
     client: string;
     measurementId?: string; // Optional link to measurement
+    jobId?: string;
+    salesmanId?: string;
+    salesmanName?: string;
+    clientPhone?: string;
+    clientEmail?: string;
+    notes?: string;
     total: number;
     status: QuoteStatus;
     date: string; // ISO Date string
@@ -64,26 +69,29 @@ const INITIAL_QUOTES: Quote[] = [
     },
 ];
 
+function getInitialQuotes() {
+    if (typeof window === "undefined") return INITIAL_QUOTES;
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+        try {
+            return JSON.parse(stored) as Quote[];
+        } catch (error) {
+            console.error("Failed to parse stored quotes", error);
+            return INITIAL_QUOTES;
+        }
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_QUOTES));
+    return INITIAL_QUOTES;
+}
+
 export function useQuotes() {
-    const [quotes, setQuotes] = useState<Quote[]>([]);
+    const [quotes, setQuotes] = useState<Quote[]>(getInitialQuotes);
     const [isLoaded, setIsLoaded] = useState(false);
 
     //Load initial data
     useEffect(() => {
-        if (typeof window === "undefined") return;
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                setQuotes(JSON.parse(stored));
-            } catch (e) {
-                console.error("Failed to parse stored quotes", e);
-                setQuotes(INITIAL_QUOTES);
-            }
-        } else {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_QUOTES));
-            setQuotes(INITIAL_QUOTES);
-        }
-        setIsLoaded(true);
+        const timer = window.setTimeout(() => setIsLoaded(true), 0);
+        return () => window.clearTimeout(timer);
     }, []);
 
     const saveQuotes = (newQuotes: Quote[]) => {

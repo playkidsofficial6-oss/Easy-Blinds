@@ -8,7 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, Save, ArrowLeft, Calculator } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useQuotes, type QuoteStatus } from "@/lib/quote-store";
+import { updateJob } from "@/lib/jobs";
+import { toast } from "sonner";
 
 interface LineItem {
     id: string;
@@ -19,6 +23,10 @@ interface LineItem {
 
 export default function NewQuotePage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const jobId = searchParams.get("jobId") ?? searchParams.get("measurementId") ?? undefined;
+    const { user } = useAuth();
+    const { addQuote } = useQuotes();
     const [clientName, setClientName] = useState("");
     const [clientPhone, setClientPhone] = useState("");
     const [clientEmail, setClientEmail] = useState("");
@@ -54,17 +62,38 @@ export default function NewQuotePage() {
     const vat = subtotal * 0.05;
     const total = subtotal + vat;
 
-    const handleSave = () => {
-        // In a real app, this would save to the backend
-        console.log({
-            clientName,
-            clientPhone,
-            clientEmail,
-            lineItems,
-            notes,
-            totals: { subtotal, vat, total }
-        });
-        router.push("/field/quotes");
+    const handleSave = async (status: QuoteStatus = "Sent") => {
+        try {
+            addQuote({
+                client: clientName || "Unnamed Client",
+                measurementId: jobId,
+                jobId,
+                salesmanId: user?._id,
+                salesmanName: user?.name,
+                clientPhone,
+                clientEmail,
+                notes,
+                total,
+                status,
+                sentDate: status === "Sent" ? new Date().toISOString() : undefined,
+                items: lineItems.map((item) => ({
+                    ...item,
+                    total: item.quantity * item.unitPrice,
+                })),
+            });
+
+            if (jobId && status === "Sent") {
+                await updateJob(jobId, {
+                    status: "completed",
+                    notes: [notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
+                });
+            }
+
+            toast.success(status === "Draft" ? "Quote saved as draft" : "Quote submitted to sales manager");
+            router.push("/salesman/quotes");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to save quote");
+        }
     };
 
     return (
@@ -72,7 +101,7 @@ export default function NewQuotePage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <Link href="/field/quotes">
+                    <Link href="/salesman/quotes">
                         <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
@@ -83,10 +112,10 @@ export default function NewQuotePage() {
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="outline" className="h-12 px-6 border-2">
+                    <Button variant="outline" className="h-12 px-6 border-2" onClick={() => handleSave("Draft")}>
                         Save Draft
                     </Button>
-                    <Button onClick={handleSave} className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800 text-white">
+                    <Button onClick={() => handleSave("Sent")} className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800 text-white">
                         <Save className="w-4 h-4 mr-2" />
                         Create Quote
                     </Button>
@@ -148,7 +177,7 @@ export default function NewQuotePage() {
                             </Button>
                         </CardHeader>
                         <CardContent className="p-6 space-y-6">
-                            {lineItems.map((item, index) => (
+                            {lineItems.map((item) => (
                                 <div key={item.id} className="flex flex-col md:flex-row gap-4 items-start md:items-end p-4 bg-neutral-50 rounded-lg border border-neutral-100">
                                     <div className="flex-1 w-full space-y-2">
                                         <Label className="text-xs text-neutral-500">Description</Label>

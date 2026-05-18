@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/static-components */
 "use client";
 
 import { useState } from "react";
@@ -16,6 +17,7 @@ import {
     PlayCircle,
     BookOpen,
     Navigation as NavigationIcon,
+    UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -31,6 +33,7 @@ interface SalesManagerLayoutProps {
 const navItems = [
     { name: "Dashboard", href: "/sales-manager", icon: LayoutDashboard },
     { name: "Assignments", href: "/sales-manager/assignments", icon: ClipboardList },
+    { name: "Salesmen", href: "/sales-manager/salesmen", icon: UserCheck },
     { name: "Fitters", href: "/sales-manager/tracking", icon: NavigationIcon },
     { name: "Fittings Analytics", href: "/sales-manager/analytics", icon: LineChart },
     { name: "Fitter Performance", href: "/sales-manager/performance", icon: BarChart3 },

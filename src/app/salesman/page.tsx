@@ -1,18 +1,22 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { format, parse, isPast, isToday } from "date-fns";
+import { useState, useEffect } from "react";
+import { format, parse, isPast, isToday, isTomorrow } from "date-fns";
 import {
-  MapPin, Navigation, ChevronRight, CheckCircle, Clock, Calendar,
-  ArrowLeft, Camera, ShieldCheck, Ruler, ClipboardList, Info,
-  AlertCircle, X, Check, Menu, Timer, Wallet, AlertTriangle,
-  Phone, MessageSquare, ExternalLink, Zap, MousePointer2
+  MapPin, Navigation, CheckCircle, Clock, Calendar, MousePointer2,
+  ArrowLeft, ClipboardList,
+  Timer,
+  Phone, MessageSquare
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useBrand } from "@/components/providers/brand-provider";
+import { useAuth } from "@/components/providers/auth-provider";
+import { getJobs, updateJob, type Job } from "@/lib/jobs";
 
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
   ssr: false,
@@ -21,31 +25,93 @@ const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
 
 type Tab = "today" | "tomorrow" | "upcoming" | "completed";
 
-// Mock Data
-const MOCK_SALESMAN_SCHEDULE = {
-  today: [
-    { id: "M001", time: "10:00 AM", client: "Ahmed Al Mansoori", address: "Villa 42, Jumeirah Park", status: "Pending", fabric: "Velvet & Sheer", notes: "Gate code #1234", coordinates: [25.07, 55.14] },
-    { id: "M002", time: "12:30 PM", client: "Sarah Smith", address: "Marina Heights, Apt 1204", status: "Pending", fabric: "Linen Blinds", notes: "Check for high ceiling", coordinates: [25.08, 55.15] },
-    { id: "M003", time: "03:00 PM", client: "Emaar Properties", address: "Business Bay Tower", status: "Pending", fabric: "Motorized Rollers", notes: "Office measurement", coordinates: [25.18, 55.27] },
-  ],
-  tomorrow: [
-    { id: "M004", time: "09:00 AM", client: "Villa 101", address: "Palm Jumeirah", status: "Pending", fabric: "Outdoor Blinds", notes: "Pool area", coordinates: [25.11, 55.13] },
-    { id: "M005", time: "11:30 AM", client: "Luxury Hotel", address: "Downtown Dubai", status: "Pending", fabric: "Blackout Curtains", notes: "50 rooms", coordinates: [25.20, 55.27] },
-  ],
-  upcoming: [
-    { id: "M006", time: "10:00 AM", client: "Future Project", address: "Dubai Creek", status: "Pending", fabric: "TBD", notes: "Initial consult", coordinates: [25.23, 55.33] }
-  ],
-  completed: [
-    { id: "M000", time: "04:00 PM", client: "Old Client", address: "Springs 12", status: "Done", fabric: "Completed", notes: "Done yesterday", coordinates: [25.06, 55.18] }
-  ]
-} as const;
+type SalesmanScheduleJob = {
+  id: string;
+  time: string;
+  client: string;
+  address: string;
+  status: string;
+  fabric: string;
+  notes?: string;
+  coordinates: [number, number];
+};
+
+type SalesmanSchedule = Record<Tab, SalesmanScheduleJob[]>;
+
+const EMPTY_SALESMAN_SCHEDULE: SalesmanSchedule = {
+  today: [],
+  tomorrow: [],
+  upcoming: [],
+  completed: [],
+};
+
+function toScheduleStatus(status: Job["status"]) {
+  if (status === "in_progress") return "In Progress";
+  if (status === "completed") return "Done";
+  if (status === "cancelled") return "Completed";
+  return "Pending";
+}
+
+function toApiStatus(status: string): Job["status"] {
+  if (status === "In progress" || status === "In Progress") return "in_progress";
+  if (status === "Completed" || status === "Done") return "completed";
+  return "scheduled";
+}
+
+function toDisplayTime(value?: string) {
+  if (!value) return "09:00 AM";
+  try {
+    return format(new Date(value), "hh:mm a");
+  } catch {
+    return "09:00 AM";
+  }
+}
+
+function toScheduleJob(job: Job): SalesmanScheduleJob {
+  return {
+    id: job._id,
+    time: toDisplayTime(job.scheduledAt),
+    client: job.customerName,
+    address: job.address,
+    status: toScheduleStatus(job.status),
+    fabric: job.productType || "Curtains",
+    notes: job.notes,
+    coordinates: [25.20, 55.27],
+  };
+}
+
+function groupJobsBySchedule(jobs: Job[]): SalesmanSchedule {
+  return jobs.reduce<SalesmanSchedule>((schedule, job) => {
+    const scheduleJob = toScheduleJob(job);
+    if (job.status === "completed" || job.status === "cancelled") {
+      schedule.completed.push(scheduleJob);
+      return schedule;
+    }
+
+    if (job.scheduledAt) {
+      const date = new Date(job.scheduledAt);
+      if (isToday(date)) {
+        schedule.today.push(scheduleJob);
+        return schedule;
+      }
+      if (isTomorrow(date)) {
+        schedule.tomorrow.push(scheduleJob);
+        return schedule;
+      }
+    }
+
+    schedule.upcoming.push(scheduleJob);
+    return schedule;
+  }, { today: [], tomorrow: [], upcoming: [], completed: [] });
+}
 
 
 export default function SalesmanPage() {
-  const { selectedBrand } = useBrand();
+  useBrand();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>("today");
-  const [selectedJob, setSelectedJob] = useState<any | null>(null);
-  const [schedule, setSchedule] = useState(MOCK_SALESMAN_SCHEDULE);
+  const [selectedJob, setSelectedJob] = useState<SalesmanScheduleJob | null>(null);
+  const [schedule, setSchedule] = useState<SalesmanSchedule>(EMPTY_SALESMAN_SCHEDULE);
 
   const getJobsForTab = (tab: Tab) => {
     switch (tab) {
@@ -59,17 +125,36 @@ export default function SalesmanPage() {
 
   const jobs = getJobsForTab(activeTab);
 
-  const handleUpdateStatus = (id: string, newStatus: string) => {
+  useEffect(() => {
+    const loadAssignedJobs = async () => {
+      if (!user?._id) return;
+      const response = await getJobs({ limit: 100 });
+      const assignedJobs = response.items.filter((job) =>
+        job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email
+      );
+      setSchedule(groupJobsBySchedule(assignedJobs));
+    };
+
+    void loadAssignedJobs();
+  }, [user?._id, user?.email, user?.name]);
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    const displayStatus = newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus;
+
     setSchedule(prev => {
       const updated = { ...prev };
-      if (activeTab === 'today') {
-        updated.today = (updated.today as any).map((j: any) => j.id === id ? { ...j, status: newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus } : j);
-      }
+      updated[activeTab] = updated[activeTab].map((j) => j.id === id ? { ...j, status: displayStatus } : j);
       return updated;
     });
 
     if (selectedJob && selectedJob.id === id) {
-      setSelectedJob((prev: any) => ({ ...prev, status: newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus }));
+      setSelectedJob((prev) => prev ? { ...prev, status: displayStatus } : prev);
+    }
+
+    try {
+      await updateJob(id, { status: toApiStatus(displayStatus) });
+    } catch (error) {
+      console.error("Unable to update salesman job status", error);
     }
   };
 
@@ -179,7 +264,7 @@ function WorkspaceOverview({ onSelectFirst }: { onSelectFirst: () => void }) {
   );
 }
 
-function JobCard({ job, onSelect, isSelected }: { job: any; onSelect: () => void; isSelected: boolean }) {
+function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSelect: () => void; isSelected: boolean }) {
   const isLate = calculateIsLate(job.time, job.status);
 
   return (
@@ -226,8 +311,8 @@ function JobCard({ job, onSelect, isSelected }: { job: any; onSelect: () => void
   );
 }
 
-function JobDetailView({ job, onStatusChange, onBack }: { job: any; onStatusChange: (status: string) => void; onBack: () => void }) {
-  const isLate = calculateIsLate(job.time, job.status);
+function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJob; onStatusChange: (status: string) => void; onBack: () => void }) {
+  const router = useRouter();
   const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
@@ -236,8 +321,6 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: any; onStatusChan
       interval = setInterval(() => {
         setSeconds(s => s + 1);
       }, 1000);
-    } else {
-      setSeconds(0);
     }
     return () => clearInterval(interval);
   }, [job.status]);
@@ -317,7 +400,7 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: any; onStatusChan
               <h3 className="text-xl font-light text-neutral-900">Task Notes</h3>
             </div>
             <div className="p-6 bg-stone-50 rounded border border-stone-100 italic text-neutral-700 text-lg">
-              "{job.notes || "No special instructions provided."}"
+              &quot;{job.notes || "No special instructions provided."}&quot;
             </div>
           </div>
         </div>
@@ -339,9 +422,12 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: any; onStatusChan
               isActive={job.status === "In Progress" || job.status === "In progress"}
               disabled={job.status !== "On the way" && job.status !== "In Progress" && job.status !== "Pending"}
               variant="blue"
-              onClick={() => onStatusChange("In progress")}
+              onClick={() => {
+                onStatusChange("In progress");
+                router.push(`/salesman/measurements/new?jobId=${job.id}`);
+              }}
             />
-            <Link href="/field/quotes/new" className="flex-[1.5] group">
+            <Link href={`/salesman/quotes/new?jobId=${job.id}`} className="flex-[1.5] group">
               <button
                 disabled={!(job.status === "In Progress" || job.status === "In progress")}
                 className={cn(
@@ -372,8 +458,18 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: any; onStatusChan
   );
 }
 
-function ActionButton({ icon: Icon, label, activeLabel, isActive, disabled, variant, onClick }: any) {
-  const variants: any = {
+interface ActionButtonProps {
+  icon: LucideIcon;
+  label: string;
+  activeLabel: string;
+  isActive: boolean;
+  disabled: boolean;
+  variant: "amber" | "blue" | "emerald";
+  onClick: () => void;
+}
+
+function ActionButton({ icon: Icon, label, activeLabel, isActive, disabled, variant, onClick }: ActionButtonProps) {
+  const variants: Record<ActionButtonProps["variant"], string> = {
     amber: isActive
       ? "bg-amber-500 text-neutral-900 shadow-[0_0_20px_rgba(245,158,11,0.3)]"
       : "bg-white/5 text-amber-500/70 border-white/5 hover:bg-white/10 hover:text-amber-400",
@@ -408,7 +504,7 @@ function calculateIsLate(jobTime: string, status: string) {
     const jobDate = parse(`${todayStr} ${jobTime}`, "yyyy-MM-dd hh:mm aa", new Date());
     const fifteenMinsAfter = new Date(jobDate.getTime() + 15 * 60000);
     return isPast(fifteenMinsAfter);
-  } catch (e) {
+  } catch {
     return false;
   }
 }

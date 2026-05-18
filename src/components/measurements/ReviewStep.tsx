@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ClientDetails, Room } from "@/types/measurement";
 import { CheckCircle, MapPin, Phone, Calendar, Home } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { updateJob } from "@/lib/jobs";
 import { toast } from "sonner";
 
 interface ReviewStepProps {
@@ -29,20 +30,59 @@ export function ReviewStep({
     onBack,
 }: ReviewStepProps) {
     const router = useRouter();
-
-    const handleSaveDraft = () => {
-        // TODO: Save to backend
-        toast.success("Measurement saved as draft");
-        router.push("/measurements");
-    };
-
-    const handleComplete = () => {
-        // TODO: Save to backend and mark as completed
-        toast.success("Measurement completed successfully!");
-        router.push("/measurements");
-    };
+    const searchParams = useSearchParams();
+    const jobId = searchParams.get("jobId") ?? searchParams.get("measurementId");
 
     const totalWindows = rooms.reduce((sum, room) => sum + room.windows.length, 0);
+
+    const persistMeasurement = async (status: "Draft" | "Completed") => {
+        const measurement = {
+            id: jobId ?? `M${Date.now()}`,
+            jobId: jobId ?? undefined,
+            client: clientDetails,
+            rooms,
+            status,
+            totalWindows,
+            updatedAt: new Date().toISOString(),
+        };
+
+        if (typeof window !== "undefined") {
+            const stored = localStorage.getItem("eb_salesman_measurements_v1");
+            const measurements = stored ? JSON.parse(stored) : [];
+            const nextMeasurements = [measurement, ...measurements.filter((item: { id?: string }) => item.id !== measurement.id)];
+            localStorage.setItem("eb_salesman_measurements_v1", JSON.stringify(nextMeasurements));
+        }
+
+        if (jobId) {
+            await updateJob(jobId, {
+                status: status === "Completed" ? "in_progress" : "scheduled",
+                notes: JSON.stringify({
+                    measurement,
+                    summary: `${rooms.length} room(s), ${totalWindows} curtain/window measurement(s) captured`,
+                }),
+            });
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        try {
+            await persistMeasurement("Draft");
+            toast.success("Measurement saved as draft");
+            router.push("/salesman/measurements");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to save measurement");
+        }
+    };
+
+    const handleComplete = async () => {
+        try {
+            await persistMeasurement("Completed");
+            toast.success("Measurement completed successfully!");
+            router.push(jobId ? `/salesman/quotes/new?jobId=${jobId}` : "/salesman/measurements");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Unable to complete measurement");
+        }
+    };
 
     return (
         <div className="space-y-6">

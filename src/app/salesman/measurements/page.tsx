@@ -1,43 +1,83 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, MapPin, Calendar, User } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "@/components/providers/auth-provider";
+import { getJobs } from "@/lib/jobs";
+
+interface MeasurementListItem {
+    id: string;
+    client: string;
+    area: string;
+    property: string;
+    date: string;
+    status: string;
+    rooms: number;
+    assignedTo: string;
+}
+
+interface StoredMeasurement {
+    id: string;
+    client?: {
+        name?: string;
+        area?: string;
+        location?: string;
+        propertyType?: string;
+    };
+    rooms?: unknown[];
+    status?: string;
+    updatedAt?: string;
+}
 
 export default function MeasurementsPage() {
-    const measurements = [
-        {
-            id: "M001",
-            client: "Ahmed Al Mansoori",
-            area: "Jumeirah Park",
-            property: "Villa",
-            date: "2024-01-15",
-            status: "Completed",
-            rooms: 5,
-            assignedTo: "John Doe"
-        },
-        {
-            id: "M002",
-            client: "Sarah Smith",
-            area: "Dubai Marina",
-            property: "Apartment",
-            date: "2024-01-16",
-            status: "Draft",
-            rooms: 3,
-            assignedTo: "John Doe"
-        },
-        {
-            id: "M003",
-            client: "Emaar Properties",
-            area: "Downtown Dubai",
-            property: "Office",
-            date: "2024-01-16",
-            status: "Completed",
-            rooms: 8,
-            assignedTo: "Mike Johnson"
-        },
-    ];
+    const { user } = useAuth();
+    const [measurements, setMeasurements] = useState<MeasurementListItem[]>([]);
+
+    useEffect(() => {
+        const loadMeasurements = async () => {
+            const stored = typeof window !== "undefined" ? localStorage.getItem("eb_salesman_measurements_v1") : null;
+            const savedMeasurements: StoredMeasurement[] = stored ? JSON.parse(stored) : [];
+            const savedItems: MeasurementListItem[] = savedMeasurements.map((measurement) => ({
+                id: measurement.id,
+                client: measurement.client?.name ?? "Unnamed Client",
+                area: measurement.client?.area ?? measurement.client?.location ?? "Not specified",
+                property: measurement.client?.propertyType ?? "Property",
+                date: measurement.updatedAt ?? new Date().toISOString(),
+                status: measurement.status ?? "Draft",
+                rooms: measurement.rooms?.length ?? 0,
+                assignedTo: user?.name ?? "Salesman",
+            }));
+
+            if (!user?._id) {
+                setMeasurements(savedItems);
+                return;
+            }
+
+            const response = await getJobs({ limit: 100 });
+            const assignedItems: MeasurementListItem[] = response.items
+                .filter((job) => job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email)
+                .map((job) => ({
+                    id: job._id,
+                    client: job.customerName,
+                    area: job.address,
+                    property: job.propertyType ?? "Property",
+                    date: job.scheduledAt ?? job.updatedAt ?? job.createdAt ?? new Date().toISOString(),
+                    status: job.status === "completed" ? "Completed" : "Draft",
+                    rooms: job.quantity ?? 0,
+                    assignedTo: user.name,
+                }));
+
+            const savedIds = new Set(savedItems.map((item) => item.id));
+            setMeasurements([...savedItems, ...assignedItems.filter((item) => !savedIds.has(item.id))]);
+        };
+
+        void loadMeasurements();
+    }, [user?._id, user?.email, user?.name]);
 
     return (
         <div className="space-y-6">
@@ -46,7 +86,7 @@ export default function MeasurementsPage() {
                     <h1 className="text-3xl font-bold text-stone-900">Measurements</h1>
                     <p className="text-stone-500">Manage all client measurements and site visits</p>
                 </div>
-                <Link href="/measurements/new">
+                <Link href="/salesman/measurements/new">
                     <Button className="bg-stone-900 hover:bg-stone-800 text-white">
                         <Plus className="w-4 h-4 mr-2" />
                         New Measurement
@@ -108,11 +148,11 @@ export default function MeasurementsPage() {
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Link href={`/measurements/${measurement.id}`}>
+                                        <Link href={`/salesman/measurements/${measurement.id}`}>
                                             <Button variant="outline" size="sm">View Details</Button>
                                         </Link>
                                         {measurement.status === 'Completed' && (
-                                            <Link href={`/quotes/new?measurementId=${measurement.id}`}>
+                                            <Link href={`/salesman/quotes/new?measurementId=${measurement.id}`}>
                                                 <Button size="sm" className="bg-stone-900 hover:bg-stone-800">
                                                     Create Quote
                                                 </Button>
