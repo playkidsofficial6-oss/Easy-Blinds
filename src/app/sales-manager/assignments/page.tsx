@@ -616,7 +616,7 @@ export default function SmartAssignmentsPage() {
 
       <div className="flex-1 bg-slate-100 relative">
         <AssignmentMap fitters={workforceMembers} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} />
-        <div className="absolute bottom-6 left-6 z-[1000] bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
+        <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
           <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
           <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-medium text-slate-700">
             <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100 shadow-sm relative"><span className="absolute inset-0 rounded-full animate-ping opacity-20 bg-emerald-500"></span></span> Available</div>
@@ -626,7 +626,7 @@ export default function SmartAssignmentsPage() {
           </div>
         </div>
         {selectedMapFitter && (
-          <div className="absolute top-6 right-6 z-[1000] w-96 bg-white/80 backdrop-blur-md shadow-2xl border border-white/50 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-3rem)] rounded-3xl overflow-hidden ring-1 ring-black/5">
+          <div className="absolute top-6 right-6 z-30 w-96 bg-white/80 backdrop-blur-md shadow-2xl border border-white/50 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-3rem)] rounded-3xl overflow-hidden ring-1 ring-black/5">
             {(() => {
               const fitter = workforceMembers.find((item) => item.id === selectedMapFitter);
               if (!fitter) return null;
