@@ -1,33 +1,40 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MapPin, CheckCircle2, Circle, Clock, MoreVertical, Calendar as CalendarIcon, History, AlertTriangle, AlertCircle, User, Phone, Briefcase, ArrowRight, ChevronRight, ChevronLeft } from "lucide-react";
-import { Fitter, FitterStatus, FitterJob } from "@/lib/live-store";
+import { MapPin, Clock, Calendar as CalendarIcon, History, User, Phone, Briefcase, ChevronRight } from "lucide-react";
+import { Fitter, FitterJob } from "@/lib/live-store";
 import { Badge } from "@/components/ui/badge";
 import { format, parse, isPast, addDays, isSameDay } from "date-fns";
-import { JobCard, UnifiedJob } from "@/components/common/JobCard";
+import { JobCard } from "@/components/common/JobCard";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
+import { useAuth } from "@/components/providers/auth-provider";
+import { getJobErrorMessage, updateJob } from "@/lib/jobs";
 
 interface FitterListProps {
     fitters: Fitter[];
     selectedFitterId: string | null;
     onSelectFitter: (id: string) => void;
+    onJobsChanged?: () => void | Promise<void>;
 }
 
-const statusConfig: Record<FitterStatus, { color: string; icon: React.ComponentType<any> }> = {
-    "On the way": { color: "text-amber-600 bg-amber-50 border-amber-200", icon: Clock },
-    "In progress": { color: "text-blue-600 bg-blue-50 border-blue-200", icon: Circle },
-    "Completed": { color: "text-emerald-600 bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
-    "Offline": { color: "text-slate-400 bg-slate-50 border-slate-200", icon: Circle },
-    "Fully Booked": { color: "text-red-600 bg-red-50 border-red-200", icon: AlertCircle },
-    "Available": { color: "text-emerald-600 bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
-};
+const DAILY_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
+
+function selectedDateFromSlot(date: Date, slot: string) {
+    const [hours, minutes] = slot.split(":").map(Number);
+    const next = new Date(date);
+    next.setHours(hours, minutes, 0, 0);
+    return next.toISOString();
+}
+
 
 function calculateIsLate(jobTime: string, status: string) {
     if (status === "Done" || status === "In Progress" || status === "Completed") return false;
@@ -36,15 +43,94 @@ function calculateIsLate(jobTime: string, status: string) {
         const jobDate = parse(`${todayStr} ${jobTime}`, "yyyy-MM-dd hh:mm aa", new Date());
         const fifteenMinsAfter = new Date(jobDate.getTime() + 15 * 60000);
         return isPast(fifteenMinsAfter);
-    } catch (e) {
+    } catch {
         return false;
     }
 }
 
-export function FitterList({ fitters, selectedFitterId, onSelectFitter }: FitterListProps) {
+export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsChanged }: FitterListProps) {
+    const { user } = useAuth();
     const [viewDate, setViewDate] = useState<Date>(new Date());
+    const [dialogState, setDialogState] = useState<{
+        job: FitterJob;
+        fitterId: string;
+        fitterName: string;
+        originalFitterId: string;
+        currentSlot: string;
+        currentDate: Date;
+    } | null>(null);
+    const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
 
     const selectedFitter = fitters.find(f => f.id === selectedFitterId);
+
+    const rescheduleSlots = useMemo(() => {
+        if (!dialogState || !rescheduleDate) return [];
+
+        const targetFitter = fitters.find((item) => item.id === dialogState.fitterId);
+        if (!targetFitter) return DAILY_SLOTS;
+
+        let busySlots: string[] = [];
+        if (isSameDay(rescheduleDate, new Date())) {
+            busySlots = targetFitter.schedule.today.map((job) => job.time);
+        } else if (isSameDay(rescheduleDate, addDays(new Date(), 1))) {
+            busySlots = targetFitter.schedule.tomorrow.map((job) => job.time);
+        }
+
+        return DAILY_SLOTS.filter((slot) => {
+            const isCurrentAssignmentSlot =
+                dialogState.originalFitterId === dialogState.fitterId &&
+                isSameDay(rescheduleDate, dialogState.currentDate) &&
+                slot === dialogState.currentSlot;
+
+            return isCurrentAssignmentSlot || !busySlots.includes(slot);
+        });
+    }, [dialogState, fitters, rescheduleDate]);
+
+    const openRescheduleDialog = (job: FitterJob, fitter: Fitter) => {
+        setRescheduleDate(viewDate);
+        setDialogState({
+            job,
+            fitterId: fitter.id,
+            fitterName: fitter.name,
+            originalFitterId: fitter.id,
+            currentSlot: job.time,
+            currentDate: viewDate,
+        });
+    };
+
+    const handleDialogFitterChange = (fitterId: string) => {
+        const fitter = fitters.find((item) => item.id === fitterId);
+        if (!fitter) return;
+
+        setDialogState((current) => current ? {
+            ...current,
+            fitterId: fitter.id,
+            fitterName: fitter.name,
+        } : current);
+    };
+
+    const confirmReschedule = async (timeSlot: string) => {
+        if (!dialogState || !rescheduleDate) return;
+
+        const serviceDate = format(rescheduleDate, "yyyy-MM-dd");
+        const scheduledAt = selectedDateFromSlot(rescheduleDate, timeSlot);
+
+        try {
+            await updateJob(dialogState.job.id, {
+                status: "scheduled",
+                scheduledAt,
+                assignedTo: dialogState.fitterId,
+                assignedBy: user?._id || user?.name || "Sales Manager",
+                notes: `Rescheduled to ${dialogState.fitterName} @ ${timeSlot} on ${serviceDate} from Live Fitters.`,
+            });
+
+            await onJobsChanged?.();
+            toast.success(`Rescheduled ${dialogState.job.client} to ${serviceDate} @ ${timeSlot}`);
+            setDialogState(null);
+        } catch (error) {
+            toast.error(getJobErrorMessage(error, "Unable to reschedule this job."));
+        }
+    };
 
     const sortedFitters = useMemo(() => {
         return [...fitters].sort((a, b) => {
@@ -59,6 +145,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
     }, [fitters]);
 
     return (
+        <>
         <div className="flex flex-col h-full bg-white border-r border-slate-200">
 
             {/* List Header */}
@@ -75,8 +162,6 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                     <ScrollArea className="flex-1">
                         <div className="flex flex-col divide-y divide-slate-50">
                             {sortedFitters.map((fitter) => {
-                                const config = statusConfig[fitter.status] || statusConfig['Offline'];
-                                const StatusIcon = config.icon;
                                 const hasLateJob = fitter.schedule.today.some(j => calculateIsLate(j.time, j.status));
 
                                 return (
@@ -198,7 +283,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                         {/* Filter & Sort Bar (New) */}
                         <FilterSortBar
                             onFilterClick={() => { }}
-                            onSortChange={(sort) => { }}
+                            onSortChange={() => { }}
                             currentSort="Default Sorting"
                             className="border-t-0"
                         />
@@ -249,7 +334,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                                                 </h4>
                                                 
                                                 <div className="relative border-l-2 border-slate-200 ml-3 space-y-6 pb-4">
-                                                    {jobsToShow.length > 0 ? jobsToShow.map((job, idx) => (
+                                                    {jobsToShow.length > 0 ? jobsToShow.map((job) => (
                                                         <div key={job.id} className="relative pl-6">
                                                             <div className={cn("absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 bg-white",
                                                                 job.status === "Done" ? "border-emerald-500" :
@@ -265,14 +350,30 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                                                             <JobCard
                                                                 job={job}
                                                                 isSelected={false}
-                                                                onSelect={() => { }}
+                                                                onSelect={() => openRescheduleDialog(job, selectedFitter)}
+                                                                onAction={(action) => {
+                                                                    if (action === "manage") {
+                                                                        openRescheduleDialog(job, selectedFitter);
+                                                                    }
+                                                                }}
                                                                 variant="schedule"
                                                             />
+                                                            <div className="-mt-2 mb-3 flex justify-end">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 px-3 text-[10px] font-bold uppercase tracking-widest text-amber-700 hover:bg-amber-50"
+                                                                    onClick={() => openRescheduleDialog(job, selectedFitter)}
+                                                                >
+                                                                    Reschedule
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     )) : (
                                                         <>
                                                             {/* Show Empty Timeline Slots if no jobs */}
-                                                            {["08:00", "10:00", "12:00", "14:00", "16:00"].map((time, idx) => (
+                                                            {DAILY_SLOTS.map((time, idx) => (
                                                                 <div key={idx} className="relative pl-6">
                                                                     <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-slate-200"></div>
                                                                     <div className="flex items-center justify-between">
@@ -329,6 +430,116 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter }: Fitter
                 )}
             </div>
         </div>
+
+        <Dialog open={!!dialogState} onOpenChange={(open) => !open && setDialogState(null)}>
+            <DialogContent className="sm:max-w-2xl bg-white p-0 overflow-hidden flex flex-col md:flex-row gap-0">
+                <div className="bg-slate-50 p-6 border-r border-slate-100 w-full md:w-1/2 flex flex-col">
+                    <DialogHeader className="mb-6">
+                        <DialogTitle className="text-xl font-light text-slate-900 mb-1">Reschedule Job</DialogTitle>
+                        <DialogDescription className="text-xs">
+                            {dialogState ? `Moving ${dialogState.job.client} from ${dialogState.currentSlot} with ${dialogState.fitterName}` : "Change fitter and time for this job."}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex-1 flex flex-col gap-4">
+                        <div>
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">1. Select Service Date</label>
+                            <div className="border border-slate-200 rounded-lg bg-white overflow-hidden p-2 flex justify-center">
+                                <Calendar
+                                    mode="single"
+                                    selected={rescheduleDate}
+                                    onSelect={setRescheduleDate}
+                                    initialFocus
+                                    className="rounded-md border-0"
+                                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">2. Select Fitter</label>
+                            <Select value={dialogState?.fitterId ?? ""} onValueChange={handleDialogFitterChange}>
+                                <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
+                                    <SelectValue placeholder="Choose fitter" />
+                                </SelectTrigger>
+                                <SelectContent className="z-[1200] max-h-72">
+                                    {fitters.map((fitter) => {
+                                        const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
+                                            ? fitter.schedule.today
+                                            : rescheduleDate && isSameDay(rescheduleDate, addDays(new Date(), 1))
+                                                ? fitter.schedule.tomorrow
+                                                : [];
+                                        const freeSlots = DAILY_SLOTS.length - activeSchedule.length;
+
+                                        return (
+                                            <SelectItem key={fitter.id} value={fitter.id}>
+                                                <span className="flex w-full items-center justify-between gap-3">
+                                                    <span>{fitter.name}</span>
+                                                    <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                                                        {Math.max(0, freeSlots)} slots
+                                                    </span>
+                                                </span>
+                                            </SelectItem>
+                                        );
+                                    })}
+                                </SelectContent>
+                            </Select>
+                            <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                                Choose another fitter here if this job must be moved away from the current fitter.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 w-full md:w-1/2 flex flex-col">
+                    <div className="mb-6 flex items-center justify-between">
+                        <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 block">3. Select Time Slot</label>
+                        {rescheduleDate && <span className="text-xs font-medium text-slate-900">{format(rescheduleDate, "EEE, MMM do")}</span>}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 flex-1 content-start">
+                        {rescheduleSlots.map((slot) => {
+                            const isCurrent = !!dialogState &&
+                                dialogState.originalFitterId === dialogState.fitterId &&
+                                slot === dialogState.currentSlot &&
+                                !!rescheduleDate &&
+                                !!dialogState.currentDate &&
+                                isSameDay(rescheduleDate, dialogState.currentDate);
+
+                            return (
+                                <Button
+                                    key={slot}
+                                    variant={isCurrent ? "secondary" : "outline"}
+                                    className={cn(
+                                        "h-14 flex flex-col gap-0 items-center justify-center border-slate-100 transition-all",
+                                        isCurrent ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700",
+                                    )}
+                                    disabled={isCurrent}
+                                    onClick={() => confirmReschedule(slot)}
+                                >
+                                    <span className="font-bold text-lg">{slot}</span>
+                                    <span className="text-[9px] uppercase tracking-wider font-normal opacity-70">
+                                        {isCurrent ? "Current Time" : "Available"}
+                                    </span>
+                                </Button>
+                            );
+                        })}
+
+                        {rescheduleSlots.length === 0 && (
+                            <div className="col-span-2 py-8 text-center border border-dashed border-red-200 bg-red-50/50 rounded-lg">
+                                <p className="text-red-500 font-medium text-sm">No slots available.</p>
+                                <p className="text-xs text-red-400 mt-1">Please select another date or fitter.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <DialogFooter className="mt-auto sm:justify-end pt-6 border-t border-slate-50">
+                        <Button type="button" variant="ghost" onClick={() => setDialogState(null)}>Cancel</Button>
+                    </DialogFooter>
+                </div>
+            </DialogContent>
+        </Dialog>
+        </>
     );
 }
 
