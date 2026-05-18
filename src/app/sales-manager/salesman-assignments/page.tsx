@@ -188,7 +188,7 @@ function toReadableLastUpdated(source?: string) {
   }
 }
 
-export default function SmartAssignmentsPage() {
+export default function SmartSalesmanAssignmentsPage() {
   const { user } = useAuth();
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -328,8 +328,61 @@ export default function SmartAssignmentsPage() {
   }, [baseFitters, jobs, isToday, isTomorrow]);
 
   const salesmen = useMemo<Fitter[]>(() => {
-    return salesmanUsers.map(toSalesmanWorkforceMember);
-  }, [salesmanUsers]);
+    return salesmanUsers.map((user) => {
+      const salesmanName = user.name;
+      const assignedJobs = jobs.filter((job) => {
+        if (!["scheduled", "in_progress", "completed", "pending"].includes(job.status)) {
+          return false;
+        }
+        if (job.assignedTo) {
+          if (job.assignedTo === user._id) return true;
+          if (job.assignedTo.toLowerCase() === salesmanName.toLowerCase()) return true;
+          return false;
+        }
+        const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
+        return match?.[1]?.trim().toLowerCase() === salesmanName.toLowerCase();
+      });
+
+      const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
+      const tomorrow = assignedJobs.filter((job) => isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob);
+      const current = isToday ? today.length : isTomorrow ? tomorrow.length : 0;
+      const maxCapacity = user.maxDailyJobs || 999;
+      const remaining = Math.max(0, maxCapacity - current);
+      const busySlots = isToday ? today.map((job) => job.time) : isTomorrow ? tomorrow.map((job) => job.time) : [];
+      const nextAvailableSlot = DAILY_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
+
+      return {
+        id: user._id,
+        name: user.name,
+        role: "Salesman",
+        jobRef: "--",
+        status: remaining === 0 && maxCapacity !== 999 ? "Fully Booked" : user.liveStatus ?? "Available",
+        location: user.location
+          ? ([user.location.lat, user.location.lng] as [number, number])
+          : undefined,
+        locationLabel: user.location?.address,
+        lastUpdated: user.location?.updatedAt
+          ? toReadableLastUpdated(user.location.updatedAt)
+          : "Not updated",
+        avatar: user.avatar,
+        email: user.email,
+        phone: user.phone,
+        history: [],
+        schedule: {
+          yesterday: [],
+          today,
+          tomorrow,
+          upcoming: assignedJobs.filter((job) => job.scheduledAt && !isJobForDate(job, new Date()) && !isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob),
+        },
+        capacity: {
+          max: maxCapacity,
+          current,
+          remaining,
+        },
+        nextAvailableSlot,
+      };
+    });
+  }, [salesmanUsers, jobs, isToday, isTomorrow]);
 
   const workforceMembers = useMemo<Fitter[]>(() => {
     return [...fitters, ...salesmen];
@@ -338,7 +391,7 @@ export default function SmartAssignmentsPage() {
   const rescheduleSlots = useMemo(() => {
     if (!dialogState || !rescheduleDate) return [];
 
-    const fitter = fitters.find((item) => item.id === dialogState.fitterId);
+    const fitter = salesmen.find((item) => item.id === dialogState.fitterId);
     if (!fitter) return DAILY_SLOTS;
 
     let busySlots: string[] = [];
@@ -378,25 +431,16 @@ export default function SmartAssignmentsPage() {
     return { ...raw, team, assignedBy };
   }, [userNameById]);
 
-  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending" && !!job.assignedFitter).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
+  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending" && !job.quotation).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
   const activeJobs = useMemo(
-    () => sortUnifiedJobs(
-      jobs.filter((job) => {
-        if (!["scheduled", "in_progress"].includes(job.status)) return false;
-        // Always show jobs assigned to a fitter (regardless of date)
-        if (job.assignedFitter) return true;
-        // Also show date-filtered jobs assigned via legacy assignedTo
-        return isJobForDate(job, viewDate);
-      }).map(resolveUnifiedJob),
-      sortKey
-    ),
+    () => sortUnifiedJobs(jobs.filter((job) => ["scheduled", "in_progress"].includes(job.status) && isJobForDate(job, viewDate)).map(resolveUnifiedJob), sortKey),
     [jobs, sortKey, viewDate, resolveUnifiedJob],
   );
 
   const recommendedFitters = useMemo(() => {
     if (!selectedJobId) return [];
 
-    return fitters
+    return salesmen
       .filter((fitter) => fitter.capacity.remaining > 0)
       .map((fitter) => ({
         id: fitter.id,
@@ -406,7 +450,7 @@ export default function SmartAssignmentsPage() {
   }, [selectedJobId, fitters]);
 
   const initiateAssignment = (jobId: string, fitterId: string) => {
-    const fitter = fitters.find((item) => item.id === fitterId);
+    const fitter = salesmen.find((item) => item.id === fitterId);
     const job = [...pendingJobs, ...activeJobs].find((item) => item.id === jobId);
     if (!fitter || !job) return;
 
@@ -427,7 +471,7 @@ export default function SmartAssignmentsPage() {
   };
 
   const initiateEdit = (fitterId: string, jobTime: string, jobClient: string, jobId: string) => {
-    const fitter = fitters.find((item) => item.id === fitterId || item.name === fitterId);
+    const fitter = salesmen.find((item) => item.id === fitterId || item.name === fitterId);
     if (!fitter) {
       toast.error("Unable to find the assigned fitter for this job.");
       return;
@@ -456,7 +500,7 @@ export default function SmartAssignmentsPage() {
   };
 
   const handleDialogFitterChange = (fitterId: string) => {
-    const fitter = fitters.find((item) => item.id === fitterId);
+    const fitter = salesmen.find((item) => item.id === fitterId);
     if (!fitter) return;
 
     setDialogState((current) => current ? {
@@ -520,7 +564,7 @@ export default function SmartAssignmentsPage() {
           </div>
           <div className="flex justify-between items-end mb-6">
             <h1 className="text-3xl font-light text-slate-900">
-              Smart <span className="font-medium">Fitter Dispatch</span>
+              Smart <span className="font-medium">Salesman Dispatch</span>
             </h1>
           </div>
 
@@ -728,7 +772,7 @@ export default function SmartAssignmentsPage() {
                     <SelectValue placeholder="Choose fitter" />
                   </SelectTrigger>
                   <SelectContent className="z-[1200] max-h-72">
-                    {fitters.map((fitter) => {
+                    {salesmen.map((fitter) => {
                       const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
                         ? fitter.schedule.today
                         : rescheduleDate && isSameDay(rescheduleDate, addDays(new Date(), 1))

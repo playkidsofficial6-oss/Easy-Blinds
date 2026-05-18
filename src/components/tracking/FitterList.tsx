@@ -24,6 +24,7 @@ interface FitterListProps {
     selectedFitterId: string | null;
     onSelectFitter: (id: string) => void;
     onJobsChanged?: () => void | Promise<void>;
+    variant?: "fitter" | "salesman";
 }
 
 const DAILY_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
@@ -48,7 +49,7 @@ function calculateIsLate(jobTime: string, status: string) {
     }
 }
 
-export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsChanged }: FitterListProps) {
+export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsChanged, variant = "fitter" }: FitterListProps) {
     const { user } = useAuth();
     const [viewDate, setViewDate] = useState<Date>(new Date());
     const [dialogState, setDialogState] = useState<{
@@ -116,19 +117,29 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
         const scheduledAt = selectedDateFromSlot(rescheduleDate, timeSlot);
 
         try {
-            await updateJob(dialogState.job.id, {
+            const updates: any = {
                 status: "scheduled",
                 scheduledAt,
-                assignedTo: dialogState.fitterId,
-                assignedBy: user?._id || user?.name || "Sales Manager",
-                notes: `Rescheduled to ${dialogState.fitterName} @ ${timeSlot} on ${serviceDate} from Live Fitters.`,
-            });
+                assignedBy: user?.name || user?._id || "Sales Manager",
+            };
+
+            if (variant === "salesman") {
+                updates.assignedSalesman = dialogState.fitterId;
+                updates.assignedTo = dialogState.fitterId; // keep assignedTo in sync for filtering
+                updates.notes = `Reassigned to salesman ${dialogState.fitterName} @ ${timeSlot} on ${serviceDate}.`;
+            } else {
+                updates.assignedTo = dialogState.fitterId;
+                updates.assignedFitter = dialogState.fitterId;
+                updates.notes = `Rescheduled to fitter ${dialogState.fitterName} @ ${timeSlot} on ${serviceDate}.`;
+            }
+
+            await updateJob(dialogState.job.id, updates);
 
             await onJobsChanged?.();
-            toast.success(`Rescheduled ${dialogState.job.client} to ${serviceDate} @ ${timeSlot}`);
+            toast.success(`${variant === "salesman" ? "Reassigned" : "Rescheduled"} ${dialogState.job.client} to ${serviceDate} @ ${timeSlot}`);
             setDialogState(null);
         } catch (error) {
-            toast.error(getJobErrorMessage(error, "Unable to reschedule this job."));
+            toast.error(getJobErrorMessage(error, `Unable to ${variant === "salesman" ? "reassign" : "reschedule"} this job.`));
         }
     };
 
@@ -208,7 +219,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                 <div className="flex items-center gap-3 mt-3 text-xs">
                                                     <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                                                         <Briefcase className="w-3 h-3 text-slate-400" />
-                                                        <span className="font-medium">{fitter.schedule.today.length}/{fitter.capacity.max} Jobs</span>
+                                                        <span className="font-medium">{fitter.capacity.current}/{fitter.capacity.max} Jobs</span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                                                         <Clock className="w-3 h-3 text-slate-400" />
@@ -259,9 +270,14 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
 
                                     <div className="grid grid-cols-2 gap-2 mt-2">
                                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                                            <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Workload ({format(viewDate, "MMM do")})</div>
+                                            <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">
+                                                {selectedFitter.role === "Salesman" ? "Active Workload" : `Workload (${format(viewDate, "MMM do")})`}
+                                            </div>
                                             <div className="flex items-end justify-between">
-                                                <span className="text-lg font-semibold text-slate-700">{selectedFitter.schedule.today.filter(j => j.status === 'Done').length} <span className="text-sm font-normal text-slate-400">/ {selectedFitter.schedule.today.length}</span></span>
+                                                <span className="text-lg font-semibold text-slate-700">
+                                                    {selectedFitter.role === "Salesman" ? selectedFitter.capacity.current : selectedFitter.schedule.today.filter(j => j.status === 'Done').length}
+                                                    {selectedFitter.role !== "Salesman" && <span className="text-sm font-normal text-slate-400">/ {selectedFitter.schedule.today.length}</span>}
+                                                </span>
                                                 <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ASSIGNMENTS</span>
                                             </div>
                                         </div>
@@ -289,30 +305,81 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                             />
 
                             {/* Date Toolbar (Standardized) */}
-                            <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 sticky top-0 z-20">
-                                <div className="flex bg-slate-100 p-1 rounded-lg">
-                                    <button onClick={() => setViewDate(new Date())} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, new Date()) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Today</button>
-                                    <button onClick={() => setViewDate(addDays(new Date(), 1))} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, addDays(new Date(), 1)) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Tomorrow</button>
+                            {selectedFitter.role !== "Salesman" && (
+                                <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 sticky top-0 z-20">
+                                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                                        <button onClick={() => setViewDate(new Date())} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, new Date()) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Today</button>
+                                        <button onClick={() => setViewDate(addDays(new Date(), 1))} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, addDays(new Date(), 1)) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Tomorrow</button>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-medium text-slate-500 hidden sm:inline-block">{format(viewDate, "MMMM do, yyyy")}</span>
+                                        <div className="h-4 w-px bg-slate-200 mx-2 hidden sm:block"></div>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" size="icon" className="h-8 w-8 text-slate-500 border-slate-200 hover:text-emerald-700 hover:border-emerald-300">
+                                                    <CalendarIcon className="w-4 h-4" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="end">
+                                                <Calendar mode="single" selected={viewDate} onSelect={(date) => date && setViewDate(date)} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-slate-500 hidden sm:inline-block">{format(viewDate, "MMMM do, yyyy")}</span>
-                                    <div className="h-4 w-px bg-slate-200 mx-2 hidden sm:block"></div>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" size="icon" className="h-8 w-8 text-slate-500 border-slate-200 hover:text-emerald-700 hover:border-emerald-300">
-                                                <CalendarIcon className="w-4 h-4" />
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="end">
-                                            <Calendar mode="single" selected={viewDate} onSelect={(date) => date && setViewDate(date)} initialFocus />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
+                            )}
 
                             <ScrollArea className="flex-1 bg-slate-50">
                                 <div className="p-8">
                                     {(() => {
+                                        if (selectedFitter.role === "Salesman") {
+                                            const salesmanJobs = [
+                                                ...selectedFitter.schedule.today,
+                                                ...selectedFitter.schedule.tomorrow,
+                                                ...selectedFitter.schedule.upcoming
+                                            ];
+                                            return (
+                                                <div className="space-y-6">
+                                                    <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-4 flex items-center gap-2">
+                                                        <Briefcase className="w-3 h-3" />
+                                                        All Active Assignments
+                                                    </h4>
+                                                    {salesmanJobs.length > 0 ? (
+                                                        <div className="space-y-4">
+                                                            {salesmanJobs.map(job => (
+                                                                <div key={job.id} className="space-y-1">
+                                                                    <JobCard
+                                                                        job={job}
+                                                                        isSelected={false}
+                                                                        onSelect={() => openRescheduleDialog(job, selectedFitter)}
+                                                                        onAction={(action) => {
+                                                                            if (action === "manage") openRescheduleDialog(job, selectedFitter);
+                                                                        }}
+                                                                        variant="schedule"
+                                                                    />
+                                                                    <div className="flex justify-end">
+                                                                        <Button
+                                                                            type="button"
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            className="h-8 px-3 text-[10px] font-bold uppercase tracking-widest text-amber-700 hover:bg-amber-50"
+                                                                            onClick={() => openRescheduleDialog(job, selectedFitter)}
+                                                                        >
+                                                                            Reassign
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="py-12 text-center bg-slate-100/50 rounded-xl border border-dashed border-slate-200">
+                                                            <Briefcase className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                                                            <p className="text-sm font-medium text-slate-500">No active jobs assigned.</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        }
+
                                         // Determine jobs based on viewDate
                                         let jobsToShow: FitterJob[] = [];
                                         if (isSameDay(viewDate, new Date())) {
@@ -366,7 +433,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                                         className="h-8 px-3 text-[10px] font-bold uppercase tracking-widest text-amber-700 hover:bg-amber-50"
                                                                         onClick={() => openRescheduleDialog(job, selectedFitter)}
                                                                     >
-                                                                        Reschedule
+                                                                        {variant === "salesman" ? "Reassign" : "Reschedule"}
                                                                     </Button>
                                                                 </div>
                                                             </div>
@@ -435,9 +502,11 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                 <DialogContent className="sm:max-w-2xl bg-white p-0 overflow-hidden flex flex-col md:flex-row gap-0">
                     <div className="bg-slate-50 p-6 border-r border-slate-100 w-full md:w-1/2 flex flex-col">
                         <DialogHeader className="mb-6">
-                            <DialogTitle className="text-xl font-light text-slate-900 mb-1">Reschedule Job</DialogTitle>
+                            <DialogTitle className="text-xl font-light text-slate-900 mb-1">
+                                {variant === "salesman" ? "Reassign Job" : "Reschedule Job"}
+                            </DialogTitle>
                             <DialogDescription className="text-xs">
-                                {dialogState ? `Moving ${dialogState.job.client} from ${dialogState.currentSlot} with ${dialogState.fitterName}` : "Change fitter and time for this job."}
+                                {dialogState ? `Moving ${dialogState.job.client} from ${dialogState.currentSlot} with ${dialogState.fitterName}` : `Change ${variant === "salesman" ? "salesman" : "fitter"} and time for this job.`}
                             </DialogDescription>
                         </DialogHeader>
 
@@ -457,10 +526,12 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                             </div>
 
                             <div>
-                                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">2. Select Fitter</label>
+                                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">
+                                    2. Select {variant === "salesman" ? "Salesman" : "Fitter"}
+                                </label>
                                 <Select value={dialogState?.fitterId ?? ""} onValueChange={handleDialogFitterChange}>
                                     <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
-                                        <SelectValue placeholder="Choose fitter" />
+                                        <SelectValue placeholder={`Choose ${variant === "salesman" ? "salesman" : "fitter"}`} />
                                     </SelectTrigger>
                                     <SelectContent className="z-[1200] max-h-72">
                                         {fitters.map((fitter) => {
@@ -485,7 +556,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                     </SelectContent>
                                 </Select>
                                 <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                                    Choose another fitter here if this job must be moved away from the current fitter.
+                                    Choose another {variant === "salesman" ? "salesman" : "fitter"} here if this job must be moved away from the current one.
                                 </p>
                             </div>
                         </div>

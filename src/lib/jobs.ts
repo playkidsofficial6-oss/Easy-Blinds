@@ -22,6 +22,8 @@ export interface Job {
   updatedAt?: string;
   assignedTo?: string;
   assignedBy?: string;
+  assignedSalesman?: string;
+  assignedFitter?: string;
   quotation?: any;
 }
 
@@ -40,6 +42,8 @@ export interface CreateJobInput {
   scheduledAt?: string;
   assignedTo?: string;
   assignedBy?: string;
+  assignedSalesman?: string;
+  assignedFitter?: string;
   quotation?: any;
 }
 
@@ -70,6 +74,11 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
 
 export async function getJobs(query: JobsQuery = {}): Promise<JobsResponse> {
   const { data } = await api.get<JobsResponse>("/jobs", { params: query });
+  return data;
+}
+
+export async function getJob(id: string): Promise<Job> {
+  const { data } = await api.get<Job>(`/jobs/${id}`);
   return data;
 }
 

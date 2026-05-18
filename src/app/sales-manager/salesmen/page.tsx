@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { format, addDays, isSameDay, parseISO } from "date-fns";
-import { ArrowLeft, ClipboardList, FileText, MapPin, Calendar, CheckCircle, Mail, Phone, Eye } from "lucide-react";
+import { ArrowLeft, ClipboardList, FileText, MapPin, Calendar, CheckCircle, Mail, Phone, Eye, Pencil, Plus, Trash2, Save, UserCheck } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +98,11 @@ function isJobForDate(job: Job, date: Date) {
 }
 
 function isAssignedToSalesman(job: Job, salesman: UserRecord) {
+    // Check assignedSalesman field (set by the Reassign dialog)
+    if (job.assignedSalesman) {
+        if (job.assignedSalesman === salesman._id) return true;
+        if (job.assignedSalesman.toLowerCase() === salesman.name.toLowerCase()) return true;
+    }
     if (job.assignedTo) {
         if (job.assignedTo === salesman._id) return true;
         if (job.assignedTo.toLowerCase() === salesman.name.toLowerCase()) return true;
@@ -115,6 +121,7 @@ function getUnassignedJobs(jobs: Job[]) {
 function getStatusVariant(status: string) {
     if (status === "completed" || status === "Approved") return "default";
     if (status === "cancelled" || status === "Rejected") return "destructive";
+    if (status === "Assigned") return "default";
     return "secondary";
 }
 
@@ -141,7 +148,15 @@ export default function SalesmenPage() {
     const [selectedJobId, setSelectedJobId] = useState<string>("");
     const [isAssigning, setIsAssigning] = useState(false);
     const [selectedQuote, setSelectedQuote] = useState<any | null>(null);
+    const [isEditingQuote, setIsEditingQuote] = useState(false);
+    const [editQuoteData, setEditQuoteData] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [fitters, setFitters] = useState<UserRecord[]>([]);
+    const [assignFitterQuote, setAssignFitterQuote] = useState<any | null>(null);
+    const [selectedFitterId, setSelectedFitterId] = useState<string>("");
+    const [scheduledDate, setScheduledDate] = useState<string>("");
+    const [scheduledTime, setScheduledTime] = useState<string>("09:00");
+    const [isAssigningFitter, setIsAssigningFitter] = useState(false);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -150,7 +165,12 @@ export default function SalesmenPage() {
                 getUsers(),
                 getJobs({ limit: 100 }),
             ]);
-            setSalesmen(usersResult.filter(isSalesman));
+            const allUsers = usersResult;
+            setSalesmen(allUsers.filter(isSalesman));
+            setFitters(allUsers.filter(u => {
+                const role = u.role?.toLowerCase() ?? "";
+                return role === "fitter";
+            }));
             setJobs(jobsResult.items);
         } catch (error) {
             toast.error("Failed to load salesmen data");
@@ -166,22 +186,33 @@ export default function SalesmenPage() {
     const unassignedJobs = useMemo(() => getUnassignedJobs(jobs), [jobs]);
 
     const submittedQuotes = useMemo(() => {
-        return jobs.map(j => ({ ...j.quotation, jobId: j._id })).filter((quote) => quote && quote.id && quote.status !== "Draft");
-    }, [jobs]);
+        return jobs.map(j => {
+            const assignedSalesman = salesmen.find(s => isAssignedToSalesman(j, s));
+            const displayStatus = j.assignedFitter ? "Assigned" : (j.quotation?.status ?? "");
+            return { 
+                ...j.quotation, 
+                jobId: j._id, 
+                jobCustomerName: j.customerName,
+                salesmanName: assignedSalesman?.name || "Unknown Salesman",
+                status: displayStatus,
+            };
+        }).filter((quote) => quote && quote.id && quote.status !== "Draft");
+    }, [jobs, salesmen]);
 
     const mappedSalesmen = useMemo<Fitter[]>(() => {
         const today = new Date();
         const tomorrow = addDays(today, 1);
 
         return salesmen.map((salesman) => {
-            const assignedJobs = jobs.filter((job) => ["scheduled", "in_progress", "completed"].includes(job.status) && isAssignedToSalesman(job, salesman));
+            const assignedJobs = jobs.filter((job) => ["pending", "scheduled", "in_progress", "completed"].includes(job.status) && isAssignedToSalesman(job, salesman));
             const todayJobs = assignedJobs.filter((job) => isJobForDate(job, today)).map(toFitterJob);
             const tomorrowJobs = assignedJobs.filter((job) => isJobForDate(job, tomorrow)).map(toFitterJob);
             const upcomingJobs = assignedJobs.filter((job) => job.scheduledAt && !isJobForDate(job, today) && !isJobForDate(job, tomorrow)).map(toFitterJob);
             
+            const activeAssignedJobs = assignedJobs.filter(j => j.status !== "completed");
             // Set max to 999 to hide the denominator as requested
             const maxCapacity = 999;
-            const currentCapacity = todayJobs.length;
+            const currentCapacity = activeAssignedJobs.length;
             const remainingCapacity = Math.max(0, maxCapacity - currentCapacity);
             const busySlots = todayJobs.map((job) => job.time).filter(Boolean);
             const nextAvailableSlot = TIME_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
@@ -237,7 +268,7 @@ export default function SalesmenPage() {
             const selectedJob = jobs.find((job) => job._id === selectedJobId);
             const updatedJob = await updateJob(selectedJobId, {
                 assignedTo: salesman._id,
-                assignedBy: user?._id ?? user?.name,
+                assignedBy: user?.name ?? user?._id,
                 status: "scheduled",
                 notes: [
                     selectedJob?.notes,
@@ -252,6 +283,72 @@ export default function SalesmenPage() {
             toast.error(getJobErrorMessage(assignError, "Unable to assign job to salesman."));
         } finally {
             setIsAssigning(false);
+        }
+    };
+
+    const handleSaveQuote = async () => {
+        if (!editQuoteData) return;
+        try {
+            const subtotal = (editQuoteData.items || []).reduce((sum: number, item: any) => sum + ((item.quantity || 0) * (item.unitPrice || 0)), 0);
+            const vat = subtotal * 0.05;
+            const newTotal = subtotal + vat;
+            
+            const updatedQuotation = {
+                ...editQuoteData,
+                items: (editQuoteData.items || []).map((item: any) => ({
+                    ...item,
+                    total: (item.quantity || 0) * (item.unitPrice || 0)
+                })),
+                total: newTotal
+            };
+
+            await updateJob(editQuoteData.jobId, {
+                quotation: updatedQuotation
+            });
+
+            setJobs((currentJobs) => currentJobs.map(j => j._id === editQuoteData.jobId ? { ...j, quotation: updatedQuotation } : j));
+            setIsEditingQuote(false);
+            setSelectedQuote(updatedQuotation);
+            toast.success("Quotation updated successfully");
+        } catch (error) {
+            toast.error("Failed to update quotation");
+        }
+    };
+
+    const handleAssignToFitter = async () => {
+        if (!assignFitterQuote || !selectedFitterId) {
+            toast.error("Please select a fitter.");
+            return;
+        }
+        const fitter = fitters.find(f => f._id === selectedFitterId);
+        if (!fitter) return;
+
+        setIsAssigningFitter(true);
+        try {
+            let scheduledAt: string | undefined = undefined;
+            if (scheduledDate) {
+                const timeStr = scheduledTime || "09:00";
+                scheduledAt = new Date(`${scheduledDate}T${timeStr}:00`).toISOString();
+            }
+            const updatedJob = await updateJob(assignFitterQuote.jobId, {
+                assignedFitter: fitter._id,
+                assignedTo: fitter._id,
+                assignedSalesman: assignFitterQuote.salesmanName ?? "",
+                assignedBy: user?.name ?? user?._id ?? "Sales Manager",
+                status: "scheduled",
+                scheduledAt,
+                notes: `Assigned to fitter ${fitter.name} by Sales Manager${scheduledDate ? ` for ${scheduledDate} at ${scheduledTime || "09:00"}` : ""}.`,
+            });
+            setJobs(curr => curr.map(j => j._id === updatedJob._id ? updatedJob : j));
+            toast.success(`Job assigned to fitter ${fitter.name}${scheduledDate ? ` on ${scheduledDate}` : ""}`);
+            setAssignFitterQuote(null);
+            setSelectedFitterId("");
+            setScheduledDate("");
+            setScheduledTime("09:00");
+        } catch (error) {
+            toast.error(getJobErrorMessage(error, "Failed to assign fitter."));
+        } finally {
+            setIsAssigningFitter(false);
         }
     };
 
@@ -275,18 +372,20 @@ export default function SalesmenPage() {
             </div>
 
             {/* Tracking Section */}
-            <div className="flex flex-col md:flex-row border-b border-slate-200 bg-white shadow-sm flex-shrink-0 h-[600px]">
-                {/* Sidebar */}
-                <div className="w-full md:w-[400px] flex-shrink-0 border-r border-slate-200 z-10 bg-white flex flex-col h-full overflow-y-auto scrollbar-thin">
+            <div className="flex border-b border-slate-200 bg-white shadow-sm flex-shrink-0 overflow-hidden" style={{ height: "600px" }}>
+                {/* Sidebar — fixed width, clips horizontal overflow, allows vertical scroll inside ScrollArea */}
+                <div className="w-[400px] flex-shrink-0 border-r border-slate-200 bg-white flex flex-col h-full overflow-x-hidden">
                     <FitterList
                         fitters={mappedSalesmen}
                         selectedFitterId={selectedSalesmanId}
                         onSelectFitter={setSelectedSalesmanId}
+                        onJobsChanged={loadData}
+                        variant="salesman"
                     />
                 </div>
 
                 {/* Map View */}
-                <div className="flex-1 h-full relative bg-slate-100">
+                <div className="flex-1 min-w-0 h-full relative bg-slate-100 overflow-hidden">
                     <FitterMap
                         fitters={mappedSalesmen}
                         selectedFitterId={selectedSalesmanId}
@@ -367,6 +466,7 @@ export default function SalesmenPage() {
                                         <TableRow className="hover:bg-transparent border-slate-100">
                                             <TableHead className="font-semibold text-slate-600 pl-6">Quote</TableHead>
                                             <TableHead className="font-semibold text-slate-600">Client</TableHead>
+                                            <TableHead className="font-semibold text-slate-600">Salesman</TableHead>
                                             <TableHead className="font-semibold text-slate-600">Total</TableHead>
                                             <TableHead className="font-semibold text-slate-600">Status</TableHead>
                                             <TableHead className="text-right font-semibold text-slate-600 pr-6">Action</TableHead>
@@ -377,14 +477,22 @@ export default function SalesmenPage() {
                                             <TableRow key={quote.id} className="border-slate-100">
                                                 <TableCell className="pl-6">
                                                     <div className="font-semibold text-slate-900">{quote.id}</div>
-                                                    <div className="text-xs text-slate-500 mt-0.5">{getQuoteJobId(quote)}</div>
                                                 </TableCell>
-                                                <TableCell className="font-medium text-slate-700">{quote.client}</TableCell>
+                                                <TableCell className="font-medium text-slate-700">{quote.client || quote.jobCustomerName}</TableCell>
+                                                <TableCell className="font-medium text-slate-700">
+                                                    <Badge variant="outline" className="text-xs text-slate-600 bg-slate-50">{quote.salesmanName}</Badge>
+                                                </TableCell>
                                                 <TableCell className="font-medium text-slate-900">AED {quote.total?.toLocaleString()}</TableCell>
                                                 <TableCell><Badge variant={getStatusVariant(quote.status)} className="font-bold tracking-wide">{quote.status}</Badge></TableCell>
-                                                <TableCell className="text-right pr-6">
-                                                    <Button variant="outline" size="sm" onClick={() => setSelectedQuote(quote)} className="border-slate-200 hover:border-slate-300 hover:bg-slate-50">
-                                                        <Eye className="w-4 h-4 mr-2 text-slate-400" /> View
+                                                <TableCell className="text-right pr-6 space-x-2">
+                                                    <Button variant="outline" size="sm" onClick={() => { setSelectedQuote(quote); setIsEditingQuote(false); }} className="border-slate-200 hover:border-slate-300 hover:bg-slate-50">
+                                                        <Eye className="w-4 h-4 mr-1 text-slate-400" /> View
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" onClick={() => { setSelectedQuote(quote); setEditQuoteData(quote); setIsEditingQuote(true); }} className="border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-emerald-700">
+                                                        <Pencil className="w-4 h-4 mr-1" /> Edit
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" onClick={() => { setAssignFitterQuote(quote); setSelectedFitterId(""); }} className="border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-blue-700">
+                                                        <UserCheck className="w-4 h-4 mr-1" /> Assign Fitter
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
@@ -397,25 +505,106 @@ export default function SalesmenPage() {
                 </div>
             </div>
 
-            <Dialog open={Boolean(selectedQuote)} onOpenChange={(open) => !open && setSelectedQuote(null)}>
-                <DialogContent className="max-w-3xl">
+            <Dialog open={Boolean(selectedQuote) || isEditingQuote} onOpenChange={(open) => { if (!open) { setSelectedQuote(null); setIsEditingQuote(false); } }}>
+                <DialogContent className="max-w-4xl">
                     <DialogHeader>
-                        <DialogTitle>Quotation Details</DialogTitle>
+                        <DialogTitle>{isEditingQuote ? "Edit Quotation" : "Quotation Details"}</DialogTitle>
                         <DialogDescription>
-                            {selectedQuote?.id} • {selectedQuote?.client} • AED {selectedQuote?.total?.toLocaleString()}
+                            {(isEditingQuote ? editQuoteData : selectedQuote)?.id} • {(isEditingQuote ? editQuoteData : selectedQuote)?.client || (isEditingQuote ? editQuoteData : selectedQuote)?.jobCustomerName} • AED {(isEditingQuote ? editQuoteData : selectedQuote)?.total?.toLocaleString()}
+                            <span className="block mt-1">Submitted by: <span className="font-medium text-slate-900">{(isEditingQuote ? editQuoteData : selectedQuote)?.salesmanName}</span></span>
                         </DialogDescription>
                     </DialogHeader>
-                    {selectedQuote && (
+                    
+                    {isEditingQuote && editQuoteData ? (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</label>
+                                    <Select value={editQuoteData.status} onValueChange={(val) => setEditQuoteData({...editQuoteData, status: val})}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="Draft">Draft</SelectItem>
+                                            <SelectItem value="Sent">Sent</SelectItem>
+                                            <SelectItem value="Negotiation">Negotiation</SelectItem>
+                                            <SelectItem value="Approved">Approved</SelectItem>
+                                            <SelectItem value="Rejected">Rejected</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            
+                            <div className="border rounded-lg border-slate-200 overflow-hidden">
+                                <Table>
+                                    <TableHeader className="bg-slate-50">
+                                        <TableRow>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="w-24">Qty</TableHead>
+                                            <TableHead className="w-32">Unit Price</TableHead>
+                                            <TableHead className="w-32">Total</TableHead>
+                                            <TableHead className="w-16"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {(editQuoteData.items || []).map((item: any, idx: number) => (
+                                            <TableRow key={idx}>
+                                                <TableCell>
+                                                    <Input value={item.description} onChange={(e) => {
+                                                        const newItems = [...editQuoteData.items];
+                                                        newItems[idx].description = e.target.value;
+                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                    }} />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Input type="number" min="1" value={item.quantity} onChange={(e) => {
+                                                        const newItems = [...editQuoteData.items];
+                                                        newItems[idx].quantity = parseInt(e.target.value) || 0;
+                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                    }} />
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Input type="number" min="0" value={item.unitPrice} onChange={(e) => {
+                                                        const newItems = [...editQuoteData.items];
+                                                        newItems[idx].unitPrice = parseFloat(e.target.value) || 0;
+                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                    }} />
+                                                </TableCell>
+                                                <TableCell className="font-medium">
+                                                    AED {((item.quantity || 0) * (item.unitPrice || 0)).toLocaleString()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
+                                                        const newItems = editQuoteData.items.filter((_: any, i: number) => i !== idx);
+                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                    }}>
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                                <div className="p-3 bg-slate-50 border-t border-slate-200">
+                                    <Button variant="outline" size="sm" onClick={() => {
+                                        setEditQuoteData({...editQuoteData, items: [...(editQuoteData.items || []), { id: Math.random().toString(), description: "", quantity: 1, unitPrice: 0 }]});
+                                    }}>
+                                        <Plus className="w-4 h-4 mr-2" /> Add Item
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : selectedQuote && (
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</p>
                                     <p className="font-semibold text-slate-900 mt-1">{selectedQuote.status}</p>
                                 </div>
-                                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                                {/* <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Job / Measurement</p>
                                     <p className="font-semibold text-slate-900 mt-1">{getQuoteJobId(selectedQuote)}</p>
-                                </div>
+                                </div> */}
                                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Created</p>
                                     <p className="font-semibold text-slate-900 mt-1">{formatDate(selectedQuote.date)}</p>
@@ -449,7 +638,104 @@ export default function SalesmenPage() {
                         </div>
                     )}
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedQuote(null)}>Close</Button>
+                        {isEditingQuote ? (
+                            <>
+                                <Button variant="outline" onClick={() => setIsEditingQuote(false)}>Cancel</Button>
+                                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSaveQuote}>
+                                    <Save className="w-4 h-4 mr-2" /> Save Changes
+                                </Button>
+                            </>
+                        ) : (
+                            <Button variant="outline" onClick={() => setSelectedQuote(null)}>Close</Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Assign to Fitter Dialog */}
+            <Dialog open={Boolean(assignFitterQuote)} onOpenChange={(open) => { if (!open) { setAssignFitterQuote(null); setSelectedFitterId(""); } }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-slate-900">
+                            <UserCheck className="w-5 h-5 text-blue-600" />
+                            Assign Job to Fitter
+                        </DialogTitle>
+                        <DialogDescription>
+                            Selecting a fitter will mark this job as <span className="font-semibold text-slate-700">Scheduled</span> and send it to the Fitter Assignments queue.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4 py-2">
+                        <div className="bg-slate-50 rounded-lg border border-slate-100 p-4 space-y-1">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Quotation</p>
+                            <p className="font-semibold text-slate-900">{assignFitterQuote?.id}</p>
+                            <p className="text-sm text-slate-600">{assignFitterQuote?.client || assignFitterQuote?.jobCustomerName} • AED {assignFitterQuote?.total?.toLocaleString()}</p>
+                            <p className="text-xs text-slate-500">Submitted by: {assignFitterQuote?.salesmanName}</p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Select Fitter</label>
+                            {fitters.length === 0 ? (
+                                <p className="text-sm text-slate-400 italic">No fitters found in the system.</p>
+                            ) : (
+                                <Select value={selectedFitterId} onValueChange={setSelectedFitterId}>
+                                    <SelectTrigger className="h-11 border-slate-200">
+                                        <SelectValue placeholder="Choose a fitter..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {fitters.map((fitter) => (
+                                            <SelectItem key={fitter._id} value={fitter._id}>
+                                                <span className="flex items-center gap-2">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                                                    {fitter.name}
+                                                </span>
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Schedule Date</label>
+                                <Input
+                                    type="date"
+                                    value={scheduledDate}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => setScheduledDate(e.target.value)}
+                                    className="h-11 border-slate-200"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Time Slot</label>
+                                <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                                    <SelectTrigger className="h-11 border-slate-200">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"].map(slot => (
+                                            <SelectItem key={slot} value={slot}>{slot}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        {!scheduledDate && (
+                            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded px-3 py-2">⚠ Without a date, the job won't appear in the date-filtered timeline. It will still be visible in the Scheduled tab.</p>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setAssignFitterQuote(null); setSelectedFitterId(""); }}>Cancel</Button>
+                        <Button
+                            disabled={!selectedFitterId || isAssigningFitter}
+                            onClick={handleAssignToFitter}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                            <UserCheck className="w-4 h-4 mr-2" />
+                            {isAssigningFitter ? "Assigning..." : "Confirm Assignment"}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -36,8 +36,12 @@ export function useQuotes() {
 
     const loadQuotes = useCallback(async () => {
         try {
-            const { data } = await api.get<Quote[]>('/quotes');
-            setQuotes(data);
+            const local = localStorage.getItem('mock_quotes');
+            if (local) {
+                setQuotes(JSON.parse(local));
+            } else {
+                setQuotes([]);
+            }
         } catch (error) {
             console.error("Failed to load quotes", error);
         } finally {
@@ -56,9 +60,12 @@ export function useQuotes() {
             date: new Date().toISOString(),
         };
         try {
-            const { data } = await api.post<Quote>('/quotes', newQuoteData);
-            setQuotes(prev => [data, ...prev]);
-            return data;
+            setQuotes(prev => {
+                const next = [newQuoteData as Quote, ...prev];
+                localStorage.setItem('mock_quotes', JSON.stringify(next));
+                return next;
+            });
+            return newQuoteData as Quote;
         } catch (error) {
             console.error("Failed to add quote", error);
             throw error;
@@ -67,19 +74,27 @@ export function useQuotes() {
 
     const updateQuoteStatus = useCallback(async (id: string, status: QuoteStatus) => {
         try {
-            const { data } = await api.patch<Quote>(`/quotes/${id}/status`, { status });
-            setQuotes(prev => prev.map(q => q.id === id ? data : q));
+            setQuotes(prev => {
+                const next = prev.map(q => q.id === id ? { ...q, status } : q);
+                localStorage.setItem('mock_quotes', JSON.stringify(next));
+                return next;
+            });
         } catch (error) {
             console.error("Failed to update quote status", error);
+            throw error;
         }
     }, []);
 
     const deleteQuote = useCallback(async (id: string) => {
         try {
-            await api.delete(`/quotes/${id}`);
-            setQuotes(prev => prev.filter(q => q.id !== id));
+            setQuotes(prev => {
+                const next = prev.filter(q => q.id !== id);
+                localStorage.setItem('mock_quotes', JSON.stringify(next));
+                return next;
+            });
         } catch (error) {
             console.error("Failed to delete quote", error);
+            throw error;
         }
     }, []);
 

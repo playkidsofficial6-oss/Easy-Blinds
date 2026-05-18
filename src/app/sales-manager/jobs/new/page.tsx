@@ -49,7 +49,7 @@ export default function NewJobPage() {
       });
 
       toast.success("Job created and saved successfully.");
-      router.push("/sales-manager/assignments");
+      router.push("/sales-manager/salesman-assignments");
       router.refresh();
     } catch (error) {
       toast.error(getJobErrorMessage(error, "Unable to create job in MongoDB."));
@@ -61,7 +61,7 @@ export default function NewJobPage() {
   return (
     <div className="p-8 max-w-3xl mx-auto space-y-8">
       <div className="flex items-center gap-4">
-        <Link href="/sales-manager/assignments" className="p-2 hover:bg-stone-100 rounded-full transition-colors">
+        <Link href="/sales-manager/salesman-assignments" className="p-2 hover:bg-stone-100 rounded-full transition-colors">
           <ArrowLeft className="w-6 h-6 text-stone-600" />
         </Link>
         <div>
