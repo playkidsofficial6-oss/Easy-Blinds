@@ -10,7 +10,6 @@ import { Plus, Trash2, Save, ArrowLeft, Calculator } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
-import { useQuotes, type QuoteStatus } from "@/lib/quote-store";
 import { updateJob } from "@/lib/jobs";
 import { toast } from "sonner";
 
@@ -21,12 +20,14 @@ interface LineItem {
     unitPrice: number;
 }
 
+export type QuoteStatus = "Approved" | "Sent" | "Negotiation" | "Rejected" | "Draft";
+
 export default function NewQuotePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const jobId = searchParams.get("jobId") ?? searchParams.get("measurementId") ?? undefined;
     const { user } = useAuth();
-    const { addQuote } = useQuotes();
+    
     const [clientName, setClientName] = useState("");
     const [clientPhone, setClientPhone] = useState("");
     const [clientEmail, setClientEmail] = useState("");
@@ -63,11 +64,15 @@ export default function NewQuotePage() {
     const total = subtotal + vat;
 
     const handleSave = async (status: QuoteStatus = "Sent") => {
+        if (!jobId) {
+            toast.error("No Job ID provided. Cannot save quote without a job.");
+            return;
+        }
+        
         try {
-            addQuote({
+            const quotation = {
+                id: `Q${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
                 client: clientName || "Unnamed Client",
-                measurementId: jobId,
-                jobId,
                 salesmanId: user?._id,
                 salesmanName: user?.name,
                 clientPhone,
@@ -75,21 +80,21 @@ export default function NewQuotePage() {
                 notes,
                 total,
                 status,
+                date: new Date().toISOString(),
                 sentDate: status === "Sent" ? new Date().toISOString() : undefined,
                 items: lineItems.map((item) => ({
                     ...item,
                     total: item.quantity * item.unitPrice,
                 })),
+            };
+
+            await updateJob(jobId, {
+                status: "completed",
+                notes: [notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
+                quotation,
             });
 
-            if (jobId && status === "Sent") {
-                await updateJob(jobId, {
-                    status: "completed",
-                    notes: [notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
-                });
-            }
-
-            toast.success(status === "Draft" ? "Quote saved as draft" : "Quote submitted to sales manager");
+            toast.success(status === "Draft" ? "Quote saved as draft to job" : "Quote submitted to sales manager");
             router.push("/salesman/quotes");
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Unable to save quote");
@@ -162,7 +167,7 @@ export default function NewQuotePage() {
                                     value={clientEmail}
                                     onChange={(e) => setClientEmail(e.target.value)}
                                     className="h-11"
-                                />
+                                 />
                             </div>
                         </CardContent>
                     </Card>

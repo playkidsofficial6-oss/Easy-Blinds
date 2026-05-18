@@ -22,6 +22,7 @@ export interface Job {
   updatedAt?: string;
   assignedTo?: string;
   assignedBy?: string;
+  quotation?: any;
 }
 
 export interface CreateJobInput {
@@ -39,6 +40,7 @@ export interface CreateJobInput {
   scheduledAt?: string;
   assignedTo?: string;
   assignedBy?: string;
+  quotation?: any;
 }
 
 export type UpdateJobInput = Partial<CreateJobInput>;
