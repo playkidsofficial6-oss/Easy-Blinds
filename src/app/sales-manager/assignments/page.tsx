@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JobCard, type UnifiedJob } from "@/components/common/JobCard";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -72,13 +73,6 @@ function resolveAssignedFitterName(job: Job, fitterNameById: Map<string, string>
   // Oldest legacy: name embedded in notes
   const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
   return match?.[1]?.trim() || "Assigned Team";
-}
-
-function isAssignedToFitter(job: Job, fitter: UserRecord) {
-  const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
-  const assignedName = match?.[1]?.trim();
-  if (!assignedName) return false;
-  return assignedName.toLowerCase() === fitter.name.toLowerCase();
 }
 
 function toUnifiedJob(job: Job): UnifiedJob {
@@ -275,6 +269,7 @@ export default function SmartAssignmentsPage() {
     jobClient: string;
     fitterId: string;
     fitterName: string;
+    originalFitterId?: string;
     currentSlot?: string;
     currentDate?: Date;
   } | null>(null);
@@ -351,7 +346,14 @@ export default function SmartAssignmentsPage() {
     }
 
     return DAILY_SLOTS.filter((slot) => {
-      if (dialogState.type === "edit" && dialogState.currentDate && isSameDay(rescheduleDate, dialogState.currentDate) && slot === dialogState.currentSlot) {
+      const isCurrentAssignmentSlot =
+        dialogState.type === "edit" &&
+        dialogState.originalFitterId === dialogState.fitterId &&
+        dialogState.currentDate &&
+        isSameDay(rescheduleDate, dialogState.currentDate) &&
+        slot === dialogState.currentSlot;
+
+      if (isCurrentAssignmentSlot) {
         return true;
       }
 
@@ -407,7 +409,10 @@ export default function SmartAssignmentsPage() {
 
   const initiateEdit = (fitterId: string, jobTime: string, jobClient: string, jobId: string) => {
     const fitter = fitters.find((item) => item.id === fitterId || item.name === fitterId);
-    if (!fitter) return;
+    if (!fitter) {
+      toast.error("Unable to find the assigned fitter for this job.");
+      return;
+    }
 
     setRescheduleDate(viewDate);
     setDialogState({
@@ -416,9 +421,30 @@ export default function SmartAssignmentsPage() {
       jobClient,
       fitterId: fitter.id,
       fitterName: fitter.name,
+      originalFitterId: fitter.id,
       currentSlot: jobTime,
       currentDate: viewDate,
     });
+  };
+
+  const openRescheduleForJob = (job: UnifiedJob) => {
+    const sourceJob = jobs.find((item) => item._id === job.id);
+    const assignedFitter = sourceJob?.assignedTo ?? job.team ?? "";
+    const scheduledTime = job.time ?? toDisplayTime(sourceJob?.scheduledAt) ?? "08:00";
+
+    setSelectedJobId(job.id);
+    initiateEdit(assignedFitter, scheduledTime, job.client, job.id);
+  };
+
+  const handleDialogFitterChange = (fitterId: string) => {
+    const fitter = fitters.find((item) => item.id === fitterId);
+    if (!fitter) return;
+
+    setDialogState((current) => current ? {
+      ...current,
+      fitterId: fitter.id,
+      fitterName: fitter.name,
+    } : current);
   };
 
   const confirmAction = async (timeSlot: string) => {
@@ -463,7 +489,6 @@ export default function SmartAssignmentsPage() {
     }
   };
 
-  const getFitterByName = (name: string) => fitters.find((item) => item.name === name);
   const isLoading = !isLoaded || isLoadingJobs || isLoadingUsers;
 
   return (
@@ -562,13 +587,11 @@ export default function SmartAssignmentsPage() {
                   <JobCard
                     key={job.id}
                     job={job}
-                    isSelected={false}
-                    onSelect={() => {}}
+                    isSelected={selectedJobId === job.id}
+                    onSelect={() => openRescheduleForJob(job)}
                     onAction={(action) => {
                       if (action === "manage") {
-                        const jobWithTeam = job as UnifiedJob & { team?: string };
-                        const fitter = getFitterByName(jobWithTeam.team ?? "");
-                        initiateEdit(fitter ? fitter.id : jobWithTeam.team ?? "", job.time!, job.client, job.id);
+                        openRescheduleForJob(job);
                       }
                     }}
                     variant="schedule"
@@ -660,11 +683,11 @@ export default function SmartAssignmentsPage() {
                 {dialogState?.type === "edit" ? "Reschedule" : "Confirm Dispatch"}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient} (Currently ${dialogState.currentSlot})` : `Assigning ${dialogState?.jobClient} to ${dialogState?.fitterName}`}
+                  {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient} (Currently ${dialogState.currentSlot} with ${dialogState.fitterName})` : `Assigning ${dialogState?.jobClient} to ${dialogState?.fitterName}`}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="flex-1 flex flex-col gap-4">
+              <div className="flex-1 flex flex-col gap-4">
               <div>
                 <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">1. Select Service Date</label>
                 <div className="border border-slate-200 rounded-lg bg-white overflow-hidden p-2 flex justify-center">
@@ -678,18 +701,57 @@ export default function SmartAssignmentsPage() {
                   />
                 </div>
               </div>
+
+              <div>
+                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">2. Select Fitter</label>
+                <Select value={dialogState?.fitterId ?? ""} onValueChange={handleDialogFitterChange}>
+                  <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
+                    <SelectValue placeholder="Choose fitter" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[1200] max-h-72">
+                    {fitters.map((fitter) => {
+                      const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
+                        ? fitter.schedule.today
+                        : rescheduleDate && isSameDay(rescheduleDate, addDays(new Date(), 1))
+                          ? fitter.schedule.tomorrow
+                          : [];
+                      const freeSlots = DAILY_SLOTS.length - activeSchedule.length;
+
+                      return (
+                        <SelectItem key={fitter.id} value={fitter.id}>
+                          <span className="flex w-full items-center justify-between gap-3">
+                            <span>{fitter.name}</span>
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                              {Math.max(0, freeSlots)} slots
+                            </span>
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                  Changing this value will move the job to the selected fitter before you choose the new time.
+                </p>
+              </div>
             </div>
           </div>
 
           <div className="bg-white p-6 w-full md:w-1/2 flex flex-col">
             <div className="mb-6 flex items-center justify-between">
-              <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 block">2. Select Time Slot</label>
+              <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 block">3. Select Time Slot</label>
               {rescheduleDate && <span className="text-xs font-medium text-slate-900">{format(rescheduleDate, "EEE, MMM do")}</span>}
             </div>
 
             <div className="grid grid-cols-2 gap-3 flex-1 content-start">
               {rescheduleSlots.map((slot) => {
-                const isCurrent = dialogState?.type === "edit" && slot === dialogState.currentSlot && !!rescheduleDate && !!dialogState.currentDate && isSameDay(rescheduleDate, dialogState.currentDate);
+                const isCurrent =
+                  dialogState?.type === "edit" &&
+                  dialogState.originalFitterId === dialogState.fitterId &&
+                  slot === dialogState.currentSlot &&
+                  !!rescheduleDate &&
+                  !!dialogState.currentDate &&
+                  isSameDay(rescheduleDate, dialogState.currentDate);
                 return (
                   <Button
                     key={slot}
@@ -712,7 +774,7 @@ export default function SmartAssignmentsPage() {
               {rescheduleSlots.length === 0 && (
                 <div className="col-span-2 py-8 text-center border border-dashed border-red-200 bg-red-50/50 rounded-lg">
                   <p className="text-red-500 font-medium text-sm">No slots available.</p>
-                  <p className="text-xs text-red-400 mt-1">Please select another date.</p>
+                  <p className="text-xs text-red-400 mt-1">Please select another date or fitter.</p>
                 </div>
               )}
             </div>
