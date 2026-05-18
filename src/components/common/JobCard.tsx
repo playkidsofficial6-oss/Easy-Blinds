@@ -116,10 +116,10 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
             {isSelected && variant === "assignment" && job.recommendedFitters && (
                 <div className="px-5 pb-5 pt-0 animate-in slide-in-from-top-2 fade-in duration-300">
                     <div className="pt-4 border-t border-slate-100">
-                        <div className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3 flex items-center gap-2">
+                        {/* <div className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3 flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500"></div>
                             AI Recommended Fitters
-                        </div>
+                        </div> */}
                         <div className="space-y-2">
                             {job.recommendedFitters.map((rec, i) => (
                                 <div key={rec.id} className="group/fitter flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-amber-500/50 hover:bg-white hover:shadow-md transition-all cursor-pointer" onClick={(e) => { e.stopPropagation(); onAction && onAction("assign", rec.id); }}>
@@ -127,7 +127,7 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-slate-700 text-xs font-bold border border-slate-200 shadow-sm transition-colors group-hover/fitter:bg-amber-500 group-hover/fitter:text-white group-hover/fitter:border-amber-500">{i + 1}</div>
                                         <div>
                                             <p className="text-sm font-semibold text-slate-800 group-hover/fitter:text-slate-900 transition-colors">{rec.name}</p>
-                                            <p className="text-[10px] text-slate-500 group-hover/fitter:text-amber-600/80">{typeof rec.dist === "number" ? `${rec.dist.toFixed(1)} km from site` : "Available fitter"}</p>
+                                            {/* <p className="text-[10px] text-slate-500 group-hover/fitter:text-amber-600/80">{typeof rec.dist === "number" ? `${rec.dist.toFixed(1)} km from site` : "Available fitter"}</p> */}
                                         </div>
                                     </div>
                                     <div className="h-8 w-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-300 group-hover/fitter:text-amber-500 group-hover/fitter:border-amber-200 transition-all">

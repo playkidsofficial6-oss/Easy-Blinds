@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { format, parse, isPast, isToday, isTomorrow } from "date-fns";
 import {
   MapPin, Navigation, CheckCircle, Clock, Calendar, MousePointer2,
-  ArrowLeft, ClipboardList,
+  ArrowLeft, ClipboardList, AlertCircle,
   Timer,
   Phone, MessageSquare
 } from "lucide-react";
@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getJobs, updateJob, type Job } from "@/lib/jobs";
+import { updateLiveLocation } from "@/services/api/live-location";
+import { useRef } from "react";
 
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
   ssr: false,
@@ -27,12 +29,15 @@ type Tab = "today" | "tomorrow" | "upcoming" | "completed";
 
 type SalesmanScheduleJob = {
   id: string;
+  shortRef: string;
   time: string;
   client: string;
   address: string;
+  customerPhone?: string;
   status: string;
   fabric: string;
   notes?: string;
+  assignedBy?: string;
   coordinates: [number, number];
 };
 
@@ -70,12 +75,15 @@ function toDisplayTime(value?: string) {
 function toScheduleJob(job: Job): SalesmanScheduleJob {
   return {
     id: job._id,
+    shortRef: `JOB-${job._id.slice(-6).toUpperCase()}`,
     time: toDisplayTime(job.scheduledAt),
     client: job.customerName,
     address: job.address,
+    customerPhone: job.customerPhone,
     status: toScheduleStatus(job.status),
     fabric: job.productType || "Curtains",
     notes: job.notes,
+    assignedBy: job.assignedBy,
     coordinates: [25.20, 55.27],
   };
 }
@@ -167,6 +175,7 @@ export default function SalesmanPage() {
           "w-full md:w-80 bg-white/80 backdrop-blur-xl border-r border-stone-200 flex flex-col z-40 transition-transform duration-500 absolute md:relative h-full",
           selectedJob ? "-translate-x-full md:translate-x-0" : "translate-x-0"
         )}>
+          <SalesmanGpsControl />
           {/* Tabs */}
           <div className="flex border-b border-stone-200 bg-white p-2 gap-1">
             {(["today", "tomorrow", "upcoming", "completed"] as Tab[]).map((tab) => (
@@ -364,13 +373,21 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
         <div className="px-8 py-10 bg-[#0F172A] text-white flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative overflow-hidden">
           <div className="space-y-3 relative z-10">
             <div className="flex items-center gap-3">
-              <span className="px-2 py-1 bg-white/5 text-white/60 text-[10px] font-bold uppercase tracking-[0.2em] rounded border border-white/5">Task Reference {job.id}</span>
+              <span className="px-2 py-1 bg-white/5 text-white/60 text-[10px] font-bold uppercase tracking-[0.2em] rounded border border-white/5">Task {job.shortRef}</span>
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">{job.time}</span>
             </div>
             <h2 className="text-5xl font-light text-white">{job.client}</h2>
-            <div className="flex items-center gap-3 text-white/60 text-base font-light">
-              <MapPin className="w-4 h-4 text-white/30" />
-              {job.address}
+            <div className="flex flex-col gap-2 mt-4">
+              <div className="flex items-center gap-3 text-white/60 text-base font-light">
+                <MapPin className="w-4 h-4 text-white/30" />
+                {job.address}
+              </div>
+              {job.customerPhone && (
+                <div className="flex items-center gap-3 text-white/60 text-base font-light">
+                  <Phone className="w-4 h-4 text-white/30" />
+                  {job.customerPhone}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -379,7 +396,7 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
           {/* Stats Bar */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Assignment", val: job.id, color: "bg-blue-500" },
+              // { label: "Assigned By", val: job.assignedBy || "Sales Manager", color: "bg-blue-500" },
               { label: "Session Time", val: job.status === "In Progress" || job.status === "In progress" ? formatTimer(seconds) : "Paused", color: "bg-purple-500", mono: true },
               { label: "Estimated", val: "1h 15m", color: "bg-amber-500" },
               { label: "Status", val: job.status, color: "bg-emerald-500" }
@@ -391,6 +408,28 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
               </div>
             ))}
           </div>
+
+          {job.status === "Done" && (
+            <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center">
+                  <ClipboardList className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-light text-neutral-900">Quotation</h3>
+              </div>
+              <div className="p-6 bg-stone-50 rounded border border-stone-100 flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider mb-1">Status</div>
+                  <div className="text-lg text-emerald-600 font-medium">Completed</div>
+                </div>
+                <Link href={`/salesman/quotes/new?jobId=${job.id}`}>
+                  <Button variant="outline" className="text-neutral-900 border-neutral-300">
+                    View Quote
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
@@ -507,4 +546,204 @@ function calculateIsLate(jobTime: string, status: string) {
   } catch {
     return false;
   }
+}
+
+type GpsTrackingStatus = "idle" | "requesting" | "tracking" | "error";
+
+interface GpsSnapshot {
+    lat: number;
+    lng: number;
+    accuracy?: number;
+    syncedAt?: string;
+}
+
+function isSalesmanRole(role?: string) {
+    if (!role) return false;
+    const r = role.toLowerCase();
+    return r === "salesman" || r === "sales_man" || r === "field";
+}
+
+function SalesmanGpsControl() {
+    const { user, logout } = useAuth();
+    const router = useRouter();
+    const [status, setStatus] = useState<GpsTrackingStatus>("idle");
+    const [lastFix, setLastFix] = useState<GpsSnapshot | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const watchIdRef = useRef<number | null>(null);
+    const lastFixRef = useRef<GpsSnapshot | null>(null);
+    const mountedRef = useRef(true);
+
+    useEffect(() => {
+        if (!user || !isSalesmanRole(user.role)) {
+            if (watchIdRef.current !== null && "geolocation" in navigator) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+            if (status === "tracking" || status === "requesting") {
+                setStatus("idle");
+                router.replace("/login");
+            }
+        }
+    }, [user, status, router]);
+
+    useEffect(() => {
+        return () => {
+            mountedRef.current = false;
+            if (watchIdRef.current !== null && "geolocation" in navigator) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+        };
+    }, []);
+
+    const stopTracking = async () => {
+        if (watchIdRef.current !== null && "geolocation" in navigator) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+        }
+
+        setStatus("idle");
+
+        const lastKnownFix = lastFixRef.current;
+        if (!lastKnownFix) return;
+
+        if (!user || !isSalesmanRole(user.role)) {
+            setErrorMessage("Session expired. Please sign in again.");
+            logout("/login");
+            return;
+        }
+
+        try {
+            await updateLiveLocation({
+                lat: lastKnownFix.lat,
+                lng: lastKnownFix.lng,
+                accuracy: lastKnownFix.accuracy,
+                isOnline: false,
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
+            setErrorMessage(message);
+        }
+    };
+
+    const startTracking = () => {
+        if (!user || !isSalesmanRole(user.role)) {
+            setStatus("error");
+            setErrorMessage("You must be signed in as a salesman to share your location.");
+            logout("/login");
+            return;
+        }
+
+        if (!("geolocation" in navigator)) {
+            setStatus("error");
+            setErrorMessage("This browser does not support GPS location access.");
+            return;
+        }
+
+        if (watchIdRef.current !== null) {
+            navigator.geolocation.clearWatch(watchIdRef.current);
+            watchIdRef.current = null;
+        }
+
+        setStatus("requesting");
+        setErrorMessage(null);
+
+        watchIdRef.current = navigator.geolocation.watchPosition(
+            async (position) => {
+                if (!user || !isSalesmanRole(user.role)) {
+                    if (watchIdRef.current !== null) {
+                        navigator.geolocation.clearWatch(watchIdRef.current);
+                        watchIdRef.current = null;
+                    }
+                    setStatus("error");
+                    setErrorMessage("Session changed. GPS tracking stopped.");
+                    logout("/login");
+                    return;
+                }
+
+                const nextFix: GpsSnapshot = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : undefined,
+                    syncedAt: new Date().toISOString(),
+                };
+
+                lastFixRef.current = nextFix;
+                setLastFix(nextFix);
+
+                try {
+                    await updateLiveLocation({
+                        lat: nextFix.lat,
+                        lng: nextFix.lng,
+                        accuracy: nextFix.accuracy,
+                        speed: typeof position.coords.speed === "number" ? position.coords.speed : undefined,
+                        heading: typeof position.coords.heading === "number" ? position.coords.heading : undefined,
+                        isOnline: true,
+                    });
+
+                    if (!mountedRef.current) return;
+                    setStatus("tracking");
+                    setErrorMessage(null);
+                } catch (error) {
+                    if (!mountedRef.current) return;
+                    if (watchIdRef.current !== null) {
+                        navigator.geolocation.clearWatch(watchIdRef.current);
+                        watchIdRef.current = null;
+                    }
+
+                    const message = error instanceof Error ? error.message : "Unable to save your GPS location.";
+                    setStatus("error");
+                    setErrorMessage(message);
+                }
+            },
+            (error) => {
+                const message = error.code === error.PERMISSION_DENIED
+                    ? "GPS permission was denied. Please allow location access for this site."
+                    : error.message || "Unable to read GPS location.";
+
+                if (watchIdRef.current !== null) {
+                    navigator.geolocation.clearWatch(watchIdRef.current);
+                    watchIdRef.current = null;
+                }
+
+                setStatus("error");
+                setErrorMessage(message);
+            },
+            {
+                enableHighAccuracy: true,
+                maximumAge: 10000,
+                timeout: 20000,
+            },
+        );
+    };
+
+    const isTracking = status === "tracking" || status === "requesting";
+    const statusLabel = status === "requesting"
+        ? "Starting GPS"
+        : status === "tracking"
+            ? "GPS On"
+            : status === "error"
+                ? "GPS Error"
+                : "Enable GPS";
+
+    return (
+        <div className="flex flex-col items-stretch gap-1 p-4 border-b border-stone-200 bg-white">
+            <button
+                type="button"
+                onClick={isTracking ? stopTracking : startTracking}
+                className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors w-full",
+                    status === "tracking" ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20" :
+                        status === "error" ? "border-red-400/40 bg-red-500/10 text-red-600 hover:bg-red-500/20" :
+                            "border-blue-400/40 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20",
+                )}
+            >
+                {status === "tracking" ? <CheckCircle className="h-4 w-4" /> : status === "error" ? <AlertCircle className="h-4 w-4" /> : <Navigation className="h-4 w-4" />}
+                {statusLabel}
+            </button>
+            <div className="text-center text-[9px] font-medium text-stone-400 uppercase tracking-widest mt-1">
+                {errorMessage ? errorMessage : lastFix ? `Synced ${lastFix.lat.toFixed(5)}, ${lastFix.lng.toFixed(5)}` : "Share location with manager"}
+            </div>
+        </div>
+    );
 }

@@ -32,7 +32,9 @@ interface SalesManagerLayoutProps {
 
 const navItems = [
     { name: "Dashboard", href: "/sales-manager", icon: LayoutDashboard },
-    { name: "Assignments", href: "/sales-manager/assignments", icon: ClipboardList },
+    
+    { name: "Salesman Assignments", href: "/sales-manager/salesman-assignments", icon: ClipboardList },
+    { name: "Fitter Assignments", href: "/sales-manager/assignments", icon: ClipboardList },
     { name: "Salesmen", href: "/sales-manager/salesmen", icon: UserCheck },
     { name: "Fitters", href: "/sales-manager/tracking", icon: NavigationIcon },
     { name: "Fittings Analytics", href: "/sales-manager/analytics", icon: LineChart },

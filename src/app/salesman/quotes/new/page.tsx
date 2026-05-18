@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Plus, Trash2, Save, ArrowLeft, Calculator } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
-import { updateJob } from "@/lib/jobs";
+import { updateJob, getJob } from "@/lib/jobs";
 import { toast } from "sonner";
 
 interface LineItem {
@@ -28,6 +28,8 @@ export default function NewQuotePage() {
     const jobId = searchParams.get("jobId") ?? searchParams.get("measurementId") ?? undefined;
     const { user } = useAuth();
     
+    const [isLoading, setIsLoading] = useState(false);
+    const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
     const [clientName, setClientName] = useState("");
     const [clientPhone, setClientPhone] = useState("");
     const [clientEmail, setClientEmail] = useState("");
@@ -36,6 +38,40 @@ export default function NewQuotePage() {
     const [lineItems, setLineItems] = useState<LineItem[]>([
         { id: "1", description: "", quantity: 1, unitPrice: 0 }
     ]);
+
+    useEffect(() => {
+        async function loadJobData() {
+            if (!jobId) return;
+            setIsLoading(true);
+            try {
+                const job = await getJob(jobId);
+                if (job.quotation) {
+                    setExistingQuoteId(job.quotation.id);
+                    setClientName(job.quotation.client || job.customerName || "");
+                    setClientPhone(job.quotation.clientPhone || job.customerPhone || "");
+                    setClientEmail(job.quotation.clientEmail || job.customerEmail || "");
+                    setNotes(job.quotation.notes || "");
+                    if (job.quotation.items && job.quotation.items.length > 0) {
+                        setLineItems(job.quotation.items.map((i: any) => ({
+                            id: i.id || Math.random().toString(36).substr(2, 9),
+                            description: i.description || "",
+                            quantity: i.quantity || 1,
+                            unitPrice: i.unitPrice || 0
+                        })));
+                    }
+                } else {
+                    setClientName(job.customerName || "");
+                    setClientPhone(job.customerPhone || "");
+                    setClientEmail(job.customerEmail || "");
+                }
+            } catch (error) {
+                toast.error("Failed to load job details");
+            } finally {
+                setIsLoading(false);
+            }
+        }
+        loadJobData();
+    }, [jobId]);
 
     const addLineItem = () => {
         setLineItems([
@@ -71,7 +107,7 @@ export default function NewQuotePage() {
         
         try {
             const quotation = {
-                id: `Q${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+                id: existingQuoteId || `Q${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
                 client: clientName || "Unnamed Client",
                 salesmanId: user?._id,
                 salesmanName: user?.name,
@@ -101,6 +137,10 @@ export default function NewQuotePage() {
         }
     };
 
+    if (isLoading) {
+        return <div className="p-12 text-center text-neutral-400 font-light">Loading quotation details...</div>;
+    }
+
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-20">
             {/* Header */}
@@ -112,8 +152,8 @@ export default function NewQuotePage() {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-3xl font-light text-neutral-900">New Quote</h1>
-                        <p className="text-neutral-500 text-sm">Create a new quotation for a client</p>
+                        <h1 className="text-3xl font-light text-neutral-900">{existingQuoteId ? `Edit Quote ${existingQuoteId}` : "New Quote"}</h1>
+                        <p className="text-neutral-500 text-sm">{existingQuoteId ? "Modify an existing quotation" : "Create a new quotation for a client"}</p>
                     </div>
                 </div>
                 <div className="flex gap-3">
@@ -122,7 +162,7 @@ export default function NewQuotePage() {
                     </Button>
                     <Button onClick={() => handleSave("Sent")} className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800 text-white">
                         <Save className="w-4 h-4 mr-2" />
-                        Create Quote
+                        {existingQuoteId ? "Update Quote" : "Create Quote"}
                     </Button>
                 </div>
             </div>

@@ -227,7 +227,7 @@ function createCustomIcon(
           position: "relative",
           width: "48px",
           height: "48px",
-          borderRadius: "50%",
+          borderRadius: role === "Salesman" ? "12px" : "50%",
           backgroundColor: "white",
           padding: "2px",
           boxShadow:
@@ -241,15 +241,21 @@ function createCustomIcon(
           style={{
             width: "100%",
             height: "100%",
-            borderRadius: "50%",
+            borderRadius: role === "Salesman" ? "10px" : "50%",
             border: `2px solid ${config.color}`,
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "#f8fafc",
+            position: "relative",
           }}
         >
+          {role === "Salesman" && (
+            <div style={{ position: "absolute", top: 0, right: 0, background: config.color, color: "white", fontSize: "8px", fontWeight: "bold", padding: "1px 3px", borderBottomLeftRadius: "4px" }}>
+              SM
+            </div>
+          )}
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
