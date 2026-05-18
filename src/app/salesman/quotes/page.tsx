@@ -1,47 +1,14 @@
+"use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, FileText, Download, Send, CheckCircle, Clock, XCircle } from "lucide-react";
 import Link from "next/link";
+import { useQuotes } from "@/lib/quote-store";
 
 export default function QuotesPage() {
-    const quotes = [
-        {
-            id: "Q001",
-            client: "Ahmed Al Mansoori",
-            measurementId: "M001",
-            total: 12500,
-            status: "Approved" as const,
-            date: "2024-01-15",
-            sentDate: "2024-01-16",
-        },
-        {
-            id: "Q002",
-            client: "Sarah Smith",
-            measurementId: "M002",
-            total: 8300,
-            status: "Sent" as const,
-            date: "2024-01-16",
-            sentDate: "2024-01-17",
-        },
-        {
-            id: "Q003",
-            client: "Emaar Properties",
-            measurementId: "M003",
-            total: 25600,
-            status: "Negotiation" as const,
-            date: "2024-01-16",
-            sentDate: "2024-01-17",
-        },
-        {
-            id: "Q004",
-            client: "Villa 124",
-            measurementId: "M004",
-            total: 15200,
-            status: "Draft" as const,
-            date: "2024-01-17",
-        },
-    ];
+    const { quotes, updateQuoteStatus } = useQuotes();
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -87,7 +54,7 @@ export default function QuotesPage() {
                         <span className="block font-semibold mt-1">Quotes</span>
                     </h1>
                 </div>
-                <Link href="/field/quotes/new">
+                <Link href="/salesman/quotes/new">
                     <Button className="h-14 px-8 bg-neutral-900 hover:bg-neutral-800 text-white border-0 font-medium uppercase tracking-wide">
                         <Plus className="w-5 h-5 mr-2" />
                         New Quote
@@ -182,7 +149,7 @@ export default function QuotesPage() {
                                 </div>
                             </div>
                             <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Link href={`/field/quotes/${quote.id}`}>
+                                <Link href={`/salesman/quotes/${quote.id}`}>
                                     <Button variant="outline" size="sm" className="h-12 px-6 border-2">
                                         <FileText className="w-4 h-4 mr-2" />
                                         View
@@ -193,7 +160,7 @@ export default function QuotesPage() {
                                     PDF
                                 </Button>
                                 {quote.status === 'Draft' && (
-                                    <Button size="sm" className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800">
+                                    <Button size="sm" className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800" onClick={() => updateQuoteStatus(quote.id, 'Sent')}>
                                         <Send className="w-4 h-4 mr-2" />
                                         Send
                                     </Button>

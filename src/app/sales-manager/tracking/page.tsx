@@ -14,7 +14,7 @@ const FitterMap = dynamic(() => import("@/components/tracking/FitterMap"), {
 });
 
 export default function TrackingPage() {
-    const { fitters } = useLiveFitters();
+    const { fitters, reload } = useLiveFitters();
     const [selectedFitterId, setSelectedFitterId] = useState<string | null>(null);
 
     const handleSelectFitter = (id: string) => {
@@ -47,6 +47,7 @@ export default function TrackingPage() {
                         fitters={fitters}
                         selectedFitterId={selectedFitterId}
                         onSelectFitter={handleSelectFitter}
+                        onJobsChanged={reload}
                     />
                 </div>
 
