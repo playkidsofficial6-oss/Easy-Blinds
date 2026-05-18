@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JobCard, type UnifiedJob } from "@/components/common/JobCard";
+import { useAuth } from "@/components/providers/auth-provider";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
@@ -58,9 +59,26 @@ function toDisplayTime(value?: string) {
   }
 }
 
-function extractAssignedFitter(job: Job) {
+// Returns the display name of the assigned fitter.
+// Prefers looking up fitterId in the lookup map; falls back to legacy note-parsing.
+function resolveAssignedFitterName(job: Job, fitterNameById: Map<string, string>): string {
+  if (job.assignedTo) {
+    // New format: assignedTo is a userId
+    const name = fitterNameById.get(job.assignedTo);
+    if (name) return name;
+    // Legacy fallback: assignedTo might still be a name string
+    return job.assignedTo;
+  }
+  // Oldest legacy: name embedded in notes
   const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
   return match?.[1]?.trim() || "Assigned Team";
+}
+
+function isAssignedToFitter(job: Job, fitter: UserRecord) {
+  const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
+  const assignedName = match?.[1]?.trim();
+  if (!assignedName) return false;
+  return assignedName.toLowerCase() === fitter.name.toLowerCase();
 }
 
 function toUnifiedJob(job: Job): UnifiedJob {
@@ -85,7 +103,9 @@ function toUnifiedJob(job: Job): UnifiedJob {
     status: statusLabel,
     time: toDisplayTime(job.scheduledAt),
     endTime: undefined,
-    team: extractAssignedFitter(job),
+    // team is resolved at call site where fitterNameById is available
+    team: job.assignedTo,
+    assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
   };
 }
@@ -127,7 +147,8 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
 }
 
 function isSalesmanUser(user: UserRecord) {
-  return user.role === "salesman" || user.role === "sales_man";
+  const role = user.role?.toLowerCase() ?? "";
+  return role === "salesman" || role === "sales_man";
 }
 
 function toSalesmanWorkforceMember(user: UserRecord): Fitter {
@@ -174,6 +195,7 @@ function toReadableLastUpdated(source?: string) {
 }
 
 export default function SmartAssignmentsPage() {
+  const { user } = useAuth();
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
@@ -259,14 +281,26 @@ export default function SmartAssignmentsPage() {
 
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
 
+  const fitterNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    baseFitters.forEach((f) => map.set(f.id, f.name));
+    return map;
+  }, [baseFitters]);
+
   const fitters = useMemo<Fitter[]>(() => {
     return baseFitters.map((fitter) => {
       const assignedJobs = jobs.filter((job) => {
         if (!["scheduled", "in_progress", "completed"].includes(job.status)) {
           return false;
         }
-
-        return extractAssignedFitter(job).toLowerCase() === fitter.name.toLowerCase();
+        // Match by userId (new) or name (legacy)
+        if (job.assignedTo) {
+          if (job.assignedTo === fitter.id) return true;
+          if (job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
+          return false;
+        }
+        const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
+        return match?.[1]?.trim().toLowerCase() === fitter.name.toLowerCase();
       });
 
       const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
@@ -325,10 +359,17 @@ export default function SmartAssignmentsPage() {
     });
   }, [rescheduleDate, dialogState, fitters]);
 
-  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending").map(toUnifiedJob), sortKey), [jobs, sortKey]);
+  const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
+    const raw = toUnifiedJob(job);
+    // Resolve team (fitter display name) from the stored userId or legacy name
+    const team = resolveAssignedFitterName(job, fitterNameById);
+    return { ...raw, team };
+  }, [fitterNameById]);
+
+  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending").map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
   const activeJobs = useMemo(
-    () => sortUnifiedJobs(jobs.filter((job) => ["scheduled", "in_progress"].includes(job.status) && isJobForDate(job, viewDate)).map(toUnifiedJob), sortKey),
-    [jobs, sortKey, viewDate],
+    () => sortUnifiedJobs(jobs.filter((job) => ["scheduled", "in_progress"].includes(job.status) && isJobForDate(job, viewDate)).map(resolveUnifiedJob), sortKey),
+    [jobs, sortKey, viewDate, resolveUnifiedJob],
   );
 
   const recommendedFitters = useMemo(() => {
@@ -336,7 +377,11 @@ export default function SmartAssignmentsPage() {
 
     return fitters
       .filter((fitter) => fitter.capacity.remaining > 0)
-      .map((fitter) => ({ id: fitter.id, name: fitter.name }));
+      .map((fitter) => ({
+        id: fitter.id,
+        name: fitter.name,
+        workDetails: `${fitter.schedule.today.length}/${fitter.capacity.max} Jobs Today • Next slot: ${fitter.nextAvailableSlot === "None" ? "N/A" : fitter.nextAvailableSlot}`
+      }));
   }, [selectedJobId, fitters]);
 
   const initiateAssignment = (jobId: string, fitterId: string) => {
@@ -386,7 +431,9 @@ export default function SmartAssignmentsPage() {
       const updated = await updateJob(dialogState.jobId, {
         status: "scheduled",
         scheduledAt,
-        notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by Sales Manager from Smart Dispatch.`,
+        assignedTo: dialogState.fitterId,
+        assignedBy: user?._id || user?.name || "Sales Manager",
+        notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
       toast.success(dialogState.type === "assign" ? `Assigned to ${dialogState.fitterName} on ${newDateStr} @ ${timeSlot}` : `Rescheduled to ${newDateStr} @ ${timeSlot}`);
@@ -404,6 +451,8 @@ export default function SmartAssignmentsPage() {
     try {
       const updated = await updateJob(dialogState.jobId, {
         status: "pending",
+        assignedTo: "",
+        assignedBy: "",
         notes: "Returned to pending queue from Smart Dispatch.",
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));

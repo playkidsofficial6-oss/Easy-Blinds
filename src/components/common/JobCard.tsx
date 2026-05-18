@@ -23,6 +23,7 @@ export interface UnifiedJob {
     // For Assignments Page Logic
     recommendedFitters?: Array<{ id: string; name: string; dist?: number }>;
     team?: string; // Assigned fitter name
+    assignedBy?: string; // Who assigned it
 }
 
 interface JobCardProps {
@@ -83,9 +84,12 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                         <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                             <User className="w-3 h-3" />
                         </div>
-                        <span className={`truncate font-medium ${job.team && job.team !== "Assigned Team" ? "text-amber-700" : "text-slate-400"}`}>
-                            {job.team && job.team !== "Assigned Team" ? job.team : (job.email || "--")}
-                        </span>
+                        <div className="flex flex-col min-w-0">
+                            <span className={`truncate font-medium leading-none ${job.team && job.team !== "Assigned Team" ? "text-amber-700" : "text-slate-400"}`}>
+                                {job.team && job.team !== "Assigned Team" ? job.team : (job.email || "--")}
+                            </span>
+                            {job.assignedBy && <span className="text-[9px] text-slate-400 mt-0.5 truncate">by {job.assignedBy}</span>}
+                        </div>
                     </div>
                     <a href={`tel:${job.phone}`} className="text-xs text-slate-500 hover:text-amber-600 flex items-center gap-2 truncate p-1 hover:bg-white rounded transition-colors" title={job.phone} onClick={(e) => e.stopPropagation()}>
                         <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Phone className="w-3 h-3" /></div>

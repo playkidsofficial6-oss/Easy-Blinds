@@ -22,16 +22,23 @@ function unwrapApiEnvelope<T>(payload: T | ApiResponseEnvelope<T>): T {
 }
 
 function getGeoJsonCoordinates(payload: BackendLiveLocationRecord) {
+  let location = payload.location;
+  if (typeof location === "string") {
+    try { location = JSON.parse(location); } catch (e) {}
+  }
+
   if (
-    payload.location?.type !== "Point" ||
-    !Array.isArray(payload.location.coordinates)
+    location?.type !== "Point" ||
+    !Array.isArray(location.coordinates)
   ) {
     return null;
   }
 
-  const [longitude, latitude] = payload.location.coordinates;
+  const [rawLng, rawLat] = location.coordinates;
+  const latitude = Number(rawLat);
+  const longitude = Number(rawLng);
 
-  if (typeof latitude !== "number" || typeof longitude !== "number") {
+  if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
     return null;
   }
 
@@ -44,18 +51,23 @@ export function normalizeLiveLocationRecord(
   const geoJsonCoordinates = getGeoJsonCoordinates(payload);
   const lat =
     geoJsonCoordinates?.lat ??
-    (typeof payload.lat === "number" ? payload.lat : payload.latitude);
+    (payload.lat !== undefined ? Number(payload.lat) : payload.latitude !== undefined ? Number(payload.latitude) : undefined);
   const lng =
     geoJsonCoordinates?.lng ??
-    (typeof payload.lng === "number" ? payload.lng : payload.longitude);
+    (payload.lng !== undefined ? Number(payload.lng) : payload.longitude !== undefined ? Number(payload.longitude) : undefined);
 
-  if (typeof lat !== "number" || typeof lng !== "number" || !payload.userId) {
+  const actualUserId = payload.userId || (payload.user as any)?._id || (payload.user as any)?.id || payload._id;
+
+  if (lat === undefined || lng === undefined || Number.isNaN(lat) || Number.isNaN(lng) || !actualUserId) {
+    console.warn("[LiveLocation] Failed to normalize record:", {
+      lat, lng, actualUserId, payload
+    });
     return null;
   }
 
   return {
     ...payload,
-    userId: payload.userId,
+    userId: actualUserId,
     role: payload.role,
     lat,
     lng,
@@ -87,6 +99,8 @@ function normalizeLiveLocationList(
     | {
         items?: BackendLiveLocationRecord[];
         locations?: BackendLiveLocationRecord[];
+        liveLocations?: BackendLiveLocationRecord[];
+        records?: BackendLiveLocationRecord[];
         data?: BackendLiveLocationRecord[];
       };
 
@@ -96,9 +110,13 @@ function normalizeLiveLocationList(
       ? unwrapped.items
       : Array.isArray(unwrapped.locations)
         ? unwrapped.locations
-        : Array.isArray(unwrapped.data)
-          ? unwrapped.data
-          : [];
+        : Array.isArray(unwrapped.liveLocations)
+          ? unwrapped.liveLocations
+          : Array.isArray(unwrapped.records)
+            ? unwrapped.records
+            : Array.isArray(unwrapped.data)
+              ? unwrapped.data
+              : [];
 
   return locations
     .map((location) => normalizeLiveLocationRecord(location))
@@ -113,8 +131,6 @@ function toBackendUpdatePayload(
       type: "Point",
       coordinates: [payload.lng, payload.lat],
     },
-    latitude: payload.lat,
-    longitude: payload.lng,
     accuracy: payload.accuracy,
     speed: payload.speed,
     heading: payload.heading,

@@ -83,14 +83,23 @@ const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
 function extractAssignedFitter(job: Job) {
+  if (job.assignedTo) return job.assignedTo;
   const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
   return match?.[1]?.trim();
 }
 
-function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name">) {
-  const assignedName = extractAssignedFitter(job);
+function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name" | "_id">) {
+  if (job.assignedTo) {
+    // New format: compare by MongoDB _id
+    if (job.assignedTo === fitter._id) return true;
+    // Legacy fallback: assignedTo might still be a name string
+    if (job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
+    return false;
+  }
+  // Oldest legacy: name embedded in notes
+  const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
+  const assignedName = match?.[1]?.trim();
   if (!assignedName) return false;
-
   return assignedName.toLowerCase() === fitter.name.toLowerCase();
 }
 
@@ -248,7 +257,7 @@ function buildFitter(
     avatar: user.avatar,
     email: user.email,
     phone: profile.phone ?? user.phone,
-    history: [],
+    history: buildInitialHistory(liveLocation),
     schedule: {
       yesterday: [],
       today: todayJobs,
@@ -267,7 +276,7 @@ function buildFitter(
 
 function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
   return users
-    .filter((user) => user.role === "fitter")
+    .filter((user) => user.role?.toLowerCase() === "fitter")
     .map((user) => ({
       userId: user._id,
       user,
@@ -279,22 +288,55 @@ function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
     }));
 }
 
+const MAX_HISTORY = 50; // keep last 50 events in memory
+
+function buildInitialHistory(liveLocation?: LiveLocationRecord): FitterEvent[] {
+  if (!liveLocation?.lastUpdatedAt && !liveLocation?.updatedAt) return [];
+
+  const ts = liveLocation.lastUpdatedAt ?? liveLocation.updatedAt ?? "";
+  let timeLabel = "--";
+  try { timeLabel = format(new Date(ts), "HH:mm"); } catch {}
+
+  return [{
+    id: `init-${ts}`,
+    type: "status_change",
+    action: liveLocation.isOnline ? "Came Online" : "Last Seen",
+    time: timeLabel,
+    location: liveLocation.isOnline ? "GPS active" : "GPS inactive",
+    coordinates: [liveLocation.lat, liveLocation.lng],
+  }];
+}
+
 function applyLiveLocationToFitters(
   currentFitters: Fitter[],
   liveLocation: LiveLocationRecord,
 ): Fitter[] {
-  return currentFitters.map((fitter) =>
-    fitter.id === liveLocation.userId
-      ? {
-          ...fitter,
-          location: [liveLocation.lat, liveLocation.lng],
-          status: liveLocation.isOnline ? fitter.status : "Offline",
-          lastUpdated: toReadableLastUpdated(
-            liveLocation.lastUpdatedAt ?? liveLocation.updatedAt,
-          ),
-        }
-      : fitter,
-  );
+  return currentFitters.map((fitter) => {
+    if (fitter.id !== liveLocation.userId) return fitter;
+
+    const ts = liveLocation.lastUpdatedAt ?? liveLocation.updatedAt ?? new Date().toISOString();
+    let timeLabel = "--";
+    try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch {}
+
+    const newEvent: FitterEvent = {
+      id: `loc-${ts}-${Math.random().toString(36).slice(2, 7)}`,
+      type: "check_in",
+      action: "Location Updated",
+      time: timeLabel,
+      location: liveLocation.isOnline ? "GPS ping received" : "GPS offline",
+      coordinates: [liveLocation.lat, liveLocation.lng],
+    };
+
+    const updatedHistory = [newEvent, ...fitter.history].slice(0, MAX_HISTORY);
+
+    return {
+      ...fitter,
+      location: [liveLocation.lat, liveLocation.lng],
+      status: liveLocation.isOnline ? fitter.status : "Offline",
+      lastUpdated: toReadableLastUpdated(liveLocation.lastUpdatedAt ?? liveLocation.updatedAt),
+      history: updatedHistory,
+    };
+  });
 }
 
 function applyPresenceToFitters(
@@ -302,17 +344,30 @@ function applyPresenceToFitters(
   event: LiveLocationPresenceEvent,
   isOnline: boolean,
 ): Fitter[] {
-  return currentFitters.map((fitter) =>
-    fitter.id === event.userId
-      ? {
-          ...fitter,
-          status: isOnline && fitter.status === "Offline" ? "Available" : isOnline ? fitter.status : "Offline",
-          lastUpdated: event.timestamp
-            ? toReadableLastUpdated(event.timestamp)
-            : fitter.lastUpdated,
-        }
-      : fitter,
-  );
+  return currentFitters.map((fitter) => {
+    if (fitter.id !== event.userId) return fitter;
+
+    const ts = event.timestamp ?? event.lastUpdatedAt ?? new Date().toISOString();
+    let timeLabel = "--";
+    try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch {}
+
+    const newEvent: FitterEvent = {
+      id: `presence-${ts}-${Math.random().toString(36).slice(2, 7)}`,
+      type: "status_change",
+      action: isOnline ? "Came Online" : "Went Offline",
+      time: timeLabel,
+      location: isOnline ? "GPS tracking started" : "GPS tracking stopped",
+    };
+
+    const updatedHistory = [newEvent, ...fitter.history].slice(0, MAX_HISTORY);
+
+    return {
+      ...fitter,
+      status: isOnline && fitter.status === "Offline" ? "Available" : isOnline ? fitter.status : "Offline",
+      lastUpdated: event.timestamp ? toReadableLastUpdated(event.timestamp) : fitter.lastUpdated,
+      history: updatedHistory,
+    };
+  });
 }
 
 export function useLiveFitters() {
@@ -327,7 +382,7 @@ export function useLiveFitters() {
     try {
       let jobItems: Job[] = [];
       try {
-        const jobsResponse = await getJobs({ limit: 500 });
+        const jobsResponse = await getJobs({ limit: 100 });
         jobItems = jobsResponse?.items ?? [];
       } catch (jobErr) {
         console.warn("[useLiveFitters] Could not load jobs, fitters will show with empty schedules:", jobErr);

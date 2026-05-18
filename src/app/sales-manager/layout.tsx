@@ -149,7 +149,7 @@ export default function SalesManagerLayout({ children }: SalesManagerLayoutProps
                 </aside>
 
                 {/* ─── Main content area ─── */}
-                <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+                <div className="flex-1 md:ml-64 flex flex-col h-screen">
                     {/* Mobile Header */}
                     <header className="md:hidden h-14 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-4 sticky top-0 z-40">
                         <div className="flex items-center gap-2.5">

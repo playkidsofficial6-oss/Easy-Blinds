@@ -8,6 +8,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { updateLiveLocation } from "@/services/api/live-location";
+import { useRouter } from "next/navigation";
 
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
     ssr: false,
@@ -163,12 +164,28 @@ interface GpsSnapshot {
 }
 
 function FitterGpsControl() {
+    const { user, logout } = useAuth();
+    const router = useRouter();
     const [status, setStatus] = useState<GpsTrackingStatus>("idle");
     const [lastFix, setLastFix] = useState<GpsSnapshot | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const watchIdRef = useRef<number | null>(null);
     const lastFixRef = useRef<GpsSnapshot | null>(null);
     const mountedRef = useRef(true);
+
+    // Stop tracking and redirect to login if session is lost while tracking
+    useEffect(() => {
+        if (!user || user.role !== "fitter") {
+            if (watchIdRef.current !== null && "geolocation" in navigator) {
+                navigator.geolocation.clearWatch(watchIdRef.current);
+                watchIdRef.current = null;
+            }
+            if (status === "tracking" || status === "requesting") {
+                setStatus("idle");
+                router.replace("/login");
+            }
+        }
+    }, [user, status, router]);
 
     useEffect(() => {
         return () => {
@@ -192,6 +209,13 @@ function FitterGpsControl() {
         const lastKnownFix = lastFixRef.current;
         if (!lastKnownFix) return;
 
+        // Guard: only send if we still have a valid fitter session
+        if (!user || user.role !== "fitter") {
+            setErrorMessage("Session expired. Please sign in again.");
+            logout("/login");
+            return;
+        }
+
         try {
             await updateLiveLocation({
                 lat: lastKnownFix.lat,
@@ -206,6 +230,14 @@ function FitterGpsControl() {
     };
 
     const startTracking = () => {
+        // Hard block: do not start GPS if not logged in as a fitter
+        if (!user || user.role !== "fitter") {
+            setStatus("error");
+            setErrorMessage("You must be signed in as a fitter to share your location.");
+            logout("/login");
+            return;
+        }
+
         if (!("geolocation" in navigator)) {
             setStatus("error");
             setErrorMessage("This browser does not support GPS location access.");
@@ -222,6 +254,18 @@ function FitterGpsControl() {
 
         watchIdRef.current = navigator.geolocation.watchPosition(
             async (position) => {
+                // Re-check session on every GPS ping
+                if (!user || user.role !== "fitter") {
+                    if (watchIdRef.current !== null) {
+                        navigator.geolocation.clearWatch(watchIdRef.current);
+                        watchIdRef.current = null;
+                    }
+                    setStatus("error");
+                    setErrorMessage("Session changed. GPS tracking stopped.");
+                    logout("/login");
+                    return;
+                }
+
                 const nextFix: GpsSnapshot = {
                     lat: position.coords.latitude,
                     lng: position.coords.longitude,
