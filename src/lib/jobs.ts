@@ -25,6 +25,10 @@ export interface Job {
   assignedSalesman?: string;
   assignedFitter?: string;
   quotation?: any;
+  location?: {
+    type: string;
+    coordinates: number[];
+  };
 }
 
 export interface CreateJobInput {

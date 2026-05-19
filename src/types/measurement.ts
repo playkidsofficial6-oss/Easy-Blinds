@@ -2,7 +2,7 @@ export type PropertyType = 'Apartment' | 'Villa' | 'Office' | 'Other';
 export type RoomType = 'Living Room' | 'Bedroom' | 'Master Bedroom' | 'Office' | 'Kitchen' | 'Dining' | 'Other';
 export type MountType = 'Ceiling' | 'Wall';
 export type OpeningDirection = 'Left' | 'Right' | 'Split';
-export type ProductType = 'Sheer Curtains' | 'Blackout Curtains' | 'Dual Curtains' | 'Roller Blinds' | 'Zebra Blinds' | 'Roman Blinds' | 'Wooden Blinds' | 'Aluminium Blinds' | 'Vertical Blinds';
+export type ProductType = 'Sheer Curtains' | 'Blackout Curtains' | 'Dual Curtains' | 'Roller Blinds' | 'Zebra Blinds' | 'Roman Blinds' | 'Wooden Blinds' | 'Aluminium Blinds' | 'Vertical Blinds' | 'Custom Item';
 export type MotorType = 'Manual' | 'Somfy' | 'Other Motor';
 
 export interface WindowMeasurement {
@@ -13,7 +13,9 @@ export interface WindowMeasurement {
     mountType: MountType;
     openingDirection: OpeningDirection;
     productType: ProductType;
+    customProductName?: string; // for custom items
     fabricSelection?: string;
+    customFabricName?: string; // for custom fabrics
     motorType: MotorType;
     notes?: string;
     photos?: string[]; // URLs

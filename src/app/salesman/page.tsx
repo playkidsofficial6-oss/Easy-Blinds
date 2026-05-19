@@ -1,22 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { format, parse, isPast, isToday, isTomorrow } from "date-fns";
 import {
   MapPin, Navigation, CheckCircle, Clock, Calendar, MousePointer2,
   ArrowLeft, ClipboardList, AlertCircle,
   Timer,
-  Phone, MessageSquare
+  Phone, MessageSquare,
+  Ruler, FileText, ChevronRight, Grid
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, updateJob, type Job } from "@/lib/jobs";
+import { getJobs, updateJob, getJob, type Job } from "@/lib/jobs";
+import { api } from "@/lib/api";
 import { updateLiveLocation } from "@/services/api/live-location";
 import { useRef } from "react";
 
@@ -73,6 +75,11 @@ function toDisplayTime(value?: string) {
 }
 
 function toScheduleJob(job: Job): SalesmanScheduleJob {
+  let coordinates: [number, number] = [25.20, 55.27];
+  if (job.location && Array.isArray(job.location.coordinates) && job.location.coordinates.length === 2) {
+    coordinates = [job.location.coordinates[1], job.location.coordinates[0]];
+  }
+
   return {
     id: job._id,
     shortRef: `JOB-${job._id.slice(-6).toUpperCase()}`,
@@ -84,7 +91,7 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     fabric: job.productType || "Curtains",
     notes: job.notes,
     assignedBy: job.assignedBy,
-    coordinates: [25.20, 55.27],
+    coordinates,
   };
 }
 
@@ -114,12 +121,38 @@ function groupJobsBySchedule(jobs: Job[]): SalesmanSchedule {
 }
 
 
-export default function SalesmanPage() {
+function SalesmanPageContent() {
   useBrand();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const activeJobId = searchParams.get("jobId");
   const [activeTab, setActiveTab] = useState<Tab>("today");
   const [selectedJob, setSelectedJob] = useState<SalesmanScheduleJob | null>(null);
   const [schedule, setSchedule] = useState<SalesmanSchedule>(EMPTY_SALESMAN_SCHEDULE);
+
+  useEffect(() => {
+    if (activeJobId && schedule) {
+      const allJobs = [
+        ...(schedule.today || []),
+        ...(schedule.tomorrow || []),
+        ...(schedule.upcoming || []),
+        ...(schedule.completed || [])
+      ];
+      const foundJob = allJobs.find((j) => j.id === activeJobId);
+      if (foundJob) {
+        if ((schedule.completed || []).some((j) => j.id === activeJobId)) {
+          setActiveTab("completed");
+        } else if ((schedule.today || []).some((j) => j.id === activeJobId)) {
+          setActiveTab("today");
+        } else if ((schedule.tomorrow || []).some((j) => j.id === activeJobId)) {
+          setActiveTab("tomorrow");
+        } else if ((schedule.upcoming || []).some((j) => j.id === activeJobId)) {
+          setActiveTab("upcoming");
+        }
+        setSelectedJob(foundJob);
+      }
+    }
+  }, [activeJobId, schedule]);
 
   const getJobsForTab = (tab: Tab) => {
     switch (tab) {
@@ -148,6 +181,18 @@ export default function SalesmanPage() {
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const displayStatus = newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus;
+
+    if (typeof window !== "undefined") {
+      const storageKey = `eb_measurement_start_${id}`;
+      if (displayStatus === "In Progress") {
+        if (!localStorage.getItem(storageKey)) {
+          localStorage.setItem(storageKey, Date.now().toString());
+        }
+      } else if (displayStatus !== "Done") {
+        // If status changed to anything other than completed, clear the start time
+        localStorage.removeItem(storageKey);
+      }
+    }
 
     setSchedule(prev => {
       const updated = { ...prev };
@@ -195,7 +240,7 @@ export default function SalesmanPage() {
           </div>
 
           {/* Job List */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 custom-scrollbar">
             {jobs.length === 0 ? (
               <div className="text-center py-20 text-neutral-400 px-6">
                 <Calendar className="w-10 h-10 mx-auto mb-4 opacity-10" />
@@ -228,7 +273,10 @@ export default function SalesmanPage() {
               />
             </div>
           ) : (
-            <WorkspaceOverview onSelectFirst={() => schedule.today.length > 0 && setSelectedJob(schedule.today[0])} />
+            <WorkspaceOverview 
+              onSelectFirst={() => schedule.today.length > 0 && setSelectedJob(schedule.today[0])} 
+              schedule={schedule}
+            />
           )}
         </main>
       </div>
@@ -236,7 +284,13 @@ export default function SalesmanPage() {
   );
 }
 
-function WorkspaceOverview({ onSelectFirst }: { onSelectFirst: () => void }) {
+function WorkspaceOverview({ 
+  onSelectFirst, 
+  schedule 
+}: { 
+  onSelectFirst: () => void;
+  schedule: SalesmanSchedule;
+}) {
   return (
     <div className="h-full relative flex flex-col bg-stone-50">
       <div className="absolute inset-0 z-0 opacity-10">
@@ -251,9 +305,9 @@ function WorkspaceOverview({ onSelectFirst }: { onSelectFirst: () => void }) {
 
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
           {[
-            { val: "3", label: "Today's Work" },
-            { val: "2", label: "Upcoming" },
-            { val: "94%", label: "Efficiency" }
+            { val: String(schedule.today.length), label: "Today's Work" },
+            { val: String(schedule.tomorrow.length + schedule.upcoming.length), label: "Upcoming" },
+            { val: String(schedule.completed.length), label: "Completed" }
           ].map((stat, i) => (
             <div key={i} className="p-8 bg-white rounded-xl border border-stone-100 shadow-md transition-all cursor-default">
               <div className="text-4xl font-light text-neutral-900 tracking-tight mb-1">{stat.val}</div>
@@ -320,19 +374,109 @@ function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSe
   );
 }
 
+interface CompletedOpening {
+  id?: string;
+  name?: string;
+  productType?: string;
+  mountType?: string;
+  customMaterial?: string;
+  width?: number;
+  height?: number;
+  metadata?: {
+    fabricSelection?: string;
+    customFabricName?: string;
+  };
+}
+
+interface CompletedRoom {
+  id?: string;
+  name?: string;
+  category?: string;
+  openings?: CompletedOpening[];
+}
+
+interface CompletedQuotationItem {
+  id?: string;
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+}
+
 function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJob; onStatusChange: (status: string) => void; onBack: () => void }) {
   const router = useRouter();
   const [seconds, setSeconds] = useState(0);
+  const [measurementData, setMeasurementData] = useState<{ rooms?: CompletedRoom[] } | null>(null);
+  const [fullJob, setFullJob] = useState<Job | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
+    async function loadCompletedDetails() {
+      if (job.status !== "Done") return;
+      setLoadingDetails(true);
+      try {
+        const [jobRes, measRes] = await Promise.allSettled([
+          getJob(job.id),
+          api.get(`/measurements/job/${job.id}`)
+        ]);
+
+        if (jobRes.status === "fulfilled") {
+          setFullJob(jobRes.value);
+        }
+        if (measRes.status === "fulfilled") {
+          setMeasurementData(measRes.value.data);
+        }
+      } catch (err) {
+        console.error("Error loading completed job/measurement details:", err);
+      } finally {
+        setLoadingDetails(false);
+      }
+    }
+    void loadCompletedDetails();
+  }, [job.id, job.status]);
+
+  const managerNote = (() => {
+    try {
+      if (job.notes && (job.notes.trim().startsWith("{") || job.notes.trim().startsWith("["))) {
+        return "";
+      }
+      return job.notes || "";
+    } catch {
+      return job.notes || "";
+    }
+  })();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storageKey = `eb_measurement_start_${job.id}`;
+
+    // Auto-create a start time if in-progress state is active but time is uninitialized
+    if (job.status === "In Progress" || job.status === "In progress") {
+      if (!localStorage.getItem(storageKey)) {
+        localStorage.setItem(storageKey, Date.now().toString());
+      }
+    }
+
+    const updateTimer = () => {
+      const startTime = localStorage.getItem(storageKey);
+      if (startTime && (job.status === "In Progress" || job.status === "In progress")) {
+        const elapsed = Math.floor((Date.now() - Number(startTime)) / 1000);
+        setSeconds(elapsed >= 0 ? elapsed : 0);
+      } else {
+        setSeconds(0);
+      }
+    };
+
+    updateTimer();
+
     let interval: NodeJS.Timeout;
     if (job.status === "In Progress" || job.status === "In progress") {
-      interval = setInterval(() => {
-        setSeconds(s => s + 1);
-      }, 1000);
+      interval = setInterval(updateTimer, 1000);
     }
-    return () => clearInterval(interval);
-  }, [job.status]);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [job.status, job.id]);
 
   const formatTimer = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -343,54 +487,59 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white">
-      {/* Visual Context Header */}
-      <div className="h-40 bg-neutral-900 relative flex-shrink-0 border-b border-white/5 group overflow-hidden">
-        <div className="absolute inset-0 z-0 opacity-30">
+      {/* Visual Context Header - Full Screen Map with Glassmorphism Overlay */}
+      <div className="h-[460px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
+        <div className="absolute inset-0 z-0">
           <JobDetailMap coordinates={job.coordinates || [25.20, 55.27]} />
         </div>
-        <div className="absolute inset-0 bg-neutral-900/60 z-10"></div>
 
         <button
           onClick={onBack}
-          className="absolute top-4 left-4 z-[60] bg-white/10 backdrop-blur-md text-white p-2.5 rounded-lg border border-white/20 hover:bg-white/20"
+          className="absolute top-4 left-4 z-[60] bg-white/90 backdrop-blur-md text-stone-800 p-2.5 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <div className="absolute right-4 bottom-4 z-20 flex gap-2">
-          <Button variant="outline" className="bg-white/5 border-white/10 text-white rounded-lg px-4 h-9 text-xs">
-            <Phone className="w-4 h-4 mr-2" /> Call
-          </Button>
-          <Button variant="outline" className="bg-emerald-500/20 border-emerald-500/20 text-emerald-400 rounded-lg px-4 h-9 text-xs">
-            <MessageSquare className="w-4 h-4 mr-2" /> WhatsApp
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto w-full pb-48 custom-scrollbar">
-
-        {/* Header */}
-        <div className="px-8 py-10 bg-[#0F172A] text-white flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative overflow-hidden">
-          <div className="space-y-3 relative z-10">
-            <div className="flex items-center gap-3">
-              <span className="px-2 py-1 bg-white/5 text-white/60 text-[10px] font-bold uppercase tracking-[0.2em] rounded border border-white/5">Task {job.shortRef}</span>
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">{job.time}</span>
+        {/* Floating Customer Details & Actions Glass Card */}
+        <div className="absolute bottom-4 left-4 z-20 max-w-sm w-[calc(100%-2rem)] bg-white/95 backdrop-blur-md border border-stone-200/80 p-5 rounded-2xl shadow-xl animate-fadeIn flex flex-col gap-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-bold uppercase tracking-[0.15em] rounded border border-indigo-100">
+                Task {job.shortRef}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
+                {job.time}
+              </span>
             </div>
-            <h2 className="text-5xl font-light text-white">{job.client}</h2>
-            <div className="flex flex-col gap-2 mt-4">
-              <div className="flex items-center gap-3 text-white/60 text-base font-light">
-                <MapPin className="w-4 h-4 text-white/30" />
-                {job.address}
+            <h2 className="text-2xl font-light text-stone-800 tracking-tight mb-2.5 capitalize">
+              {job.client}
+            </h2>
+            <div className="space-y-2 text-xs text-stone-600 font-medium">
+              <div className="flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0 mt-0.5" />
+                <span className="leading-snug">{job.address}</span>
               </div>
               {job.customerPhone && (
-                <div className="flex items-center gap-3 text-white/60 text-base font-light">
-                  <Phone className="w-4 h-4 text-white/30" />
-                  {job.customerPhone}
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-stone-400 flex-shrink-0" />
+                  <span>{job.customerPhone}</span>
                 </div>
               )}
             </div>
           </div>
+
+          <div className="flex gap-2 w-full pt-2.5 border-t border-stone-100">
+            <Button variant="outline" className="flex-1 bg-white hover:bg-stone-50 border-stone-200 text-stone-700 shadow-sm rounded-lg h-9 text-xs font-semibold transition-colors">
+              <Phone className="w-4 h-4 mr-2 text-stone-500" /> Call
+            </Button>
+            <Button variant="outline" className="flex-1 bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white shadow-sm rounded-lg h-9 text-xs font-semibold transition-colors">
+              <MessageSquare className="w-4 h-4 mr-2" /> WhatsApp
+            </Button>
+          </div>
         </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto w-full pb-48 custom-scrollbar">
 
         <div className="p-8 space-y-8">
           {/* Stats Bar */}
@@ -410,23 +559,164 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
           </div>
 
           {job.status === "Done" && (
-            <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center">
-                  <ClipboardList className="w-5 h-5" />
+            <div className="space-y-6 text-left">
+              {/* Measurements Detail Block */}
+              <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center flex-shrink-0">
+                      <Ruler className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-light text-neutral-900">Measurements</h3>
+                      <p className="text-xs text-stone-400">Captured rooms and opening dimensions</p>
+                    </div>
+                  </div>
+                  <Link href={`/salesman/measurements/new?jobId=${job.id}`}>
+                    <Button variant="outline" size="sm" className="text-xs text-neutral-900 border-neutral-300">
+                      Edit Measurements
+                    </Button>
+                  </Link>
                 </div>
-                <h3 className="text-xl font-light text-neutral-900">Quotation</h3>
+
+                {loadingDetails ? (
+                  <div className="text-center py-6 text-stone-400 italic text-xs animate-pulse">Loading measurement data...</div>
+                ) : measurementData && measurementData.rooms && measurementData.rooms.length > 0 ? (
+                  <div className="space-y-4">
+                    {measurementData.rooms.map((room: CompletedRoom, rIdx: number) => (
+                      <div key={room.id || rIdx} className="border border-stone-200/80 rounded-xl overflow-hidden shadow-sm">
+                        <div className="bg-stone-50 px-4 py-3 border-b border-stone-100 flex items-center justify-between">
+                          <span className="text-xs font-bold text-neutral-800 uppercase tracking-wider">{room.name} ({room.category || "General"})</span>
+                          <span className="text-[10px] bg-neutral-905 bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full font-bold">{(room.openings || []).length} Openings</span>
+                        </div>
+                        <div className="divide-y divide-stone-100 bg-white">
+                          {(room.openings || []).map((open: CompletedOpening, oIdx: number) => (
+                            <div key={open.id || oIdx} className="p-4 text-left flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+                              <div>
+                                <p className="font-bold text-neutral-800 text-sm mb-1">{open.name}</p>
+                                <div className="flex flex-wrap gap-x-3 gap-y-1 text-stone-500 font-medium">
+                                  <span>Type: <strong className="text-neutral-700">{open.productType || "Standard"}</strong></span>
+                                  <span>•</span>
+                                  <span>Mount: <strong className="text-neutral-700">{open.mountType || "Wall"}</strong></span>
+                                  <span>•</span>
+                                  <span>Fabric: <strong className="text-neutral-700">{open.customMaterial || open.metadata?.fabricSelection || "None"}</strong></span>
+                                  {open.metadata?.customFabricName && (
+                                    <>
+                                      <span>•</span>
+                                      <span>Custom Fabric: <strong className="text-indigo-600">{open.metadata.customFabricName}</strong></span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-left md:text-right flex-shrink-0">
+                                <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">Width × Height</span>
+                                <span className="font-mono text-sm font-semibold text-neutral-800">{open.width || 0} cm × {open.height || 0} cm</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 bg-stone-50 rounded-xl text-center text-xs text-stone-400 italic border border-stone-100">No measurement details saved yet for this customer.</div>
+                )}
               </div>
-              <div className="p-6 bg-stone-50 rounded border border-stone-100 flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-neutral-500 font-bold uppercase tracking-wider mb-1">Status</div>
-                  <div className="text-lg text-emerald-600 font-medium">Completed</div>
+
+              {/* Quotation Detail Block */}
+              <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-light text-neutral-900">Quotation</h3>
+                      <p className="text-xs text-stone-400">Total pricing breakdown and line items</p>
+                    </div>
+                  </div>
+                  <Link href={`/salesman/quotes/new?jobId=${job.id}`}>
+                    <Button variant="outline" size="sm" className="text-xs text-neutral-900 border-neutral-300">
+                      Edit Quotation
+                    </Button>
+                  </Link>
                 </div>
-                <Link href={`/salesman/quotes/new?jobId=${job.id}`}>
-                  <Button variant="outline" className="text-neutral-900 border-neutral-300">
-                    View Quote
-                  </Button>
-                </Link>
+
+                {loadingDetails ? (
+                  <div className="text-center py-6 text-stone-400 italic text-xs animate-pulse">Loading quotation data...</div>
+                ) : fullJob?.quotation ? (
+                  <div className="space-y-6">
+                    {/* Quotation Metadata */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-stone-50 p-4 rounded-xl border border-stone-100 text-xs text-stone-500 font-medium">
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">Quote ID</span>
+                        <strong className="text-neutral-800 text-sm font-light mt-0.5 block">{fullJob.quotation.id}</strong>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">Status</span>
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-bold uppercase tracking-wider">
+                          {fullJob.quotation.status || "Sent"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">Salesman</span>
+                        <strong className="text-neutral-800 text-sm font-light mt-0.5 block">{fullJob.quotation.salesmanName || "Salesman"}</strong>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">Date</span>
+                        <strong className="text-neutral-800 text-sm font-light mt-0.5 block">
+                          {fullJob.quotation.date ? new Date(fullJob.quotation.date).toLocaleDateString() : "N/A"}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Line Items Table */}
+                    <div className="border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-neutral-100 border-b border-stone-200 font-bold text-neutral-700">
+                            <th className="p-3 w-12 text-center">#</th>
+                            <th className="p-3">Description</th>
+                            <th className="p-3 w-20 text-center">Qty</th>
+                            <th className="p-3 w-28 text-right">Unit (AED)</th>
+                            <th className="p-3 w-28 text-right">Total (AED)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100 text-xs bg-white">
+                          {((fullJob.quotation.items as CompletedQuotationItem[]) || []).map((item: CompletedQuotationItem, idx: number) => (
+                            <tr key={item.id || idx} className="hover:bg-stone-50/50 transition-colors">
+                              <td className="p-3 text-center text-neutral-400 font-medium">{idx + 1}</td>
+                              <td className="p-3 text-neutral-800 font-semibold">{item.description}</td>
+                              <td className="p-3 text-center text-neutral-800">{item.quantity || 1}</td>
+                              <td className="p-3 text-right text-neutral-800">{Number(item.unitPrice || 0).toLocaleString()}</td>
+                              <td className="p-3 text-right text-neutral-800 font-bold">{(Number(item.quantity || 1) * Number(item.unitPrice || 0)).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Summary Total Box */}
+                    <div className="flex justify-end">
+                      <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 w-full max-w-xs space-y-2 text-xs text-left">
+                        <div className="flex justify-between text-neutral-500 font-medium">
+                          <span>Subtotal</span>
+                          <span>AED {Number((fullJob.quotation.total || 0) / 1.05).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between text-neutral-500 font-medium">
+                          <span>VAT (5%)</span>
+                          <span>AED {Number((fullJob.quotation.total || 0) - ((fullJob.quotation.total || 0) / 1.05)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="pt-2 border-t border-stone-200 flex justify-between items-baseline font-bold text-neutral-800 text-sm">
+                          <span>Total</span>
+                          <span className="text-xl font-light text-neutral-900">AED {Number(fullJob.quotation.total || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 bg-stone-50 rounded-xl text-center text-xs text-stone-400 italic border border-stone-100">No quotation details saved yet for this customer.</div>
+                )}
               </div>
             </div>
           )}
@@ -439,7 +729,7 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
               <h3 className="text-xl font-light text-neutral-900">Task Notes</h3>
             </div>
             <div className="p-6 bg-stone-50 rounded border border-stone-100 italic text-neutral-700 text-lg">
-              &quot;{job.notes || "No special instructions provided."}&quot;
+              {managerNote ? `"${managerNote}"` : ""}
             </div>
           </div>
         </div>
@@ -745,5 +1035,13 @@ function SalesmanGpsControl() {
                 {errorMessage ? errorMessage : lastFix ? `Synced ${lastFix.lat.toFixed(5)}, ${lastFix.lng.toFixed(5)}` : "Share location with manager"}
             </div>
         </div>
+    );
+}
+
+export default function SalesmanPage() {
+    return (
+        <Suspense fallback={<div className="p-12 text-center text-neutral-400 font-light">Loading salesman portal...</div>}>
+            <SalesmanPageContent />
+        </Suspense>
     );
 }

@@ -101,6 +101,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     team: job.assignedTo,
     assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+    createdAt: job.createdAt,
   };
 }
 
@@ -132,7 +133,15 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
     case "urgent_first":
       return next.sort((a, b) => Number(b.priority === "High") - Number(a.priority === "High"));
     case "newest":
+      return next.sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     case "oldest_pending":
+      return next.sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
     case "nearest":
     case "Default Sorting":
     default:
@@ -366,8 +375,27 @@ export default function SmartAssignmentsPage() {
 
   const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
     const raw = toUnifiedJob(job);
-    // Resolve team (fitter display name) from the stored userId or legacy name
-    const team = resolveAssignedFitterName(job, userNameById);
+    
+    // Attempt to resolve team name nicely
+    let assignedFitterName: string | undefined;
+    let assignedSalesmanName: string | undefined;
+
+    if (job.assignedFitter && userNameById.has(job.assignedFitter)) {
+        assignedFitterName = userNameById.get(job.assignedFitter);
+    }
+    if (job.assignedSalesman && userNameById.has(job.assignedSalesman)) {
+        assignedSalesmanName = userNameById.get(job.assignedSalesman);
+    }
+
+    let teamName = "Assigned Team";
+    if (!assignedFitterName && !assignedSalesmanName) {
+        teamName = resolveAssignedFitterName(job, userNameById);
+    } else {
+        const parts = [];
+        if (assignedFitterName) parts.push(assignedFitterName);
+        if (assignedSalesmanName) parts.push(assignedSalesmanName);
+        teamName = parts.join(" & ");
+    }
     
     // Resolve assignedBy (sales manager name) from the stored userId
     let assignedBy = raw.assignedBy;
@@ -375,7 +403,7 @@ export default function SmartAssignmentsPage() {
       assignedBy = userNameById.get(assignedBy);
     }
     
-    return { ...raw, team, assignedBy };
+    return { ...raw, team: teamName, assignedFitterName, assignedSalesmanName, assignedBy };
   }, [userNameById]);
 
   const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending" && !!job.assignedFitter).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);

@@ -76,9 +76,28 @@ export default function NewJobPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="customerName">Client Name</Label>
               <Input id="customerName" name="customerName" required minLength={2} maxLength={120} placeholder="e.g. John Doe" />
+            </div> */}
+
+            <div className="space-y-2">
+              <Label htmlFor="customerName">Client Name</Label>
+
+              <Input
+                id="customerName"
+                name="customerName"
+                required
+                minLength={2}
+                maxLength={120}
+                placeholder="e.g. John Doe"
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  e.target.value =
+                    value.charAt(0).toUpperCase() + value.slice(1);
+                }}
+              />
             </div>
 
             <div className="space-y-2">

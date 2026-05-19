@@ -21,9 +21,12 @@ export interface UnifiedJob {
     time?: string;
     endTime?: string;
     // For Assignments Page Logic
-    recommendedFitters?: Array<{ id: string; name: string; dist?: number }>;
+    recommendedFitters?: Array<{ id: string; name: string; role?: string; dist?: number }>;
     team?: string; // Assigned fitter name
+    assignedFitterName?: string;
+    assignedSalesmanName?: string;
     assignedBy?: string; // Who assigned it
+    createdAt?: string;
 }
 
 interface JobCardProps {
@@ -77,19 +80,46 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
 
                 {/* Contact Details Grid — always shown: assigned fitter + phone */}
                 <div className="grid grid-cols-2 gap-2 mb-4 bg-slate-50/50 p-2 rounded-lg border border-slate-100/50">
-                    <div
-                        className="text-xs text-slate-500 flex items-center gap-2 truncate p-1"
-                        title={job.team || job.email || "Not assigned"}
-                    >
-                        <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                            <User className="w-3 h-3" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                            <span className={`truncate font-medium leading-none ${job.team && job.team !== "Assigned Team" ? "text-amber-700" : "text-slate-400"}`}>
-                                {job.team && job.team !== "Assigned Team" ? job.team : (job.email || "--")}
-                            </span>
-                            {job.assignedBy && <span className="text-[9px] text-slate-400 mt-0.5 truncate">by {job.assignedBy}</span>}
-                        </div>
+                    <div className="flex flex-col gap-2 p-1 max-w-full">
+                        {(!job.assignedFitterName && !job.assignedSalesmanName) ? (
+                            <div className="text-xs text-slate-500 flex items-center gap-2 truncate" title={job.team || job.email || "Not assigned"}>
+                                <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                    <User className="w-3 h-3" />
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <span className={`truncate font-medium leading-none ${job.team && job.team !== "Assigned Team" ? "text-amber-700" : "text-slate-400"}`}>
+                                        {job.team && job.team !== "Assigned Team" ? job.team : (job.email || "--")}
+                                    </span>
+                                    {job.assignedBy && <span className="text-[9px] text-slate-400 mt-0.5 truncate">by {job.assignedBy}</span>}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-2 min-w-0">
+                                {job.assignedFitterName && (
+                                    <div className="text-xs text-slate-500 flex items-center gap-2 truncate" title={`Fitter: ${job.assignedFitterName}`}>
+                                        <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                            <User className="w-3 h-3" />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 leading-none mb-0.5">Fitter</span>
+                                            <span className="truncate font-medium leading-tight text-amber-700">{job.assignedFitterName}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {job.assignedSalesmanName && (
+                                    <div className="text-xs text-slate-500 flex items-center gap-2 truncate" title={`Salesman: ${job.assignedSalesmanName}`}>
+                                        <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                            <User className="w-3 h-3" />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-[9px] uppercase tracking-wider font-bold text-slate-400 leading-none mb-0.5">Salesman</span>
+                                            <span className="truncate font-medium leading-tight text-amber-700">{job.assignedSalesmanName}</span>
+                                        </div>
+                                    </div>
+                                )}
+                                {job.assignedBy && <span className="text-[9px] text-slate-400 truncate pl-7">by {job.assignedBy}</span>}
+                            </div>
+                        )}
                     </div>
                     <a href={`tel:${job.phone}`} className="text-xs text-slate-500 hover:text-amber-600 flex items-center gap-2 truncate p-1 hover:bg-white rounded transition-colors" title={job.phone} onClick={(e) => e.stopPropagation()}>
                         <div className="w-5 h-5 flex flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400"><Phone className="w-3 h-3" /></div>
@@ -126,7 +156,10 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white text-slate-700 text-xs font-bold border border-slate-200 shadow-sm transition-colors group-hover/fitter:bg-amber-500 group-hover/fitter:text-white group-hover/fitter:border-amber-500">{i + 1}</div>
                                         <div>
-                                            <p className="text-sm font-semibold text-slate-800 group-hover/fitter:text-slate-900 transition-colors">{rec.name}</p>
+                                            <p className="text-sm font-semibold text-slate-800 group-hover/fitter:text-slate-900 transition-colors">
+                                                {rec.name}
+                                                {rec.role && <span className="ml-2 text-[10px] uppercase font-bold text-slate-400">{rec.role}</span>}
+                                            </p>
                                             {/* <p className="text-[10px] text-slate-500 group-hover/fitter:text-amber-600/80">{typeof rec.dist === "number" ? `${rec.dist.toFixed(1)} km from site` : "Available fitter"}</p> */}
                                         </div>
                                     </div>

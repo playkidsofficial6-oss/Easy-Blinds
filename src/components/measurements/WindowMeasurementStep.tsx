@@ -68,6 +68,30 @@ export function WindowMeasurementStep({
         setEditingWindow(newWindow.id);
     };
 
+    const addCustomItem = () => {
+        if (!selectedRoom) return;
+
+        const newWindow: WindowMeasurement = {
+            id: uuidv4(),
+            name: `Custom Item ${selectedRoom.windows.length + 1}`,
+            width: 150,
+            height: 200,
+            mountType: "Wall",
+            openingDirection: "Split",
+            productType: "Custom Item",
+            customProductName: "Custom Item",
+            motorType: "Manual",
+        };
+
+        const updatedRooms = rooms.map((room) =>
+            room.id === selectedRoomId
+                ? { ...room, windows: [...room.windows, newWindow] }
+                : room
+        );
+        setRooms(updatedRooms);
+        setEditingWindow(newWindow.id);
+    };
+
     const updateWindow = (windowId: string, updates: Partial<WindowMeasurement>) => {
         const updatedRooms = rooms.map((room) =>
             room.id === selectedRoomId
@@ -123,17 +147,23 @@ export function WindowMeasurementStep({
 
                 {rooms.map((room) => (
                     <TabsContent key={room.id} value={room.id} className="space-y-4 mt-6">
-                        <div className="flex justify-between items-center">
-                            <h3 className="font-semibold text-lg text-stone-900 dark:text-white">{room.name} - Windows</h3>
-                            <Button onClick={addWindow} className="bg-stone-900 dark:bg-white hover:bg-stone-800 dark:hover:bg-stone-200 dark:text-stone-900">
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add Window
-                            </Button>
+                        <div className="flex flex-wrap gap-2 justify-between items-center">
+                            <h3 className="font-semibold text-lg text-stone-900 dark:text-white">{room.name} - Items</h3>
+                            <div className="flex gap-2">
+                                <Button onClick={addWindow} variant="outline" className="border-stone-300">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add Window
+                                </Button>
+                                <Button onClick={addCustomItem} className="bg-stone-900 dark:bg-white hover:bg-stone-800 dark:hover:bg-stone-200 dark:text-stone-900">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    Add Custom Item
+                                </Button>
+                            </div>
                         </div>
 
                         {room.windows.length === 0 ? (
                             <Card className="p-12 text-center border-2 border-dashed">
-                                <p className="text-stone-500">No windows added yet. Click "Add Window" to start.</p>
+                                <p className="text-stone-500">No items added yet. Click "Add Window" or "Add Custom Item" to start.</p>
                             </Card>
                         ) : (
                             <div className="space-y-4">
@@ -324,9 +354,23 @@ export function WindowMeasurementStep({
                                                                 <SelectItem value="Wooden Blinds">Wooden Blinds</SelectItem>
                                                                 <SelectItem value="Aluminium Blinds">Aluminium Blinds</SelectItem>
                                                                 <SelectItem value="Vertical Blinds">Vertical Blinds</SelectItem>
+                                                                <SelectItem value="Custom Item">Custom Item</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
+
+                                                    {window.productType === "Custom Item" && (
+                                                        <div className="space-y-2 md:col-span-2">
+                                                            <Label className="text-base font-semibold">Custom Product Name</Label>
+                                                            <Input
+                                                                value={window.customProductName || ""}
+                                                                onChange={(e) => updateWindow(window.id, { customProductName: e.target.value })}
+                                                                placeholder="e.g. Skyline Valances, Custom Tracks..."
+                                                                className="h-14 text-base"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                        </div>
+                                                    )}
 
                                                     <div className="space-y-2">
                                                         <Label className="text-base">Motor Type</Label>
@@ -360,9 +404,23 @@ export function WindowMeasurementStep({
                                                                         {fabric.name}
                                                                     </SelectItem>
                                                                 ))}
+                                                                <SelectItem value="CUSTOM">+ Add Custom Fabric...</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
+
+                                                    {window.fabricSelection === "CUSTOM" && (
+                                                        <div className="space-y-2 md:col-span-2">
+                                                            <Label className="text-base font-semibold">Custom Fabric Name / Reference</Label>
+                                                            <Input
+                                                                value={window.customFabricName || ""}
+                                                                onChange={(e) => updateWindow(window.id, { customFabricName: e.target.value })}
+                                                                placeholder="e.g. Belgian Linen - Sand, Customer Supplied..."
+                                                                className="h-14 text-base"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            />
+                                                        </div>
+                                                    )}
 
                                                     <div className="space-y-2 md:col-span-2">
                                                         <Label className="text-base">Notes</Label>
@@ -374,13 +432,13 @@ export function WindowMeasurementStep({
                                                         />
                                                     </div>
 
-                                                    <div className="space-y-2 md:col-span-2">
+                                                    {/* <div className="space-y-2 md:col-span-2">
                                                         <Label className="text-base">Photos</Label>
                                                         <Button variant="outline" className="w-full h-14 text-base" type="button">
                                                             <Camera className="w-4 h-4 mr-2" />
                                                             Take Photo
                                                         </Button>
-                                                    </div>
+                                                    </div> */}
                                                 </div>
                                             </CardContent>
                                         )}
