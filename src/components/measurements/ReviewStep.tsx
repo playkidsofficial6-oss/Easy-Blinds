@@ -8,6 +8,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { updateJob } from "@/lib/jobs";
 import { toast } from "sonner";
 
+import { saveMeasurementToBackend } from "@/lib/measurements";
+
 interface ReviewStepProps {
     clientDetails: Partial<ClientDetails>;
     rooms: Room[];
@@ -54,12 +56,77 @@ export function ReviewStep({
         }
 
         if (jobId) {
+            // Map frontend structures to the strict backend opening schemas
+            const backendRooms = rooms.map(room => ({
+                id: room.id,
+                name: room.name,
+                category: room.type || "Other",
+                openings: (room.windows || []).map(w => {
+                    const type = w.productType === "Custom Item" ? "CUSTOM" : "WINDOW";
+                    
+                    // Format custom material & fabric selection
+                    const materialType = w.fabricSelection === "CUSTOM" ? "custom" : "standard";
+                    const customMaterial = w.fabricSelection === "CUSTOM" 
+                        ? (w.customFabricName || "Custom Fabric") 
+                        : (FABRICS.find(f => f.id === w.fabricSelection)?.name || w.fabricSelection || "None");
+
+                    return {
+                        id: w.id,
+                        type: type as "WINDOW" | "DOOR" | "CUSTOM",
+                        name: w.name,
+                        width: Number(w.width || 0),
+                        height: Number(w.height || 0),
+                        measurementUnit: "cm",
+                        mountType: w.mountType || "Wall",
+                        openingDirection: w.openingDirection || "Split",
+                        productType: w.productType === "Custom Item" ? (w.customProductName || "Custom Item") : w.productType,
+                        materialType,
+                        customMaterial,
+                        motorType: w.motorType || "Manual",
+                        notes: w.notes || "",
+                        images: w.photos || [],
+                        metadata: {
+                            fabricSelection: w.fabricSelection,
+                            customFabricName: w.customFabricName,
+                            customProductName: w.customProductName
+                        }
+                    };
+                })
+            }));
+
+            const backendPayload = {
+                jobId,
+                assignedStaff: clientDetails.assignedStaff || "Salesman",
+                visitDate: clientDetails.visitDate ? new Date(clientDetails.visitDate).toISOString() : new Date().toISOString(),
+                status: (status === "Completed" ? "COMPLETED" : "PENDING") as "COMPLETED" | "PENDING",
+                rooms: backendRooms
+            };
+
+            // Save to dedicated measurements collection in backend
+            await saveMeasurementToBackend(backendPayload);
+
+            // Calculate exact elapsed measuring duration from localStorage start timestamp
+            let durationStr = "";
+            if (typeof window !== "undefined") {
+                const startTime = localStorage.getItem(`eb_measurement_start_${jobId}`);
+                if (startTime) {
+                    const elapsed = Math.floor((Date.now() - Number(startTime)) / 1000);
+                    if (elapsed > 0) {
+                        const h = Math.floor(elapsed / 3600);
+                        const mins = Math.floor((elapsed % 3600) / 60);
+                        const secs = elapsed % 60;
+                        durationStr = ` Measuring took ${h > 0 ? h + "h " : ""}${mins}m ${secs}s.`;
+                    }
+                    if (status === "Completed") {
+                        localStorage.removeItem(`eb_measurement_start_${jobId}`);
+                    }
+                }
+            }
+
+            // Also keep job notes & status updated for backwards compatibility with a concise note
             await updateJob(jobId, {
                 status: status === "Completed" ? "in_progress" : "scheduled",
-                notes: JSON.stringify({
-                    measurement,
-                    summary: `${rooms.length} room(s), ${totalWindows} curtain/window measurement(s) captured`,
-                }),
+                notes: `Time taken: ${durationStr}`,
             });
         }
     };
@@ -177,6 +244,12 @@ export function ReviewStep({
                                     <div className="space-y-3">
                                         {room.windows.map((window) => {
                                             const fabric = FABRICS.find(f => f.id === window.fabricSelection);
+                                            const displayProduct = window.productType === "Custom Item"
+                                                ? `Custom Item (${window.customProductName || "Unnamed"})`
+                                                : window.productType;
+                                            const displayFabric = window.fabricSelection === "CUSTOM"
+                                                ? (window.customFabricName || "Custom Fabric")
+                                                : fabric?.name;
                                             return (
                                                 <div key={window.id} className="bg-stone-50 p-3 rounded-lg">
                                                     <div className="flex justify-between items-start">
@@ -184,9 +257,9 @@ export function ReviewStep({
                                                             <p className="font-medium text-stone-900">{window.name}</p>
                                                             <div className="text-sm text-stone-600 mt-1 space-y-1">
                                                                 <p>Size: {window.width}cm × {window.height}cm</p>
-                                                                <p>Product: {window.productType}</p>
+                                                                <p>Product: {displayProduct}</p>
                                                                 <p>Mount: {window.mountType} • Opening: {window.openingDirection}</p>
-                                                                {fabric && <p>Fabric: {fabric.name}</p>}
+                                                                {displayFabric && <p>Fabric: {displayFabric}</p>}
                                                                 <p>Motor: {window.motorType}</p>
                                                                 {window.notes && (
                                                                     <p className="text-stone-500 italic mt-2">Note: {window.notes}</p>

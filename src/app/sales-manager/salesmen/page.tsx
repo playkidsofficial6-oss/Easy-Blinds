@@ -157,6 +157,8 @@ export default function SalesmenPage() {
     const [scheduledDate, setScheduledDate] = useState<string>("");
     const [scheduledTime, setScheduledTime] = useState<string>("09:00");
     const [isAssigningFitter, setIsAssigningFitter] = useState(false);
+    const [filterSalesman, setFilterSalesman] = useState<string>("all");
+    const [filterDate, setFilterDate] = useState<string>("");
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -195,9 +197,25 @@ export default function SalesmenPage() {
                 jobCustomerName: j.customerName,
                 salesmanName: assignedSalesman?.name || "Unknown Salesman",
                 status: displayStatus,
+                date: j.quotation?.date || j.createdAt,
             };
         }).filter((quote) => quote && quote.id && quote.status !== "Draft");
     }, [jobs, salesmen]);
+
+    const filteredQuotes = useMemo(() => {
+        return submittedQuotes.filter(quote => {
+            if (filterSalesman !== "all" && quote.salesmanName !== filterSalesman) {
+                return false;
+            }
+            if (filterDate) {
+                const quoteDateStr = quote.date ? new Date(quote.date).toISOString().split('T')[0] : "";
+                if (quoteDateStr !== filterDate) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }, [submittedQuotes, filterSalesman, filterDate]);
 
     const mappedSalesmen = useMemo<Fitter[]>(() => {
         const today = new Date();
@@ -405,8 +423,8 @@ export default function SalesmenPage() {
 
             {/* Management Section */}
             <div className="p-8 space-y-6 max-w-[1600px]">
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    <Card className="border-slate-200 shadow-sm rounded-xl">
+                <div className="grid grid-cols-1 gap-6">
+                    {/* <Card className="border-slate-200 shadow-sm rounded-xl">
                         <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-4">
                             <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                                 <ClipboardList className="w-5 h-5 text-emerald-600" />
@@ -446,20 +464,59 @@ export default function SalesmenPage() {
                                 </Button>
                             </div>
                         </CardContent>
-                    </Card>
+                    </Card> */}
 
                     <Card className="border-slate-200 shadow-sm rounded-xl">
                         <CardHeader className="border-b border-slate-100 bg-slate-50/50 pb-4">
-                            <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                                <FileText className="w-5 h-5 text-blue-600" />
-                                Submitted Quotations
-                            </CardTitle>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <CardTitle className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                                    <FileText className="w-5 h-5 text-blue-600" />
+                                    Submitted Quotations
+                                </CardTitle>
+                                <div className="flex items-center gap-4 flex-wrap">
+                                    {/* Salesman Filter */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Salesman:</span>
+                                        <Select value={filterSalesman} onValueChange={setFilterSalesman}>
+                                            <SelectTrigger className="h-9 w-40 bg-white border-slate-200 text-xs">
+                                                <SelectValue placeholder="All Salesmen" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Salesmen</SelectItem>
+                                                {Array.from(new Set(submittedQuotes.map(q => q.salesmanName).filter(Boolean))).map((name) => (
+                                                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {/* Date Filter */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Date:</span>
+                                        <div className="relative">
+                                            <Input
+                                                type="date"
+                                                value={filterDate}
+                                                onChange={(e) => setFilterDate(e.target.value)}
+                                                className="h-9 bg-white border-slate-200 text-xs pl-3 pr-8 w-40"
+                                            />
+                                            {filterDate && (
+                                                <button
+                                                    onClick={() => setFilterDate("")}
+                                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent className="pt-0 px-0">
                             {isLoading ? (
                                 <p className="text-sm text-slate-500 p-6">Loading quotations...</p>
-                            ) : submittedQuotes.length === 0 ? (
-                                <p className="text-sm text-slate-500 p-6">No submitted quotations yet.</p>
+                            ) : filteredQuotes.length === 0 ? (
+                                <p className="text-sm text-slate-500 p-6 text-center italic">No matching quotations found.</p>
                             ) : (
                                 <Table>
                                     <TableHeader className="bg-slate-50/50">
@@ -473,7 +530,7 @@ export default function SalesmenPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {submittedQuotes.map((quote) => (
+                                        {filteredQuotes.map((quote) => (
                                             <TableRow key={quote.id} className="border-slate-100">
                                                 <TableCell className="pl-6">
                                                     <div className="font-semibold text-slate-900">{quote.id}</div>

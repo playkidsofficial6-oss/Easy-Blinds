@@ -101,6 +101,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     team: job.assignedTo,
     assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+    createdAt: job.createdAt,
   };
 }
 
@@ -132,7 +133,15 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
     case "urgent_first":
       return next.sort((a, b) => Number(b.priority === "High") - Number(a.priority === "High"));
     case "newest":
+      return next.sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
     case "oldest_pending":
+      return next.sort((a, b) => {
+        if (!a.createdAt || !b.createdAt) return 0;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
     case "nearest":
     case "Default Sorting":
     default:
@@ -269,9 +278,10 @@ export default function SmartSalesmanAssignmentsPage() {
     type: "assign" | "edit";
     jobId: string;
     jobClient: string;
-    fitterId: string;
-    fitterName: string;
+    fitterId?: string;
+    salesmanId?: string;
     originalFitterId?: string;
+    originalSalesmanId?: string;
     currentSlot?: string;
     currentDate?: Date;
   } | null>(null);
@@ -291,12 +301,9 @@ export default function SmartSalesmanAssignmentsPage() {
         if (!["scheduled", "in_progress", "completed"].includes(job.status)) {
           return false;
         }
-        // Match by userId (new) or name (legacy)
-        if (job.assignedTo) {
-          if (job.assignedTo === fitter.id) return true;
-          if (job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
-          return false;
-        }
+        if (job.assignedFitter === fitter.id || job.assignedTo === fitter.id) return true;
+        if (job.assignedTo && job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
+        
         const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
         return match?.[1]?.trim().toLowerCase() === fitter.name.toLowerCase();
       });
@@ -334,11 +341,9 @@ export default function SmartSalesmanAssignmentsPage() {
         if (!["scheduled", "in_progress", "completed", "pending"].includes(job.status)) {
           return false;
         }
-        if (job.assignedTo) {
-          if (job.assignedTo === user._id) return true;
-          if (job.assignedTo.toLowerCase() === salesmanName.toLowerCase()) return true;
-          return false;
-        }
+        if (job.assignedSalesman === user._id || job.assignedTo === user._id) return true;
+        if (job.assignedTo && job.assignedTo.toLowerCase() === salesmanName.toLowerCase()) return true;
+        
         const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
         return match?.[1]?.trim().toLowerCase() === salesmanName.toLowerCase();
       });
@@ -391,20 +396,24 @@ export default function SmartSalesmanAssignmentsPage() {
   const rescheduleSlots = useMemo(() => {
     if (!dialogState || !rescheduleDate) return [];
 
-    const fitter = salesmen.find((item) => item.id === dialogState.fitterId);
-    if (!fitter) return DAILY_SLOTS;
+    const selectedFitter = workforceMembers.find((item) => item.id === dialogState.fitterId);
+    const selectedSalesman = workforceMembers.find((item) => item.id === dialogState.salesmanId);
+
+    if (!selectedFitter && !selectedSalesman) return DAILY_SLOTS;
 
     let busySlots: string[] = [];
     if (isSameDay(rescheduleDate, new Date())) {
-      busySlots = fitter.schedule.today.map((job) => job.time);
+      if (selectedFitter) busySlots.push(...selectedFitter.schedule.today.map((job) => job.time));
+      if (selectedSalesman) busySlots.push(...selectedSalesman.schedule.today.map((job) => job.time));
     } else if (isSameDay(rescheduleDate, addDays(new Date(), 1))) {
-      busySlots = fitter.schedule.tomorrow.map((job) => job.time);
+      if (selectedFitter) busySlots.push(...selectedFitter.schedule.tomorrow.map((job) => job.time));
+      if (selectedSalesman) busySlots.push(...selectedSalesman.schedule.tomorrow.map((job) => job.time));
     }
 
     return DAILY_SLOTS.filter((slot) => {
       const isCurrentAssignmentSlot =
         dialogState.type === "edit" &&
-        dialogState.originalFitterId === dialogState.fitterId &&
+        (dialogState.originalFitterId === dialogState.fitterId || dialogState.originalSalesmanId === dialogState.salesmanId) &&
         dialogState.currentDate &&
         isSameDay(rescheduleDate, dialogState.currentDate) &&
         slot === dialogState.currentSlot;
@@ -415,20 +424,38 @@ export default function SmartSalesmanAssignmentsPage() {
 
       return !busySlots.includes(slot);
     });
-  }, [rescheduleDate, dialogState, fitters]);
+  }, [rescheduleDate, dialogState, workforceMembers]);
 
   const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
     const raw = toUnifiedJob(job);
-    // Resolve team (fitter display name) from the stored userId or legacy name
-    const team = resolveAssignedFitterName(job, userNameById);
     
-    // Resolve assignedBy (sales manager name) from the stored userId
+    // Attempt to resolve team name nicely
+    let assignedFitterName: string | undefined;
+    let assignedSalesmanName: string | undefined;
+
+    if (job.assignedFitter && userNameById.has(job.assignedFitter)) {
+        assignedFitterName = userNameById.get(job.assignedFitter);
+    }
+    if (job.assignedSalesman && userNameById.has(job.assignedSalesman)) {
+        assignedSalesmanName = userNameById.get(job.assignedSalesman);
+    }
+
+    let teamName = "Assigned Team";
+    if (!assignedFitterName && !assignedSalesmanName) {
+        teamName = resolveAssignedFitterName(job, userNameById);
+    } else {
+        const parts = [];
+        if (assignedFitterName) parts.push(assignedFitterName);
+        if (assignedSalesmanName) parts.push(assignedSalesmanName);
+        teamName = parts.join(" & ");
+    }
+    
     let assignedBy = raw.assignedBy;
     if (assignedBy && userNameById.has(assignedBy)) {
       assignedBy = userNameById.get(assignedBy);
     }
     
-    return { ...raw, team, assignedBy };
+    return { ...raw, team: teamName, assignedFitterName, assignedSalesmanName, assignedBy };
   }, [userNameById]);
 
   const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending" && !job.quotation).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
@@ -440,51 +467,51 @@ export default function SmartSalesmanAssignmentsPage() {
   const recommendedFitters = useMemo(() => {
     if (!selectedJobId) return [];
 
-    return salesmen
-      .filter((fitter) => fitter.capacity.remaining > 0)
-      .map((fitter) => ({
-        id: fitter.id,
-        name: fitter.name,
-        workDetails: `${fitter.schedule.today.length}/${fitter.capacity.max} Jobs Today • Next slot: ${fitter.nextAvailableSlot === "None" ? "N/A" : fitter.nextAvailableSlot}`
+    return workforceMembers
+      .filter((member) => member.capacity.remaining > 0)
+      .map((member) => ({
+        id: member.id,
+        name: member.name,
+        role: member.role,
+        workDetails: `${member.schedule.today.length}/${member.capacity.max} Jobs Today • Next slot: ${member.nextAvailableSlot === "None" ? "N/A" : member.nextAvailableSlot}`
       }));
-  }, [selectedJobId, fitters]);
+  }, [selectedJobId, workforceMembers]);
 
-  const initiateAssignment = (jobId: string, fitterId: string) => {
-    const fitter = salesmen.find((item) => item.id === fitterId);
+  const initiateAssignment = (jobId: string, memberId: string) => {
+    const member = workforceMembers.find((item) => item.id === memberId);
     const job = [...pendingJobs, ...activeJobs].find((item) => item.id === jobId);
-    if (!fitter || !job) return;
+    if (!member || !job) return;
 
-    if (fitter.capacity.remaining <= 0) {
-      toast.error("Compliance Error: Maximum daily capacity (5) reached.");
+    if (member.capacity.remaining <= 0) {
+      toast.error("Compliance Error: Maximum daily capacity reached.");
       return;
     }
+
+    const sourceJob = jobs.find((item) => item._id === jobId);
 
     setRescheduleDate(viewDate);
     setDialogState({
       type: "assign",
       jobId,
       jobClient: job.client,
-      fitterId,
-      fitterName: fitter.name,
+      fitterId: member.role === "Fitter" ? member.id : sourceJob?.assignedFitter,
+      salesmanId: member.role === "Salesman" ? member.id : sourceJob?.assignedSalesman,
       currentDate: viewDate,
     });
   };
 
-  const initiateEdit = (fitterId: string, jobTime: string, jobClient: string, jobId: string) => {
-    const fitter = salesmen.find((item) => item.id === fitterId || item.name === fitterId);
-    if (!fitter) {
-      toast.error("Unable to find the assigned fitter for this job.");
-      return;
-    }
-
+  const initiateEdit = (jobId: string, jobTime: string, jobClient: string) => {
+    const sourceJob = jobs.find((item) => item._id === jobId);
+    
     setRescheduleDate(viewDate);
     setDialogState({
       type: "edit",
       jobId,
       jobClient,
-      fitterId: fitter.id,
-      fitterName: fitter.name,
-      originalFitterId: fitter.id,
+      fitterId: sourceJob?.assignedFitter || sourceJob?.assignedTo,
+      salesmanId: sourceJob?.assignedSalesman,
+      originalFitterId: sourceJob?.assignedFitter || sourceJob?.assignedTo,
+      originalSalesmanId: sourceJob?.assignedSalesman,
       currentSlot: jobTime,
       currentDate: viewDate,
     });
@@ -492,40 +519,55 @@ export default function SmartSalesmanAssignmentsPage() {
 
   const openRescheduleForJob = (job: UnifiedJob) => {
     const sourceJob = jobs.find((item) => item._id === job.id);
-    const assignedFitter = sourceJob?.assignedTo ?? job.team ?? "";
     const scheduledTime = job.time ?? toDisplayTime(sourceJob?.scheduledAt) ?? "08:00";
 
     setSelectedJobId(job.id);
-    initiateEdit(assignedFitter, scheduledTime, job.client, job.id);
+    initiateEdit(job.id, scheduledTime, job.client);
   };
 
   const handleDialogFitterChange = (fitterId: string) => {
-    const fitter = salesmen.find((item) => item.id === fitterId);
-    if (!fitter) return;
-
     setDialogState((current) => current ? {
       ...current,
-      fitterId: fitter.id,
-      fitterName: fitter.name,
+      fitterId,
+    } : current);
+  };
+
+  const handleDialogSalesmanChange = (salesmanId: string) => {
+    setDialogState((current) => current ? {
+      ...current,
+      salesmanId,
     } : current);
   };
 
   const confirmAction = async (timeSlot: string) => {
     if (!dialogState || !rescheduleDate) return;
+    if (!dialogState.fitterId && !dialogState.salesmanId) {
+        toast.error("Please select a Fitter or Salesman");
+        return;
+    }
 
     const newDateStr = format(rescheduleDate, "yyyy-MM-dd");
     const scheduledAt = selectedDateFromSlot(rescheduleDate, timeSlot);
 
     try {
+      const assignedName = [
+        workforceMembers.find(m => m.id === dialogState.fitterId)?.name,
+        workforceMembers.find(m => m.id === dialogState.salesmanId)?.name
+      ].filter(Boolean).join(" & ");
+      
+      const assignedToId = dialogState.fitterId || dialogState.salesmanId;
+
       const updated = await updateJob(dialogState.jobId, {
         status: "scheduled",
         scheduledAt,
-        assignedTo: dialogState.fitterId,
+        assignedTo: assignedToId,
+        assignedFitter: dialogState.fitterId,
+        assignedSalesman: dialogState.salesmanId,
         assignedBy: user?.name || user?._id || "Sales Manager",
-        notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
+        notes: `Assigned to ${assignedName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
-      toast.success(dialogState.type === "assign" ? `Assigned to ${dialogState.fitterName} on ${newDateStr} @ ${timeSlot}` : `Rescheduled to ${newDateStr} @ ${timeSlot}`);
+      toast.success(dialogState.type === "assign" ? `Assigned to ${assignedName} on ${newDateStr} @ ${timeSlot}` : `Rescheduled to ${newDateStr} @ ${timeSlot}`);
       setDialogState(null);
       setSelectedJobId(null);
       setSelectedMapFitter(null);
@@ -541,6 +583,8 @@ export default function SmartSalesmanAssignmentsPage() {
       const updated = await updateJob(dialogState.jobId, {
         status: "pending",
         assignedTo: "",
+        assignedFitter: "",
+        assignedSalesman: "",
         assignedBy: "",
         notes: "Returned to pending queue from Smart Dispatch.",
       });
@@ -564,7 +608,7 @@ export default function SmartSalesmanAssignmentsPage() {
           </div>
           <div className="flex justify-between items-end mb-6">
             <h1 className="text-3xl font-light text-slate-900">
-              Smart <span className="font-medium">Salesman Dispatch</span>
+              Smart <span className="font-medium">Dispatch</span>
             </h1>
           </div>
 
@@ -715,7 +759,7 @@ export default function SmartSalesmanAssignmentsPage() {
                                 <div className="flex-1">
                                   <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{time}</div>
                                   {isBusy ? (
-                                    <div className="cursor-pointer" onClick={() => initiateEdit(fitter.id, time, job.client, job.id)}>
+                                    <div className="cursor-pointer" onClick={() => initiateEdit(job.id, time, job.client)}>
                                       <div className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors flex items-center justify-between pr-2">
                                         <div className="flex flex-col"><span>{job.client || "Assigned Job"}</span><span className="text-xs text-slate-500 font-normal">{job.address || "On-site"}</span></div>
                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-slate-600"><Pencil className="w-3 h-3" /></Button>
@@ -746,7 +790,7 @@ export default function SmartSalesmanAssignmentsPage() {
                 {dialogState?.type === "edit" ? "Reschedule" : "Confirm Dispatch"}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                  {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient} (Currently ${dialogState.currentSlot} with ${dialogState.fitterName})` : `Assigning ${dialogState?.jobClient} to ${dialogState?.fitterName}`}
+                  {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient}` : `Assigning ${dialogState?.jobClient}`}
               </DialogDescription>
             </DialogHeader>
 
@@ -767,11 +811,47 @@ export default function SmartSalesmanAssignmentsPage() {
 
               <div>
                 <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">2. Select Fitter</label>
-                <Select value={dialogState?.fitterId ?? ""} onValueChange={handleDialogFitterChange}>
+                <Select value={dialogState?.fitterId ?? "none"} onValueChange={(val) => handleDialogFitterChange(val === "none" ? "" : val)}>
                   <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
-                    <SelectValue placeholder="Choose fitter" />
+                    <SelectValue placeholder="Choose Fitter" />
                   </SelectTrigger>
                   <SelectContent className="z-[1200] max-h-72">
+                    <SelectItem value="none">
+                      <span className="text-slate-400">-- None --</span>
+                    </SelectItem>
+                    {fitters.map((fitter) => {
+                      const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
+                        ? fitter.schedule.today
+                        : rescheduleDate && isSameDay(rescheduleDate, addDays(new Date(), 1))
+                          ? fitter.schedule.tomorrow
+                          : [];
+                      const freeSlots = DAILY_SLOTS.length - activeSchedule.length;
+
+                      return (
+                        <SelectItem key={fitter.id} value={fitter.id}>
+                          <span className="flex w-full items-center justify-between gap-3">
+                            <span>{fitter.name}</span>
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                              {Math.max(0, freeSlots)} slots
+                            </span>
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">3. Select Salesman</label>
+                <Select value={dialogState?.salesmanId ?? "none"} onValueChange={(val) => handleDialogSalesmanChange(val === "none" ? "" : val)}>
+                  <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
+                    <SelectValue placeholder="Choose Salesman" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[1200] max-h-72">
+                    <SelectItem value="none">
+                      <span className="text-slate-400">-- None --</span>
+                    </SelectItem>
                     {salesmen.map((fitter) => {
                       const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
                         ? fitter.schedule.today
@@ -794,7 +874,7 @@ export default function SmartSalesmanAssignmentsPage() {
                   </SelectContent>
                 </Select>
                 <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                  Changing this value will move the job to the selected fitter before you choose the new time.
+                  Select a fitter, a salesman, or both to assign to this job.
                 </p>
               </div>
             </div>
@@ -810,7 +890,7 @@ export default function SmartSalesmanAssignmentsPage() {
               {rescheduleSlots.map((slot) => {
                 const isCurrent =
                   dialogState?.type === "edit" &&
-                  dialogState.originalFitterId === dialogState.fitterId &&
+                  (dialogState.originalFitterId === dialogState.fitterId || dialogState.originalSalesmanId === dialogState.salesmanId) &&
                   slot === dialogState.currentSlot &&
                   !!rescheduleDate &&
                   !!dialogState.currentDate &&
