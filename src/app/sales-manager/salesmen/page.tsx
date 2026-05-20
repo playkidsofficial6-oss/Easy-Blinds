@@ -614,14 +614,14 @@ export default function SalesmenPage() {
                                                     }} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Input type="number" min="1" value={item.quantity} onChange={(e) => {
+                                                    <Input type="number" min="1" value={item.quantity === 0 ? "" : item.quantity} onChange={(e) => {
                                                         const newItems = [...editQuoteData.items];
                                                         newItems[idx].quantity = parseInt(e.target.value) || 0;
                                                         setEditQuoteData({...editQuoteData, items: newItems});
                                                     }} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Input type="number" min="0" value={item.unitPrice} onChange={(e) => {
+                                                    <Input type="number" min="0" value={item.unitPrice === 0 ? "" : item.unitPrice} onChange={(e) => {
                                                         const newItems = [...editQuoteData.items];
                                                         newItems[idx].unitPrice = parseFloat(e.target.value) || 0;
                                                         setEditQuoteData({...editQuoteData, items: newItems});
