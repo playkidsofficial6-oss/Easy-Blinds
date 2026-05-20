@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
 import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
+import { useLiveLocation } from "@/hooks";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
   ssr: false,
@@ -136,6 +137,7 @@ function toFitterJob(job: Job): FitterJob {
     address: job.address,
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
     endTime: "",
+    timerStartedAt: job.timerStartedAt,
     status: job.status === "in_progress" ? "In Progress" : job.status === "completed" ? "Done" : "Pending",
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
@@ -220,6 +222,7 @@ function toReadableLastUpdated(source?: string) {
 export default function SmartSalesmanAssignmentsPage() {
   const { user } = useAuth();
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
+  const { locations: liveLocations } = useLiveLocation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
   const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
@@ -356,6 +359,26 @@ export default function SmartSalesmanAssignmentsPage() {
     });
   }, [baseFitters, jobs, isToday, isTomorrow]);
 
+  const selectedPendingJobForMap = useMemo(() => {
+    if (!selectedJobId) return undefined;
+    const job = jobs.find((j) => j._id === selectedJobId && j.status === "pending");
+    if (!job) return undefined;
+    
+    let lat = 25.2048;
+    let lng = 55.2708;
+    if (job.location?.coordinates && job.location.coordinates.length >= 2) {
+      lng = job.location.coordinates[0];
+      lat = job.location.coordinates[1];
+    }
+    
+    return {
+      id: job._id,
+      location: { lat, lng },
+      address: job.address || "Pending Job Location",
+      client: job.customerName || "Client"
+    };
+  }, [selectedJobId, jobs]);
+
   const salesmen = useMemo<Fitter[]>(() => {
     return salesmanUsers.map((user) => {
       const salesmanName = user.name;
@@ -385,8 +408,26 @@ export default function SmartSalesmanAssignmentsPage() {
         role: "Salesman",
         jobRef: activeJob?.id ?? "--",
         status: remaining === 0 && maxCapacity !== 999 ? "Fully Booked" : user.liveStatus ?? "Available",
-        location: (() => { const ll = extractLatLng(user.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
-        locationLabel: user.location?.address,
+        location: (() => { 
+            const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
+            if (liveLoc) {
+                return [liveLoc.lat, liveLoc.lng] as [number, number];
+            }
+            const ll = extractLatLng(user.location); 
+            if (ll) return [ll.lat, ll.lng] as [number, number];
+            if (selectedPendingJobForMap?.location) {
+                return [
+                    selectedPendingJobForMap.location.lat + (Math.random() - 0.5) * 0.05, 
+                    selectedPendingJobForMap.location.lng + (Math.random() - 0.5) * 0.05
+                ] as [number, number];
+            }
+            return [25.2048, 55.2708] as [number, number]; 
+        })(),
+        locationLabel: (() => {
+            const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
+            if (liveLoc) return "Live GPS Tracking";
+            return user.location?.address || "Simulated Location";
+        })(),
         lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
         avatar: user.avatar,
         email: user.email,
@@ -406,7 +447,7 @@ export default function SmartSalesmanAssignmentsPage() {
         nextAvailableSlot,
       };
     });
-  }, [salesmanUsers, jobs, isToday, isTomorrow]);
+  }, [salesmanUsers, jobs, isToday, isTomorrow, liveLocations, selectedPendingJobForMap]);
 
   const workforceMembers = useMemo<Fitter[]>(() => {
     return salesmen;
@@ -450,38 +491,104 @@ export default function SmartSalesmanAssignmentsPage() {
     [jobs, sortKey, viewDate, resolveUnifiedJob],
   );
 
-  const selectedPendingJobForMap = useMemo(() => {
-    if (!selectedJobId) return undefined;
-    const job = jobs.find((j) => j._id === selectedJobId && j.status === "pending");
-    if (!job) return undefined;
-    
-    let lat = 25.2048;
-    let lng = 55.2708;
-    if (job.location?.coordinates && job.location.coordinates.length >= 2) {
-      lng = job.location.coordinates[0];
-      lat = job.location.coordinates[1];
+
+
+  const [roadDistances, setRoadDistances] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!selectedJobId || !selectedPendingJobForMap) {
+      setRoadDistances({});
+      return;
     }
-    
-    return {
-      id: job._id,
-      location: { lat, lng },
-      address: job.address || "Pending Job Location",
-      client: job.customerName || "Client"
+
+    let active = true;
+
+    const fetchRoadDistances = async () => {
+      const newDistances: Record<string, number> = {};
+      const membersToFetch = workforceMembers.filter(m => m.location && m.capacity.remaining > 0);
+      
+      await Promise.all(
+        membersToFetch.map(async (member) => {
+          if (!member.location) return;
+          try {
+            const start = member.location; // [lat, lng]
+            const end = selectedPendingJobForMap.location; // { lat, lng }
+            const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end.lng},${end.lat}?overview=false`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("OSRM error");
+            const data = await res.json();
+            if (data.routes && data.routes.length > 0) {
+              const dist = data.routes[0].distance / 1000; // in km
+              newDistances[member.id] = dist;
+            }
+          } catch (err) {
+            console.error(`Failed to fetch road distance for member ${member.id}`, err);
+          }
+        })
+      );
+
+      if (active) {
+        setRoadDistances(newDistances);
+      }
     };
-  }, [selectedJobId, jobs]);
+
+    fetchRoadDistances();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedJobId, selectedPendingJobForMap, workforceMembers]);
 
   const recommendedFitters = useMemo(() => {
-    if (!selectedJobId) return [];
+    if (!selectedJobId || !selectedPendingJobForMap) return [];
 
-    return workforceMembers
+    const result = workforceMembers
       .filter((member) => member.capacity.remaining > 0)
-      .map((member) => ({
-        id: member.id,
-        name: member.name,
-        role: member.role,
-        workDetails: `${member.schedule.today.length} Jobs Today • Next slot: ${member.nextAvailableSlot === "None" ? "N/A" : member.nextAvailableSlot}`
-      }));
-  }, [selectedJobId, workforceMembers]);
+      .map((member) => {
+        let dist = roadDistances[member.id];
+        if (dist === undefined && member.location && selectedPendingJobForMap.location) {
+           // Fallback to straight-line distance
+           const R = 6371; 
+           const dLat = (selectedPendingJobForMap.location.lat - member.location[0]) * Math.PI / 180;
+           const dLon = (selectedPendingJobForMap.location.lng - member.location[1]) * Math.PI / 180;
+           const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(member.location[0] * Math.PI / 180) * Math.cos(selectedPendingJobForMap.location.lat * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+           dist = R * c;
+        }
+
+        const activeJob = member.schedule.today.find(j => j.id === member.jobRef);
+        let countdownSecs = -1;
+        if (activeJob && activeJob.status === "In Progress" && activeJob.timerStartedAt) {
+           const elapsed = Math.floor((Date.now() - new Date(activeJob.timerStartedAt).getTime()) / 1000);
+           const remaining = (45 * 60) - elapsed;
+           countdownSecs = remaining > 0 ? remaining : 0;
+        }
+
+        return {
+          id: member.id,
+          name: member.name,
+          role: member.role,
+          dist,
+          countdownSecs,
+          timerStartedAt: activeJob?.timerStartedAt,
+          isFree: member.status === "Available"
+        };
+      });
+
+    return result.sort((a, b) => {
+       if (a.isFree && !b.isFree) return -1;
+       if (!a.isFree && b.isFree) return 1;
+
+       if (a.countdownSecs >= 0 && b.countdownSecs >= 0) {
+          return a.countdownSecs - b.countdownSecs;
+       }
+       if (a.countdownSecs >= 0) return -1;
+       if (b.countdownSecs >= 0) return 1;
+
+       if (a.dist !== undefined && b.dist !== undefined) return a.dist - b.dist;
+       return 0;
+    });
+  }, [selectedJobId, workforceMembers, selectedPendingJobForMap, roadDistances]);
 
   const initiateAssignment = (jobId: string, memberId: string) => {
     const member = workforceMembers.find((item) => item.id === memberId);
