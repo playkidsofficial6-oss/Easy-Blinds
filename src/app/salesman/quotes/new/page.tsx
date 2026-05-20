@@ -250,7 +250,7 @@ export default function NewQuotePage() {
                                         <Input
                                             type="number"
                                             min="1"
-                                            value={item.quantity}
+                                            value={item.quantity === 0 ? "" : item.quantity}
                                             onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
                                             className="bg-white"
                                         />
@@ -260,7 +260,7 @@ export default function NewQuotePage() {
                                         <Input
                                             type="number"
                                             min="0"
-                                            value={item.unitPrice}
+                                            value={item.unitPrice === 0 ? "" : item.unitPrice}
                                             onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                                             className="bg-white"
                                         />

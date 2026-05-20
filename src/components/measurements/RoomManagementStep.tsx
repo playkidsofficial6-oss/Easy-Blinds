@@ -117,7 +117,10 @@ export function RoomManagementStep({
                                 id="roomName"
                                 placeholder="e.g., Master Bedroom 1"
                                 value={newRoomName}
-                                onChange={(e) => setNewRoomName(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setNewRoomName(val.charAt(0).toUpperCase() + val.slice(1));
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         e.preventDefault();
