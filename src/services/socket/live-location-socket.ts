@@ -77,7 +77,7 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     ...SOCKET_RECONNECTION_CONFIG,
     auth: { token },
     autoConnect: true,
-    transports: ["websocket", "polling"],
+    transports: ["polling", "websocket"],
   });
 
   return liveLocationSocket;
