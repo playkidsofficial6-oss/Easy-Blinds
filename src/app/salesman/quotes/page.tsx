@@ -5,10 +5,54 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, FileText, Download, Send, CheckCircle, Clock, XCircle } from "lucide-react";
 import Link from "next/link";
-import { useQuotes } from "@/lib/quote-store";
+import { useState, useEffect } from "react";
+import { getJobs, updateJob } from "@/lib/jobs";
+import { useAuth } from "@/components/providers/auth-provider";
+import { toast } from "sonner";
 
 export default function QuotesPage() {
-    const { quotes, updateQuoteStatus } = useQuotes();
+    const { user } = useAuth();
+    const [quotes, setQuotes] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchQuotes = async () => {
+            if (!user?._id) return;
+            try {
+                const response = await getJobs({ limit: 100 });
+                const assignedJobs = response.items.filter((job) =>
+                    job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email
+                );
+                
+                // Extract quotations from jobs
+                const extractedQuotes = assignedJobs
+                    .filter(job => job.quotation)
+                    .map(job => ({ ...job.quotation, jobId: job._id }));
+                
+                setQuotes(extractedQuotes);
+            } catch (error) {
+                toast.error("Failed to fetch quotes");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        void fetchQuotes();
+    }, [user?._id, user?.email, user?.name]);
+
+    const handleUpdateQuoteStatus = async (quote: any, newStatus: string) => {
+        try {
+            const updatedQuotation = { ...quote, status: newStatus };
+            if (newStatus === "Sent") {
+                updatedQuotation.sentDate = new Date().toISOString();
+            }
+            await updateJob(quote.jobId, { quotation: updatedQuotation });
+            setQuotes(quotes.map(q => q.id === quote.id ? updatedQuotation : q));
+            toast.success(`Quote status updated to ${newStatus}`);
+        } catch (error) {
+            toast.error("Failed to update quote status");
+        }
+    };
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -63,6 +107,10 @@ export default function QuotesPage() {
             </div>
 
             {/* Stats */}
+            {isLoading ? (
+                <div className="p-12 text-center text-neutral-400 font-light">Loading quotes...</div>
+            ) : (
+                <>
             <div className="grid grid-cols-4 gap-px bg-neutral-200">
                 <Card className="border-0 rounded-none bg-white hover:bg-neutral-50 transition-colors cursor-pointer">
                     <CardContent className="p-10">
@@ -160,7 +208,7 @@ export default function QuotesPage() {
                                     PDF
                                 </Button>
                                 {quote.status === 'Draft' && (
-                                    <Button size="sm" className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800" onClick={() => updateQuoteStatus(quote.id, 'Sent')}>
+                                    <Button size="sm" className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800" onClick={() => handleUpdateQuoteStatus(quote, 'Sent')}>
                                         <Send className="w-4 h-4 mr-2" />
                                         Send
                                     </Button>
@@ -170,6 +218,8 @@ export default function QuotesPage() {
                     </div>
                 ))}
             </div>
+                </>
+            )}
         </div>
     );
 }

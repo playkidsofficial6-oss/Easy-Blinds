@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, addDays, isSameDay, parseISO } from "date-fns";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { CalendarDays, Pencil, X } from "lucide-react";
+import { CalendarDays, Pencil, X, MapPin, Clock } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +20,7 @@ import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
 import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
-import { getUserErrorMessage, getUsers, type UserRecord } from "@/lib/users";
+import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
   ssr: false,
@@ -75,6 +76,28 @@ function resolveAssignedFitterName(job: Job, fitterNameById: Map<string, string>
   return match?.[1]?.trim() || "Assigned Team";
 }
 
+function getRequestedDateDisplay(job: Job): string | undefined {
+  if (job.notes?.includes("REQ_TIME_ONLY:")) {
+    const match = job.notes.match(/REQ_TIME_ONLY:(\d{2}:\d{2})/);
+    return match ? `Time: ${match[1]}` : undefined;
+  }
+  if (job.notes?.includes("REQ_DATE_ONLY") && job.scheduledAt) {
+    try {
+      return format(parseISO(job.scheduledAt), "MMM do");
+    } catch {
+      return undefined;
+    }
+  }
+  if (job.scheduledAt) {
+    try {
+      return format(parseISO(job.scheduledAt), "MMM do, HH:mm");
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
 function toUnifiedJob(job: Job): UnifiedJob {
   const statusLabel = job.status
     .split("_")
@@ -96,6 +119,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     property: `Qty ${job.quantity ?? 1}`,
     status: statusLabel,
     time: toDisplayTime(job.scheduledAt),
+    requestedDate: getRequestedDateDisplay(job),
     endTime: undefined,
     // team is resolved at call site where fitterNameById is available
     team: job.assignedTo,
@@ -151,7 +175,7 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
 
 function isSalesmanUser(user: UserRecord) {
   const role = user.role?.toLowerCase() ?? "";
-  return role === "salesman" || role === "sales_man";
+  return role === "salesman" || role === "sales_man" || role === "field";
 }
 
 function toSalesmanWorkforceMember(user: UserRecord): Fitter {
@@ -161,13 +185,9 @@ function toSalesmanWorkforceMember(user: UserRecord): Fitter {
     role: "Salesman",
     jobRef: "--",
     status: user.liveStatus ?? "Available",
-    location: user.location
-      ? ([user.location.lat, user.location.lng] as [number, number])
-      : undefined,
+    location: (() => { const ll = extractLatLng(user.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
     locationLabel: user.location?.address,
-    lastUpdated: user.location?.updatedAt
-      ? toReadableLastUpdated(user.location.updatedAt)
-      : "Not updated",
+    lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
     avatar: user.avatar,
     email: user.email,
     phone: user.phone,
@@ -284,9 +304,11 @@ export default function SmartSalesmanAssignmentsPage() {
     originalSalesmanId?: string;
     currentSlot?: string;
     currentDate?: Date;
+    requestedDate?: string;
   } | null>(null);
 
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
+  const [customTime, setCustomTime] = useState<string>("09:00");
 
   const userNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -303,7 +325,7 @@ export default function SmartSalesmanAssignmentsPage() {
         }
         if (job.assignedFitter === fitter.id || job.assignedTo === fitter.id) return true;
         if (job.assignedTo && job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
-        
+
         const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
         return match?.[1]?.trim().toLowerCase() === fitter.name.toLowerCase();
       });
@@ -343,15 +365,16 @@ export default function SmartSalesmanAssignmentsPage() {
         }
         if (job.assignedSalesman === user._id || job.assignedTo === user._id) return true;
         if (job.assignedTo && job.assignedTo.toLowerCase() === salesmanName.toLowerCase()) return true;
-        
+
         const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
         return match?.[1]?.trim().toLowerCase() === salesmanName.toLowerCase();
       });
 
       const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
       const tomorrow = assignedJobs.filter((job) => isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob);
+      const activeJob = today.find((j) => j.status === "In Progress") ?? today.find((j) => j.status === "Pending") ?? tomorrow.find((j) => j.status === "In Progress") ?? tomorrow.find((j) => j.status === "Pending");
       const current = isToday ? today.length : isTomorrow ? tomorrow.length : 0;
-      const maxCapacity = user.maxDailyJobs || 999;
+      const maxCapacity = 999;
       const remaining = Math.max(0, maxCapacity - current);
       const busySlots = isToday ? today.map((job) => job.time) : isTomorrow ? tomorrow.map((job) => job.time) : [];
       const nextAvailableSlot = DAILY_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
@@ -360,15 +383,11 @@ export default function SmartSalesmanAssignmentsPage() {
         id: user._id,
         name: user.name,
         role: "Salesman",
-        jobRef: "--",
+        jobRef: activeJob?.id ?? "--",
         status: remaining === 0 && maxCapacity !== 999 ? "Fully Booked" : user.liveStatus ?? "Available",
-        location: user.location
-          ? ([user.location.lat, user.location.lng] as [number, number])
-          : undefined,
+        location: (() => { const ll = extractLatLng(user.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
         locationLabel: user.location?.address,
-        lastUpdated: user.location?.updatedAt
-          ? toReadableLastUpdated(user.location.updatedAt)
-          : "Not updated",
+        lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
         avatar: user.avatar,
         email: user.email,
         phone: user.phone,
@@ -390,71 +409,38 @@ export default function SmartSalesmanAssignmentsPage() {
   }, [salesmanUsers, jobs, isToday, isTomorrow]);
 
   const workforceMembers = useMemo<Fitter[]>(() => {
-    return [...fitters, ...salesmen];
-  }, [fitters, salesmen]);
-
-  const rescheduleSlots = useMemo(() => {
-    if (!dialogState || !rescheduleDate) return [];
-
-    const selectedFitter = workforceMembers.find((item) => item.id === dialogState.fitterId);
-    const selectedSalesman = workforceMembers.find((item) => item.id === dialogState.salesmanId);
-
-    if (!selectedFitter && !selectedSalesman) return DAILY_SLOTS;
-
-    let busySlots: string[] = [];
-    if (isSameDay(rescheduleDate, new Date())) {
-      if (selectedFitter) busySlots.push(...selectedFitter.schedule.today.map((job) => job.time));
-      if (selectedSalesman) busySlots.push(...selectedSalesman.schedule.today.map((job) => job.time));
-    } else if (isSameDay(rescheduleDate, addDays(new Date(), 1))) {
-      if (selectedFitter) busySlots.push(...selectedFitter.schedule.tomorrow.map((job) => job.time));
-      if (selectedSalesman) busySlots.push(...selectedSalesman.schedule.tomorrow.map((job) => job.time));
-    }
-
-    return DAILY_SLOTS.filter((slot) => {
-      const isCurrentAssignmentSlot =
-        dialogState.type === "edit" &&
-        (dialogState.originalFitterId === dialogState.fitterId || dialogState.originalSalesmanId === dialogState.salesmanId) &&
-        dialogState.currentDate &&
-        isSameDay(rescheduleDate, dialogState.currentDate) &&
-        slot === dialogState.currentSlot;
-
-      if (isCurrentAssignmentSlot) {
-        return true;
-      }
-
-      return !busySlots.includes(slot);
-    });
-  }, [rescheduleDate, dialogState, workforceMembers]);
+    return salesmen;
+  }, [salesmen]);
 
   const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
     const raw = toUnifiedJob(job);
-    
+
     // Attempt to resolve team name nicely
     let assignedFitterName: string | undefined;
     let assignedSalesmanName: string | undefined;
 
     if (job.assignedFitter && userNameById.has(job.assignedFitter)) {
-        assignedFitterName = userNameById.get(job.assignedFitter);
+      assignedFitterName = userNameById.get(job.assignedFitter);
     }
     if (job.assignedSalesman && userNameById.has(job.assignedSalesman)) {
-        assignedSalesmanName = userNameById.get(job.assignedSalesman);
+      assignedSalesmanName = userNameById.get(job.assignedSalesman);
     }
 
     let teamName = "Assigned Team";
     if (!assignedFitterName && !assignedSalesmanName) {
-        teamName = resolveAssignedFitterName(job, userNameById);
+      teamName = resolveAssignedFitterName(job, userNameById);
     } else {
-        const parts = [];
-        if (assignedFitterName) parts.push(assignedFitterName);
-        if (assignedSalesmanName) parts.push(assignedSalesmanName);
-        teamName = parts.join(" & ");
+      const parts = [];
+      if (assignedFitterName) parts.push(assignedFitterName);
+      if (assignedSalesmanName) parts.push(assignedSalesmanName);
+      teamName = parts.join(" & ");
     }
-    
+
     let assignedBy = raw.assignedBy;
     if (assignedBy && userNameById.has(assignedBy)) {
       assignedBy = userNameById.get(assignedBy);
     }
-    
+
     return { ...raw, team: teamName, assignedFitterName, assignedSalesmanName, assignedBy };
   }, [userNameById]);
 
@@ -463,6 +449,26 @@ export default function SmartSalesmanAssignmentsPage() {
     () => sortUnifiedJobs(jobs.filter((job) => ["scheduled", "in_progress"].includes(job.status) && isJobForDate(job, viewDate)).map(resolveUnifiedJob), sortKey),
     [jobs, sortKey, viewDate, resolveUnifiedJob],
   );
+
+  const selectedPendingJobForMap = useMemo(() => {
+    if (!selectedJobId) return undefined;
+    const job = jobs.find((j) => j._id === selectedJobId && j.status === "pending");
+    if (!job) return undefined;
+    
+    let lat = 25.2048;
+    let lng = 55.2708;
+    if (job.location?.coordinates && job.location.coordinates.length >= 2) {
+      lng = job.location.coordinates[0];
+      lat = job.location.coordinates[1];
+    }
+    
+    return {
+      id: job._id,
+      location: { lat, lng },
+      address: job.address || "Pending Job Location",
+      client: job.customerName || "Client"
+    };
+  }, [selectedJobId, jobs]);
 
   const recommendedFitters = useMemo(() => {
     if (!selectedJobId) return [];
@@ -473,7 +479,7 @@ export default function SmartSalesmanAssignmentsPage() {
         id: member.id,
         name: member.name,
         role: member.role,
-        workDetails: `${member.schedule.today.length}/${member.capacity.max} Jobs Today • Next slot: ${member.nextAvailableSlot === "None" ? "N/A" : member.nextAvailableSlot}`
+        workDetails: `${member.schedule.today.length} Jobs Today • Next slot: ${member.nextAvailableSlot === "None" ? "N/A" : member.nextAvailableSlot}`
       }));
   }, [selectedJobId, workforceMembers]);
 
@@ -489,7 +495,23 @@ export default function SmartSalesmanAssignmentsPage() {
 
     const sourceJob = jobs.find((item) => item._id === jobId);
 
-    setRescheduleDate(viewDate);
+    let targetDate = viewDate;
+    let targetTime = "09:00";
+
+    if (sourceJob?.scheduledAt) {
+      try {
+        const parsed = parseISO(sourceJob.scheduledAt);
+        if (!isNaN(parsed.getTime())) {
+          targetDate = parsed;
+          targetTime = format(parsed, "HH:mm");
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    setRescheduleDate(targetDate);
+    setCustomTime(targetTime);
     setDialogState({
       type: "assign",
       jobId,
@@ -497,13 +519,27 @@ export default function SmartSalesmanAssignmentsPage() {
       fitterId: member.role === "Fitter" ? member.id : sourceJob?.assignedFitter,
       salesmanId: member.role === "Salesman" ? member.id : sourceJob?.assignedSalesman,
       currentDate: viewDate,
+      requestedDate: getRequestedDateDisplay(sourceJob as Job),
     });
   };
 
   const initiateEdit = (jobId: string, jobTime: string, jobClient: string) => {
     const sourceJob = jobs.find((item) => item._id === jobId);
-    
-    setRescheduleDate(viewDate);
+
+    let targetDate = viewDate;
+    if (sourceJob?.scheduledAt) {
+      try {
+        const parsed = parseISO(sourceJob.scheduledAt);
+        if (!isNaN(parsed.getTime())) {
+          targetDate = parsed;
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    setRescheduleDate(targetDate);
+    setCustomTime(jobTime || "09:00");
     setDialogState({
       type: "edit",
       jobId,
@@ -514,6 +550,7 @@ export default function SmartSalesmanAssignmentsPage() {
       originalSalesmanId: sourceJob?.assignedSalesman,
       currentSlot: jobTime,
       currentDate: viewDate,
+      requestedDate: getRequestedDateDisplay(sourceJob as Job),
     });
   };
 
@@ -541,9 +578,9 @@ export default function SmartSalesmanAssignmentsPage() {
 
   const confirmAction = async (timeSlot: string) => {
     if (!dialogState || !rescheduleDate) return;
-    if (!dialogState.fitterId && !dialogState.salesmanId) {
-        toast.error("Please select a Fitter or Salesman");
-        return;
+    if (!dialogState.salesmanId) {
+      toast.error("Please select a Salesman");
+      return;
     }
 
     const newDateStr = format(rescheduleDate, "yyyy-MM-dd");
@@ -551,11 +588,12 @@ export default function SmartSalesmanAssignmentsPage() {
 
     try {
       const assignedName = [
-        workforceMembers.find(m => m.id === dialogState.fitterId)?.name,
-        workforceMembers.find(m => m.id === dialogState.salesmanId)?.name
+        dialogState.fitterId ? userNameById.get(dialogState.fitterId) : null,
+        dialogState.salesmanId ? userNameById.get(dialogState.salesmanId) : null
       ].filter(Boolean).join(" & ");
-      
-      const assignedToId = dialogState.fitterId || dialogState.salesmanId;
+
+      const assignedToId = dialogState.salesmanId || dialogState.fitterId;
+      const sourceJob = jobs.find((item) => item._id === dialogState.jobId);
 
       const updated = await updateJob(dialogState.jobId, {
         status: "scheduled",
@@ -564,7 +602,7 @@ export default function SmartSalesmanAssignmentsPage() {
         assignedFitter: dialogState.fitterId,
         assignedSalesman: dialogState.salesmanId,
         assignedBy: user?.name || user?._id || "Sales Manager",
-        notes: `Assigned to ${assignedName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
+        notes: `${sourceJob?.notes ? sourceJob.notes + '\n\n' : ''}Assigned to ${assignedName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
       toast.success(dialogState.type === "assign" ? `Assigned to ${assignedName} on ${newDateStr} @ ${timeSlot}` : `Rescheduled to ${newDateStr} @ ${timeSlot}`);
@@ -608,7 +646,7 @@ export default function SmartSalesmanAssignmentsPage() {
           </div>
           <div className="flex justify-between items-end mb-6">
             <h1 className="text-3xl font-light text-slate-900">
-              Smart <span className="font-medium">Dispatch</span>
+              Smart <span className="font-medium">Salesman Dispatch</span>
             </h1>
           </div>
 
@@ -712,7 +750,7 @@ export default function SmartSalesmanAssignmentsPage() {
       </div>
 
       <div className="flex-1 bg-slate-100 relative">
-        <AssignmentMap fitters={workforceMembers} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} />
+        <AssignmentMap fitters={workforceMembers} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} filterRole="Salesman" selectedJob={selectedPendingJobForMap} />
         <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
           <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
           <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-medium text-slate-700">
@@ -729,6 +767,9 @@ export default function SmartSalesmanAssignmentsPage() {
               if (!fitter) return null;
               const activeSchedule = isToday ? fitter.schedule.today : isTomorrow ? fitter.schedule.tomorrow : [];
               const capacityPercent = (activeSchedule.length / fitter.capacity.max) * 100;
+              const activeJobObj = fitter.schedule.today.find(j => j.id === fitter.jobRef) ?? 
+                                   fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ?? 
+                                   fitter.schedule.upcoming.find(j => j.id === fitter.jobRef);
               return (
                 <>
                   <div className="p-6 border-b border-slate-100/50 flex justify-between items-start bg-slate-50/50">
@@ -736,42 +777,85 @@ export default function SmartSalesmanAssignmentsPage() {
                       <Avatar className="h-16 w-16 rounded-2xl border-2 border-white shadow-md bg-white"><AvatarImage src={fitter.avatar} /><AvatarFallback>{fitter.role === "Salesman" ? "SM" : "FT"}</AvatarFallback></Avatar>
                       <div>
                         <h3 className="text-lg font-light text-slate-900">{fitter.name}</h3>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1"><span className={cn("w-2 h-2 rounded-full", fitter.status === "Fully Booked" || fitter.status === "Offline" ? "bg-red-500" : "bg-emerald-500")}></span>{fitter.role ?? "Fitter"} · {fitter.status}</div>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                          <span className={cn(
+                            "w-2.5 h-2.5 rounded-full relative inline-block",
+                            (fitter.status as string) === "Available" ? "bg-emerald-500 ring-2 ring-emerald-100" :
+                            (fitter.status as string) === "On the way" || (fitter.status as string) === "On Road" ? "bg-amber-500 ring-2 ring-amber-100" :
+                            (fitter.status as string) === "In progress" || (fitter.status as string) === "Measuring" || (fitter.status as string) === "In Progress" ? "bg-blue-500 ring-2 ring-blue-100" :
+                            (fitter.status as string) === "Fully Booked" ? "bg-red-500 ring-2 ring-red-100" :
+                            "bg-slate-400 ring-2 ring-slate-100"
+                          )}>
+                            {((fitter.status as string) === "On the way" || (fitter.status as string) === "In progress" || (fitter.status as string) === "In Progress") && (
+                              <span className="absolute inset-0 rounded-full animate-ping opacity-25 bg-current"></span>
+                            )}
+                          </span>
+                          {fitter.role ?? "Fitter"} · {fitter.status}
+                        </div>
                       </div>
                     </div>
                     <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
                   </div>
                   <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                    {fitter.locationLabel && (
+                      <div className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Location</span>
+                          <span className="leading-snug">{fitter.locationLabel}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeJobObj && ((fitter.status as string) === "On the way" || (fitter.status as string) === "In progress" || (fitter.status as string) === "In Progress" || (fitter.status as string) === "Measuring") && (
+                      <div className={cn(
+                        "flex items-start gap-2.5 text-xs p-3 rounded-xl border",
+                        (fitter.status as string) === "On the way"
+                          ? "bg-amber-50/60 border-amber-100/80 text-amber-900"
+                          : "bg-blue-50/60 border-blue-100/80 text-blue-900"
+                      )}>
+                        <Clock className={cn("w-4.5 h-4.5 mt-0.5 flex-shrink-0", (fitter.status as string) === "On the way" ? "text-amber-500" : "text-blue-500")} />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            {(fitter.status as string) === "On the way" ? "Traveling To" : "Active Measure Job"}
+                          </span>
+                          <span className="font-semibold text-slate-900 mt-0.5 truncate">{activeJobObj.client}</span>
+                          <span className="text-slate-500 text-[11px] leading-tight mt-0.5 truncate">{activeJobObj.address}</span>
+                        </div>
+                      </div>
+                    )}
                     <div>
-                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2"><span>Workload ({format(viewDate, "MMM do")})</span><span className={cn(fitter.capacity.remaining === 0 ? "text-red-600" : "text-emerald-600")}>{activeSchedule.length} / {fitter.capacity.max} Assignments</span></div>
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={cn("h-full transition-all", capacityPercent >= 100 ? "bg-red-500" : "bg-emerald-500")} style={{ width: `${capacityPercent}%` }}></div></div>
+                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+                        <span>Workload ({format(viewDate, "MMM do")})</span>
+                        <span className={cn(fitter.capacity.remaining === 0 ? "text-red-600" : "text-emerald-600")}>
+                          {activeSchedule.length} Assignment{activeSchedule.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={cn("h-full transition-all", capacityPercent >= 100 ? "bg-red-500" : "bg-emerald-500")} style={{ width: `${Math.min(100, capacityPercent)}%` }}></div></div>
                     </div>
                     <div>
                       <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Timeline: {format(viewDate, "EEE, d MMM")}</h4>
                       <div className="space-y-0 relative border-l border-slate-200 ml-2">
-                        {DAILY_SLOTS.map((time) => {
-                          const job = activeSchedule.find((item) => item.time === time);
-                          const isBusy = !!job;
-                          return (
-                            <div key={time} className="pl-6 pb-6 relative last:pb-0 group">
-                              <div className={cn("absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full border-2 ring-4 ring-white transition-colors", isBusy ? "bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer" : "bg-emerald-500 border-white")}></div>
+                        {activeSchedule.length === 0 ? (
+                          <div className="pl-6 pb-2 text-sm italic text-slate-400">No jobs assigned for this day.</div>
+                        ) : (
+                          [...activeSchedule].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map((job) => (
+                            <div key={job.id} className="pl-6 pb-6 relative last:pb-0 group">
+                              <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full border-2 ring-4 ring-white transition-colors bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer"></div>
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{time}</div>
-                                  {isBusy ? (
-                                    <div className="cursor-pointer" onClick={() => initiateEdit(job.id, time, job.client)}>
-                                      <div className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors flex items-center justify-between pr-2">
-                                        <div className="flex flex-col"><span>{job.client || "Assigned Job"}</span><span className="text-xs text-slate-500 font-normal">{job.address || "On-site"}</span></div>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-slate-600"><Pencil className="w-3 h-3" /></Button>
-                                      </div>
+                                  <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{job.time || "Unscheduled"}</div>
+                                  <div className="cursor-pointer" onClick={() => initiateEdit(job.id, job.time, job.client)}>
+                                    <div className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors flex items-center justify-between pr-2">
+                                      <div className="flex flex-col"><span>{job.client || "Assigned Job"}</span><span className="text-xs text-slate-500 font-normal">{job.address || "On-site"}</span></div>
+                                      <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-slate-600"><Pencil className="w-3 h-3" /></Button>
                                     </div>
-                                  ) : (<div className="text-sm font-light text-slate-500 italic">Available Slot</div>)}
+                                  </div>
                                 </div>
-                                {!isBusy && <div className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] uppercase font-bold tracking-wider rounded-sm border border-emerald-100">Free</div>}
                               </div>
                             </div>
-                          );
-                        })}
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
@@ -783,18 +867,31 @@ export default function SmartSalesmanAssignmentsPage() {
       </div>
 
       <Dialog open={!!dialogState} onOpenChange={(open) => !open && setDialogState(null)}>
-        <DialogContent className="sm:max-w-2xl bg-white p-0 overflow-hidden flex flex-col md:flex-row gap-0">
+        <DialogContent className="sm:max-w-4xl bg-white p-0 overflow-hidden flex flex-col md:flex-row gap-0">
           <div className="bg-slate-50 p-6 border-r border-slate-100 w-full md:w-1/2 flex flex-col">
             <DialogHeader className="mb-6">
               <DialogTitle className="text-xl font-light text-slate-900 mb-1">
                 {dialogState?.type === "edit" ? "Reschedule" : "Confirm Dispatch"}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                  {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient}` : `Assigning ${dialogState?.jobClient}`}
+                {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient}` : `Assigning ${dialogState?.jobClient}`}
               </DialogDescription>
+              <div className="pt-3">
+                {dialogState?.requestedDate ? (
+                  <div className="text-[10px] uppercase tracking-wider text-amber-600 font-bold bg-amber-50/80 border border-amber-200/50 inline-flex items-center gap-1.5 px-2 py-1 rounded-sm">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    Requested: {dialogState.requestedDate}
+                  </div>
+                ) : (
+                  <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold bg-slate-50 border border-slate-200/50 inline-flex items-center gap-1.5 px-2 py-1 rounded-sm">
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    No Requested Time
+                  </div>
+                )}
+              </div>
             </DialogHeader>
 
-              <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-4">
               <div>
                 <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">1. Select Service Date</label>
                 <div className="border border-slate-200 rounded-lg bg-white overflow-hidden p-2 flex justify-center">
@@ -810,40 +907,7 @@ export default function SmartSalesmanAssignmentsPage() {
               </div>
 
               <div>
-                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">2. Select Fitter</label>
-                <Select value={dialogState?.fitterId ?? "none"} onValueChange={(val) => handleDialogFitterChange(val === "none" ? "" : val)}>
-                  <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
-                    <SelectValue placeholder="Choose Fitter" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[1200] max-h-72">
-                    <SelectItem value="none">
-                      <span className="text-slate-400">-- None --</span>
-                    </SelectItem>
-                    {fitters.map((fitter) => {
-                      const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
-                        ? fitter.schedule.today
-                        : rescheduleDate && isSameDay(rescheduleDate, addDays(new Date(), 1))
-                          ? fitter.schedule.tomorrow
-                          : [];
-                      const freeSlots = DAILY_SLOTS.length - activeSchedule.length;
-
-                      return (
-                        <SelectItem key={fitter.id} value={fitter.id}>
-                          <span className="flex w-full items-center justify-between gap-3">
-                            <span>{fitter.name}</span>
-                            <span className="text-[10px] uppercase tracking-wider text-slate-400">
-                              {Math.max(0, freeSlots)} slots
-                            </span>
-                          </span>
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">3. Select Salesman</label>
+                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">2. Select Salesman</label>
                 <Select value={dialogState?.salesmanId ?? "none"} onValueChange={(val) => handleDialogSalesmanChange(val === "none" ? "" : val)}>
                   <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
                     <SelectValue placeholder="Choose Salesman" />
@@ -852,20 +916,20 @@ export default function SmartSalesmanAssignmentsPage() {
                     <SelectItem value="none">
                       <span className="text-slate-400">-- None --</span>
                     </SelectItem>
-                    {salesmen.map((fitter) => {
+                    {salesmen.map((salesman) => {
                       const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
-                        ? fitter.schedule.today
+                        ? salesman.schedule.today
                         : rescheduleDate && isSameDay(rescheduleDate, addDays(new Date(), 1))
-                          ? fitter.schedule.tomorrow
+                          ? salesman.schedule.tomorrow
                           : [];
-                      const freeSlots = DAILY_SLOTS.length - activeSchedule.length;
+                      const count = activeSchedule.length;
 
                       return (
-                        <SelectItem key={fitter.id} value={fitter.id}>
+                        <SelectItem key={salesman.id} value={salesman.id}>
                           <span className="flex w-full items-center justify-between gap-3">
-                            <span>{fitter.name}</span>
+                            <span>{salesman.name}</span>
                             <span className="text-[10px] uppercase tracking-wider text-slate-400">
-                              {Math.max(0, freeSlots)} slots
+                              {count} assigned
                             </span>
                           </span>
                         </SelectItem>
@@ -874,60 +938,43 @@ export default function SmartSalesmanAssignmentsPage() {
                   </SelectContent>
                 </Select>
                 <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-                  Select a fitter, a salesman, or both to assign to this job.
+                  Select a salesman to assign to this job.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="bg-white p-6 w-full md:w-1/2 flex flex-col">
-            <div className="mb-6 flex items-center justify-between">
-              <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 block">3. Select Time Slot</label>
+            <div className="mb-6 flex items-center justify-between pr-6">
+              <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 block">3. Custom Time</label>
               {rescheduleDate && <span className="text-xs font-medium text-slate-900">{format(rescheduleDate, "EEE, MMM do")}</span>}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 flex-1 content-start">
-              {rescheduleSlots.map((slot) => {
-                const isCurrent =
-                  dialogState?.type === "edit" &&
-                  (dialogState.originalFitterId === dialogState.fitterId || dialogState.originalSalesmanId === dialogState.salesmanId) &&
-                  slot === dialogState.currentSlot &&
-                  !!rescheduleDate &&
-                  !!dialogState.currentDate &&
-                  isSameDay(rescheduleDate, dialogState.currentDate);
-                return (
-                  <Button
-                    key={slot}
-                    variant={isCurrent ? "secondary" : "outline"}
-                    className={cn(
-                      "h-14 flex flex-col gap-0 items-center justify-center border-slate-100 transition-all",
-                      isCurrent ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700",
-                    )}
-                    disabled={isCurrent}
-                    onClick={() => confirmAction(slot)}
-                  >
-                    <span className="font-bold text-lg">{slot}</span>
-                    <span className="text-[9px] uppercase tracking-wider font-normal opacity-70">
-                      {isCurrent ? "Current Time" : "Available"}
-                    </span>
-                  </Button>
-                );
-              })}
-
-              {rescheduleSlots.length === 0 && (
-                <div className="col-span-2 py-8 text-center border border-dashed border-red-200 bg-red-50/50 rounded-lg">
-                  <p className="text-red-500 font-medium text-sm">No slots available.</p>
-                  <p className="text-xs text-red-400 mt-1">Please select another date or fitter.</p>
-                </div>
-              )}
+            <div className="flex-1 content-start space-y-4">
+              <div className="border border-slate-200 rounded-lg overflow-hidden p-4 bg-slate-50">
+                <label htmlFor="customTime" className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-2 text-center">Enter Time</label>
+                <Input
+                  id="customTime"
+                  type="time"
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                  className="h-16 text-3xl font-light text-center bg-white border-slate-200 shadow-sm"
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 text-center leading-relaxed px-4">
+                You can pick any exact time to schedule this job for the salesman.
+              </p>
             </div>
 
-            <DialogFooter className="mt-auto sm:justify-between pt-6 border-t border-slate-50">
+            <div className="mt-auto flex items-center justify-between pt-6 border-t border-slate-50 gap-2 flex-wrap sm:flex-nowrap">
               {dialogState?.type === "edit" ? (
-                <Button variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs px-2 h-8" onClick={handleUnassign}>Unassign Job</Button>
-              ) : <div></div>}
-              <Button type="button" variant="ghost" onClick={() => setDialogState(null)}>Cancel</Button>
-            </DialogFooter>
+                <Button variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50 text-xs px-2 h-8 shrink-0" onClick={handleUnassign}>Unassign Job</Button>
+              ) : <div className="shrink-0"></div>}
+              <div className="flex items-center gap-2 shrink-0">
+                <Button type="button" variant="ghost" onClick={() => setDialogState(null)}>Cancel</Button>
+                <Button type="button" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20" onClick={() => confirmAction(customTime)}>Confirm Dispatch</Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

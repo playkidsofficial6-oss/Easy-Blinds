@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { format, addDays, isSameDay, parseISO } from "date-fns";
-import { ArrowLeft, ClipboardList, FileText, MapPin, Calendar, CheckCircle, Mail, Phone, Eye, Pencil, Plus, Trash2, Save, UserCheck } from "lucide-react";
+import { ArrowLeft, ClipboardList, FileText, MapPin, Calendar, CheckCircle, Mail, Phone, Eye, Pencil, Plus, Trash2, Save, UserCheck, X, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -35,9 +35,11 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/components/providers/auth-provider";
 import { FitterList } from "@/components/tracking/FitterList";
-import { getUsers, type UserRecord } from "@/lib/users";
+import { getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { getJobs, updateJob, type Job, getJobErrorMessage } from "@/lib/jobs";
 import type { Fitter, FitterJob } from "@/lib/live-store";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Dynamically import map with no SSR
 const FitterMap = dynamic(() => import("@/components/tracking/FitterMap"), {
@@ -235,11 +237,13 @@ export default function SalesmenPage() {
             const busySlots = todayJobs.map((job) => job.time).filter(Boolean);
             const nextAvailableSlot = TIME_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
             
-            const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending");
+            const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending") ?? tomorrowJobs.find((job) => job.status === "In Progress") ?? tomorrowJobs.find((job) => job.status === "Pending");
             
             let status: Fitter["status"] = "Available";
             if (salesman.liveStatus === "Offline") status = "Offline";
             else if (salesman.liveStatus === "Completed") status = "Completed";
+            else if (salesman.liveStatus === "On the way") status = "On the way";
+            else if (salesman.liveStatus === "In progress") status = "In progress";
             else if (todayJobs.some(j => j.status === "In Progress")) status = "In progress";
             else if (todayJobs.some(j => j.status === "Pending")) status = "On the way";
             
@@ -249,9 +253,9 @@ export default function SalesmenPage() {
                 role: "Salesman",
                 jobRef: activeJob?.id ?? "--",
                 status,
-                location: salesman.location ? [salesman.location.lat, salesman.location.lng] : undefined,
+                location: (() => { const ll = extractLatLng(salesman.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
                 locationLabel: salesman.location?.address,
-                lastUpdated: salesman.location?.updatedAt ? format(parseISO(salesman.location.updatedAt), "MMM d, HH:mm") : "Not updated",
+                lastUpdated: (() => { const u = salesman.location?.updatedAt; if (!u) return "Not updated"; try { return format(typeof u === "string" ? parseISO(u) : new Date(u), "MMM d, HH:mm"); } catch { return "Not updated"; } })(),
                 avatar: salesman.avatar,
                 email: salesman.email,
                 phone: salesman.phone,
@@ -408,6 +412,7 @@ export default function SalesmenPage() {
                         fitters={mappedSalesmen}
                         selectedFitterId={selectedSalesmanId}
                         onSelectFitter={setSelectedSalesmanId}
+                        filterRole="Salesman"
                     />
 
                     {/* Live Indicator Overlay */}
@@ -418,6 +423,118 @@ export default function SalesmenPage() {
                         </span>
                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">Live Updates Active</span>
                     </div>
+
+                    {selectedSalesmanId && (
+                        <div className="absolute top-16 right-4 z-30 w-96 bg-white/80 backdrop-blur-md shadow-2xl border border-white/50 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100%-5rem)] rounded-3xl overflow-hidden ring-1 ring-black/5">
+                            {(() => {
+                                const fitter = mappedSalesmen.find((item) => item.id === selectedSalesmanId);
+                                if (!fitter) return null;
+                                const activeSchedule = fitter.schedule.today;
+                                const capacityPercent = fitter.capacity.max > 0 ? (activeSchedule.length / fitter.capacity.max) * 100 : 0;
+                                const activeJobObj = fitter.schedule.today.find(j => j.id === fitter.jobRef) ?? 
+                                                     fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ?? 
+                                                     fitter.schedule.upcoming.find(j => j.id === fitter.jobRef);
+                                return (
+                                    <>
+                                        <div className="p-6 border-b border-slate-100/50 flex justify-between items-start bg-slate-50/50">
+                                            <div className="flex items-center gap-4">
+                                                <Avatar className="h-16 w-16 rounded-2xl border-2 border-white shadow-md bg-white">
+                                                    <AvatarImage src={fitter.avatar} />
+                                                    <AvatarFallback>{fitter.role === "Salesman" ? "SM" : "FT"}</AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <h3 className="text-lg font-light text-slate-900">{fitter.name}</h3>
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                                                        <span className={cn(
+                                                            "w-2.5 h-2.5 rounded-full relative inline-block",
+                                                            (fitter.status as string) === "Available" ? "bg-emerald-500 ring-2 ring-emerald-100" :
+                                                            (fitter.status as string) === "On the way" || (fitter.status as string) === "On Road" ? "bg-amber-500 ring-2 ring-amber-100" :
+                                                            (fitter.status as string) === "In progress" || (fitter.status as string) === "Measuring" || (fitter.status as string) === "In Progress" ? "bg-blue-500 ring-2 ring-blue-100" :
+                                                            (fitter.status as string) === "Fully Booked" ? "bg-red-500 ring-2 ring-red-100" :
+                                                            "bg-slate-400 ring-2 ring-slate-100"
+                                                        )}>
+                                                            {((fitter.status as string) === "On the way" || (fitter.status as string) === "In progress" || (fitter.status as string) === "In Progress") && (
+                                                                 <span className="absolute inset-0 rounded-full animate-ping opacity-25 bg-current"></span>
+                                                             )}
+                                                        </span>
+                                                        {fitter.role ?? "Salesman"} · {fitter.status}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button onClick={() => setSelectedSalesmanId(null)} className="text-slate-400 hover:text-slate-600">
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                                            {fitter.locationLabel && (
+                                                <div className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                                    <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Location</span>
+                                                        <span className="leading-snug">{fitter.locationLabel}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {activeJobObj && ((fitter.status as string) === "On the way" || (fitter.status as string) === "In progress" || (fitter.status as string) === "In Progress" || (fitter.status as string) === "Measuring") && (
+                                                <div className={cn(
+                                                    "flex items-start gap-2.5 text-xs p-3 rounded-xl border",
+                                                    (fitter.status as string) === "On the way"
+                                                        ? "bg-amber-50/60 border-amber-100/80 text-amber-900"
+                                                        : "bg-blue-50/60 border-blue-100/80 text-blue-900"
+                                                )}>
+                                                    <Clock className={cn("w-4.5 h-4.5 mt-0.5 flex-shrink-0", (fitter.status as string) === "On the way" ? "text-amber-500" : "text-blue-500")} />
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                                            {(fitter.status as string) === "On the way" ? "Traveling To" : "Active Measure Job"}
+                                                        </span>
+                                                        <span className="font-semibold text-slate-900 mt-0.5 truncate">{activeJobObj.client}</span>
+                                                        <span className="text-slate-500 text-[11px] leading-tight mt-0.5 truncate">{activeJobObj.address}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <div>
+                                                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+                                                    <span>Workload (Today)</span>
+                                                    <span className="text-emerald-600 font-semibold">
+                                                        {activeSchedule.length} Assignment{activeSchedule.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </div>
+                                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, capacityPercent)}%` }}></div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">Timeline: {format(new Date(), "EEE, d MMM")}</h4>
+                                                <div className="space-y-0 relative border-l border-slate-200 ml-2">
+                                                    {activeSchedule.length === 0 ? (
+                                                        <div className="pl-6 pb-2 text-sm italic text-slate-400">No jobs assigned for this day.</div>
+                                                    ) : (
+                                                        [...activeSchedule].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map((job) => (
+                                                            <div key={job.id} className="pl-6 pb-6 relative last:pb-0 group">
+                                                                <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full border-2 ring-4 ring-white transition-colors bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer"></div>
+                                                                <div className="flex items-start justify-between">
+                                                                    <div className="flex-1">
+                                                                        <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{job.time || "Unscheduled"}</div>
+                                                                        <div className="text-sm font-medium text-slate-800">
+                                                                            <div className="flex flex-col">
+                                                                                <span>{job.client || "Assigned Job"}</span>
+                                                                                <span className="text-xs text-slate-500 font-normal">{job.address || "On-site"}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    )}
                 </div>
             </div>
 

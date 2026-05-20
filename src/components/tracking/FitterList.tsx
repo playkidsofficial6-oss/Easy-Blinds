@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getJobErrorMessage, updateJob } from "@/lib/jobs";
+import { JobDetailSheet } from "@/components/tracking/JobDetailSheet";
 
 interface FitterListProps {
     fitters: Fitter[];
@@ -61,6 +62,9 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
         currentDate: Date;
     } | null>(null);
     const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(undefined);
+    const [customTime, setCustomTime] = useState<string>("09:00");
+    const [viewFilter, setViewFilter] = useState<"today" | "tomorrow" | "upcoming" | "completed" | "custom">("today");
+    const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
     const selectedFitter = fitters.find(f => f.id === selectedFitterId);
 
@@ -88,14 +92,19 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
     }, [dialogState, fitters, rescheduleDate]);
 
     const openRescheduleDialog = (job: FitterJob, fitter: Fitter) => {
-        setRescheduleDate(viewDate);
+        // Use the job's actual scheduled date to pre-fill the dialog.
+        const jobDate = job.scheduledAt ? new Date(job.scheduledAt) : viewDate;
+        // Pre-fill custom time from the job's scheduled time (HH:MM format)
+        const prefillTime = job.time && /^\d{2}:\d{2}$/.test(job.time) ? job.time : format(jobDate, "HH:mm");
+        setRescheduleDate(jobDate);
+        setCustomTime(prefillTime);
         setDialogState({
             job,
             fitterId: fitter.id,
             fitterName: fitter.name,
             originalFitterId: fitter.id,
             currentSlot: job.time,
-            currentDate: viewDate,
+            currentDate: jobDate,
         });
     };
 
@@ -219,7 +228,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                 <div className="flex items-center gap-3 mt-3 text-xs">
                                                     <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                                                         <Briefcase className="w-3 h-3 text-slate-400" />
-                                                        <span className="font-medium">{fitter.capacity.current}/{fitter.capacity.max} Jobs</span>
+                                                        <span className="font-medium">{fitter.capacity.current} Jobs</span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                                                         <Clock className="w-3 h-3 text-slate-400" />
@@ -238,21 +247,21 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                         // Enhanced Viewing Mode for Selected Fitter
                         <div className="flex flex-col h-full bg-slate-50">
                             {/* Selected Header */}
-                            <div className="p-6 bg-white border-b border-slate-100 relative overflow-hidden">
-                                <div className="absolute top-0 right-0 p-8 opacity-5">
+                            <div className="p-6 bg-white border-b border-slate-100 relative">
+                                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none overflow-hidden">
                                     <User className="w-32 h-32" />
                                 </div>
-                                <button onClick={() => onSelectFitter("")} className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 hover:text-emerald-600 mb-6 flex items-center gap-2 transition-colors relative z-10">
+                                <button onClick={() => onSelectFitter("")} className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 hover:text-emerald-600 mb-4 flex items-center gap-2 transition-colors relative z-10">
                                     <ArrowLeft className="w-3 h-3" /> Back to Fleet
                                 </button>
                                 <div className="flex flex-col gap-4 relative z-10">
                                     <div className="flex items-center gap-4">
-                                        <Avatar className="h-20 w-20 border-2 border-white shadow-md rounded-2xl bg-slate-50">
+                                        <Avatar className="h-16 w-16 border-2 border-white shadow-md rounded-2xl bg-slate-50 flex-shrink-0">
                                             <AvatarImage src={selectedFitter.avatar} className="object-cover" />
-                                            <AvatarFallback className="rounded-2xl text-2xl font-light text-slate-400">{selectedFitter.name.substring(0, 2)}</AvatarFallback>
+                                            <AvatarFallback className="rounded-2xl text-xl font-light text-slate-400">{selectedFitter.name.substring(0, 2)}</AvatarFallback>
                                         </Avatar>
-                                        <div className="flex-1">
-                                            <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mb-1">{selectedFitter.name}</h3>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-xl font-semibold text-slate-900 tracking-tight mb-1 truncate">{selectedFitter.name}</h3>
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 <Badge variant="outline" className={cn("text-[10px] uppercase tracking-wider font-bold border-transparent px-2",
                                                     selectedFitter.status === "Available" ? "bg-emerald-100 text-emerald-700" :
@@ -261,14 +270,11 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                     {selectedFitter.status}
                                                 </Badge>
                                                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">• {selectedFitter.role || "Fitter"}</span>
-                                                <span className="text-[10px] text-slate-400 flex items-center gap-1 ml-auto">
-                                                    <Clock className="w-3 h-3" /> Updated {selectedFitter.lastUpdated}
-                                                </span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                    <div className="mt-1">
                                         <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                                             <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">
                                                 {selectedFitter.role === "Salesman" ? "Active Workload" : `Workload (${format(viewDate, "MMM do")})`}
@@ -278,70 +284,87 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                     {selectedFitter.role === "Salesman" ? selectedFitter.capacity.current : selectedFitter.schedule.today.filter(j => j.status === 'Done').length}
                                                     {selectedFitter.role !== "Salesman" && <span className="text-sm font-normal text-slate-400">/ {selectedFitter.schedule.today.length}</span>}
                                                 </span>
-                                                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ASSIGNMENTS</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex flex-col justify-center">
-                                            {selectedFitter.phone && (
-                                                <div className="flex items-center gap-2 text-xs text-slate-600 mb-1.5">
-                                                    <Phone className="w-3 h-3 text-slate-400" /> {selectedFitter.phone}
-                                                </div>
-                                            )}
-                                            <div className="flex items-center gap-2 text-xs text-slate-600">
-                                                <MapPin className="w-3 h-3 text-slate-400" /> {selectedFitter.jobRef || "No active location"}
+                                                {/* <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">ASSIGNMENTS</span> */}
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Tabs */}
-                            {/* Filter & Sort Bar (New) */}
-                            <FilterSortBar
-                                onFilterClick={() => { }}
-                                onSortChange={() => { }}
-                                currentSort="Default Sorting"
-                                className="border-t-0"
-                            />
-
-                            {/* Date Toolbar (Standardized) */}
-                            {selectedFitter.role !== "Salesman" && (
-                                <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 sticky top-0 z-20">
-                                    <div className="flex bg-slate-100 p-1 rounded-lg">
-                                        <button onClick={() => setViewDate(new Date())} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, new Date()) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Today</button>
-                                        <button onClick={() => setViewDate(addDays(new Date(), 1))} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, addDays(new Date(), 1)) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Tomorrow</button>
+                            {/* Salesman: Tab Toolbar */}
+                            {selectedFitter.role === "Salesman" ? (
+                                <div className="border-b border-slate-200 bg-white">
+                                    <div className="flex bg-slate-50 p-1 mx-6 mt-4 rounded-lg">
+                                        <button onClick={() => { setViewFilter("today"); setViewDate(new Date()); }} className={cn("flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-center", viewFilter === "today" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Today</button>
+                                        <button onClick={() => { setViewFilter("tomorrow"); setViewDate(addDays(new Date(), 1)); }} className={cn("flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-center", viewFilter === "tomorrow" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Tomorrow</button>
+                                        <button onClick={() => setViewFilter("upcoming")} className={cn("flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-center", viewFilter === "upcoming" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Upcoming</button>
+                                        <button onClick={() => setViewFilter("completed")} className={cn("flex-1 px-3 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all text-center", viewFilter === "completed" ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Completed</button>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-medium text-slate-500 hidden sm:inline-block">{format(viewDate, "MMMM do, yyyy")}</span>
-                                        <div className="h-4 w-px bg-slate-200 mx-2 hidden sm:block"></div>
+                                    <div className="px-6 py-3">
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline" size="icon" className="h-8 w-8 text-slate-500 border-slate-200 hover:text-emerald-700 hover:border-emerald-300">
-                                                    <CalendarIcon className="w-4 h-4" />
+                                                <Button variant="outline" className={cn("w-full justify-between h-10 text-left font-normal border-slate-200 text-slate-500", viewFilter === "custom" && "border-slate-400 text-slate-900")}>
+                                                    <div className="flex items-center gap-2">
+                                                        <CalendarIcon className="w-4 h-4 text-slate-400" />
+                                                        <span className="text-sm">{viewFilter === "custom" && viewDate ? format(viewDate, "MM/dd/yyyy") : "Custom date…"}</span>
+                                                    </div>
+                                                    <CalendarIcon className="w-4 h-4 text-slate-300" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="end">
-                                                <Calendar mode="single" selected={viewDate} onSelect={(date) => date && setViewDate(date)} initialFocus />
+                                            <PopoverContent className="w-auto p-0" align="center">
+                                                <Calendar mode="single" selected={viewDate} onSelect={(date) => { if (date) { setViewFilter("custom"); setViewDate(date); } }} initialFocus />
                                             </PopoverContent>
                                         </Popover>
                                     </div>
                                 </div>
+                            ) : (
+                                <>
+                                    {/* Fitter: Filter Sort Bar + Date toolbar */}
+                                    <FilterSortBar onFilterClick={() => { }} onSortChange={() => { }} currentSort="Default Sorting" className="border-t-0" />
+                                    <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-200 sticky top-0 z-20">
+                                        <div className="flex bg-slate-100 p-1 rounded-lg">
+                                            <button onClick={() => setViewDate(new Date())} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, new Date()) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Today</button>
+                                            <button onClick={() => setViewDate(addDays(new Date(), 1))} className={cn("px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider transition-all", isSameDay(viewDate, addDays(new Date(), 1)) ? "bg-white text-emerald-700 shadow-sm" : "text-slate-400 hover:text-slate-600")}>Tomorrow</button>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-medium text-slate-500 hidden sm:inline-block">{format(viewDate, "MMMM do, yyyy")}</span>
+                                            <div className="h-4 w-px bg-slate-200 mx-2 hidden sm:block"></div>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" size="icon" className="h-8 w-8 text-slate-500 border-slate-200 hover:text-emerald-700 hover:border-emerald-300">
+                                                        <CalendarIcon className="w-4 h-4" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="end">
+                                                    <Calendar mode="single" selected={viewDate} onSelect={(date) => date && setViewDate(date)} initialFocus />
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
+                                    </div>
+                                </>
                             )}
 
                             <ScrollArea className="flex-1 bg-slate-50">
                                 <div className="p-8">
                                     {(() => {
                                         if (selectedFitter.role === "Salesman") {
-                                            const salesmanJobs = [
+                                            const allJobs = [
                                                 ...selectedFitter.schedule.today,
                                                 ...selectedFitter.schedule.tomorrow,
-                                                ...selectedFitter.schedule.upcoming
+                                                ...selectedFitter.schedule.upcoming,
                                             ];
+                                            let salesmanJobs: FitterJob[] = [];
+                                            if (viewFilter === "today") salesmanJobs = selectedFitter.schedule.today.filter(j => j.status !== "Done");
+                                            else if (viewFilter === "tomorrow") salesmanJobs = selectedFitter.schedule.tomorrow.filter(j => j.status !== "Done");
+                                            else if (viewFilter === "upcoming") salesmanJobs = selectedFitter.schedule.upcoming.filter(j => j.status !== "Done");
+                                            else if (viewFilter === "completed") salesmanJobs = allJobs.filter(j => j.status === "Done");
+                                            else if (viewFilter === "custom") salesmanJobs = allJobs.filter(j => j.scheduledAt && isSameDay(new Date(j.scheduledAt), viewDate));
+
                                             return (
                                                 <div className="space-y-6">
                                                     <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-4 flex items-center gap-2">
                                                         <Briefcase className="w-3 h-3" />
-                                                        All Active Assignments
+                                                        {viewFilter === "completed" ? "Completed Jobs" : "Active Assignments"}
                                                     </h4>
                                                     {salesmanJobs.length > 0 ? (
                                                         <div className="space-y-4">
@@ -350,30 +373,55 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                                     <JobCard
                                                                         job={job}
                                                                         isSelected={false}
-                                                                        onSelect={() => openRescheduleDialog(job, selectedFitter)}
+                                                                        onSelect={() => {
+                                                                            if (job.status === "Done") {
+                                                                                setSelectedJobId(job.id);
+                                                                            } else {
+                                                                                openRescheduleDialog(job, selectedFitter);
+                                                                            }
+                                                                        }}
                                                                         onAction={(action) => {
-                                                                            if (action === "manage") openRescheduleDialog(job, selectedFitter);
+                                                                            if (action === "manage") {
+                                                                                if (job.status === "Done") setSelectedJobId(job.id);
+                                                                                else openRescheduleDialog(job, selectedFitter);
+                                                                            }
                                                                         }}
                                                                         variant="schedule"
                                                                     />
-                                                                    <div className="flex justify-end">
-                                                                        <Button
-                                                                            type="button"
-                                                                            variant="ghost"
-                                                                            size="sm"
-                                                                            className="h-8 px-3 text-[10px] font-bold uppercase tracking-widest text-amber-700 hover:bg-amber-50"
-                                                                            onClick={() => openRescheduleDialog(job, selectedFitter)}
-                                                                        >
-                                                                            Reassign
-                                                                        </Button>
-                                                                    </div>
+                                                                    {job.status === "Done" ? (
+                                                                        <div className="flex justify-end">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="h-8 px-3 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:bg-blue-50"
+                                                                                onClick={() => setSelectedJobId(job.id)}
+                                                                            >
+                                                                                View Details
+                                                                            </Button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="flex justify-end">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="h-8 px-3 text-[10px] font-bold uppercase tracking-widest text-amber-700 hover:bg-amber-50"
+                                                                                onClick={() => openRescheduleDialog(job, selectedFitter)}
+                                                                            >
+                                                                                Reassign
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             ))}
                                                         </div>
                                                     ) : (
                                                         <div className="py-12 text-center bg-slate-100/50 rounded-xl border border-dashed border-slate-200">
                                                             <Briefcase className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                                                            <p className="text-sm font-medium text-slate-500">No active jobs assigned.</p>
+                                                            <p className="text-sm font-medium text-slate-500">
+                                                                {viewFilter === "completed" ? "No completed jobs." : "No pending jobs."}
+                                                            </p>
                                                         </div>
                                                     )}
                                                 </div>
@@ -499,7 +547,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
             </div>
 
             <Dialog open={!!dialogState} onOpenChange={(open) => !open && setDialogState(null)}>
-                <DialogContent className="sm:max-w-2xl bg-white p-0 overflow-hidden flex flex-col md:flex-row gap-0">
+                <DialogContent className="sm:max-w-2xl bg-white p-0 flex flex-col md:flex-row gap-0 overflow-visible">
                     <div className="bg-slate-50 p-6 border-r border-slate-100 w-full md:w-1/2 flex flex-col">
                         <DialogHeader className="mb-6">
                             <DialogTitle className="text-xl font-light text-slate-900 mb-1">
@@ -535,19 +583,18 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                     </SelectTrigger>
                                     <SelectContent className="z-[1200] max-h-72">
                                         {fitters.map((fitter) => {
-                                            const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
-                                                ? fitter.schedule.today
-                                                : rescheduleDate && isSameDay(rescheduleDate, addDays(new Date(), 1))
-                                                    ? fitter.schedule.tomorrow
-                                                    : [];
-                                            const freeSlots = DAILY_SLOTS.length - activeSchedule.length;
+                                            const assignedCount = [
+                                                ...fitter.schedule.today,
+                                                ...fitter.schedule.tomorrow,
+                                                ...fitter.schedule.upcoming,
+                                            ].filter(j => j.status !== "Done").length;
 
                                             return (
                                                 <SelectItem key={fitter.id} value={fitter.id}>
                                                     <span className="flex w-full items-center justify-between gap-3">
                                                         <span>{fitter.name}</span>
                                                         <span className="text-[10px] uppercase tracking-wider text-slate-400">
-                                                            {Math.max(0, freeSlots)} slots
+                                                            {assignedCount} assigned
                                                         </span>
                                                     </span>
                                                 </SelectItem>
@@ -562,54 +609,47 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 w-full md:w-1/2 flex flex-col">
+                    <div className="bg-white p-6 w-full md:w-1/2 flex flex-col rounded-r-lg">
                         <div className="mb-6 flex items-center justify-between">
-                            <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 block">3. Select Time Slot</label>
+                            <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 block">3. Custom Time</label>
                             {rescheduleDate && <span className="text-xs font-medium text-slate-900">{format(rescheduleDate, "EEE, MMM do")}</span>}
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 flex-1 content-start">
-                            {rescheduleSlots.map((slot) => {
-                                const isCurrent = !!dialogState &&
-                                    dialogState.originalFitterId === dialogState.fitterId &&
-                                    slot === dialogState.currentSlot &&
-                                    !!rescheduleDate &&
-                                    !!dialogState.currentDate &&
-                                    isSameDay(rescheduleDate, dialogState.currentDate);
-
-                                return (
-                                    <Button
-                                        key={slot}
-                                        variant={isCurrent ? "secondary" : "outline"}
-                                        className={cn(
-                                            "h-14 flex flex-col gap-0 items-center justify-center border-slate-100 transition-all",
-                                            isCurrent ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700",
-                                        )}
-                                        disabled={isCurrent}
-                                        onClick={() => confirmReschedule(slot)}
-                                    >
-                                        <span className="font-bold text-lg">{slot}</span>
-                                        <span className="text-[9px] uppercase tracking-wider font-normal opacity-70">
-                                            {isCurrent ? "Current Time" : "Available"}
-                                        </span>
-                                    </Button>
-                                );
-                            })}
-
-                            {rescheduleSlots.length === 0 && (
-                                <div className="col-span-2 py-8 text-center border border-dashed border-red-200 bg-red-50/50 rounded-lg">
-                                    <p className="text-red-500 font-medium text-sm">No slots available.</p>
-                                    <p className="text-xs text-red-400 mt-1">Please select another date or fitter.</p>
-                                </div>
-                            )}
+                        <div className="flex-1 flex flex-col gap-3">
+                            <div className="border border-slate-200 rounded-xl bg-slate-50 p-6 flex flex-col gap-4">
+                                <label className="text-[10px] uppercase tracking-widest font-bold text-slate-500 text-center block">Enter Time</label>
+                                <input
+                                    type="time"
+                                    value={customTime}
+                                    onChange={(e) => setCustomTime(e.target.value)}
+                                    className="w-full h-14 text-2xl font-mono text-slate-800 border border-slate-200 rounded-lg bg-white px-4 text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                                />
+                            </div>
+                            <p className="text-xs text-slate-400 text-center leading-relaxed">
+                                You can pick any exact time to schedule this job for the {variant === "salesman" ? "salesman" : "fitter"}.
+                            </p>
                         </div>
 
-                        <DialogFooter className="mt-auto sm:justify-end pt-6 border-t border-slate-50">
+                        <DialogFooter className="mt-auto sm:justify-end pt-6 border-t border-slate-100 gap-2">
                             <Button type="button" variant="ghost" onClick={() => setDialogState(null)}>Cancel</Button>
+                            <Button
+                                type="button"
+                                disabled={!customTime || !rescheduleDate || !dialogState}
+                                onClick={() => confirmReschedule(customTime)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6"
+                            >
+                                {variant === "salesman" ? "Confirm Dispatch" : "Confirm Reschedule"}
+                            </Button>
                         </DialogFooter>
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* Job Detail Sheet — opens when a completed job card is clicked */}
+            <JobDetailSheet
+                jobId={selectedJobId}
+                onClose={() => setSelectedJobId(null)}
+            />
         </>
     );
 }

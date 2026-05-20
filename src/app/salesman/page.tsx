@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { format, parse, isPast, isToday, isTomorrow } from "date-fns";
 import {
   MapPin, Navigation, CheckCircle, Clock, Calendar, MousePointer2,
   ArrowLeft, ClipboardList, AlertCircle,
   Timer,
   Phone, MessageSquare,
-  Ruler, FileText, ChevronRight, Grid
+  Ruler, FileText, ChevronRight, Grid, X
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
 import { getJobs, updateJob, getJob, type Job } from "@/lib/jobs";
+import { updateUser } from "@/lib/users";
 import { api } from "@/lib/api";
 import { updateLiveLocation } from "@/services/api/live-location";
 import { useRef } from "react";
@@ -41,6 +42,7 @@ type SalesmanScheduleJob = {
   notes?: string;
   assignedBy?: string;
   coordinates: [number, number];
+  date?: string;
 };
 
 type SalesmanSchedule = Record<Tab, SalesmanScheduleJob[]>;
@@ -80,10 +82,18 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     coordinates = [job.location.coordinates[1], job.location.coordinates[0]];
   }
 
+  let dateStr: string | undefined;
+  if (job.scheduledAt) {
+    try {
+      dateStr = format(new Date(job.scheduledAt), "yyyy-MM-dd");
+    } catch {}
+  }
+
   return {
     id: job._id,
     shortRef: `JOB-${job._id.slice(-6).toUpperCase()}`,
     time: toDisplayTime(job.scheduledAt),
+    date: dateStr,
     client: job.customerName,
     address: job.address,
     customerPhone: job.customerPhone,
@@ -126,7 +136,8 @@ function SalesmanPageContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const activeJobId = searchParams.get("jobId");
-  const [activeTab, setActiveTab] = useState<Tab>("today");
+  const [activeTab, setActiveTab] = useState<Tab | "custom">("today");
+  const [filterDate, setFilterDate] = useState("");
   const [selectedJob, setSelectedJob] = useState<SalesmanScheduleJob | null>(null);
   const [schedule, setSchedule] = useState<SalesmanSchedule>(EMPTY_SALESMAN_SCHEDULE);
 
@@ -154,7 +165,15 @@ function SalesmanPageContent() {
     }
   }, [activeJobId, schedule]);
 
-  const getJobsForTab = (tab: Tab) => {
+  const getJobsForTab = (tab: Tab | "custom") => {
+    if (tab === "custom" && filterDate) {
+       return [
+         ...schedule.today,
+         ...schedule.tomorrow,
+         ...schedule.upcoming,
+         ...schedule.completed
+       ].filter(j => j.date === filterDate);
+    }
     switch (tab) {
       case "today": return schedule.today;
       case "tomorrow": return schedule.tomorrow;
@@ -165,6 +184,30 @@ function SalesmanPageContent() {
   };
 
   const jobs = getJobsForTab(activeTab);
+
+  const hasActiveJob = useMemo(() => {
+    const allJobs = [
+      ...schedule.today,
+      ...schedule.tomorrow,
+      ...schedule.upcoming,
+      ...schedule.completed
+    ];
+    return allJobs.some(j => j.status === "On the way" || j.status === "In Progress" || j.status === "In progress");
+  }, [schedule]);
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    setFilterDate("");
+  };
+
+  const handleDateChange = (date: string) => {
+    setFilterDate(date);
+    if (date) {
+      setActiveTab("custom");
+    } else {
+      setActiveTab("today");
+    }
+  };
 
   useEffect(() => {
     const loadAssignedJobs = async () => {
@@ -181,31 +224,93 @@ function SalesmanPageContent() {
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const displayStatus = newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus;
+    let appendedNotes = "";
 
     if (typeof window !== "undefined") {
-      const storageKey = `eb_measurement_start_${id}`;
-      if (displayStatus === "In Progress") {
-        if (!localStorage.getItem(storageKey)) {
-          localStorage.setItem(storageKey, Date.now().toString());
+      const storageKeyMeasStart = `eb_measurement_start_${id}`;
+      const storageKeyTravelStart = `eb_travel_start_${id}`;
+      const storageKeyTravelSecs = `eb_travel_secs_${id}`;
+
+      if (displayStatus === "On the way") {
+        if (!localStorage.getItem(storageKeyTravelStart)) {
+          localStorage.setItem(storageKeyTravelStart, Date.now().toString());
         }
-      } else if (displayStatus !== "Done") {
-        // If status changed to anything other than completed, clear the start time
-        localStorage.removeItem(storageKey);
+      } else if (displayStatus === "In Progress") {
+        if (!localStorage.getItem(storageKeyMeasStart)) {
+          localStorage.setItem(storageKeyMeasStart, Date.now().toString());
+        }
+        
+        // Finalize travel time
+        const travelStart = localStorage.getItem(storageKeyTravelStart);
+        if (travelStart) {
+          const travelSecs = Math.floor((Date.now() - Number(travelStart)) / 1000);
+          localStorage.setItem(storageKeyTravelSecs, Math.max(0, travelSecs).toString());
+        }
+      } else if (displayStatus === "Done") {
+        const measStart = localStorage.getItem(storageKeyMeasStart);
+        let measSecs = 0;
+        if (measStart) {
+          measSecs = Math.floor((Date.now() - Number(measStart)) / 1000);
+        }
+        const travelSecs = localStorage.getItem(storageKeyTravelSecs);
+        
+        const formatSecs = (s: number) => {
+          const h = Math.floor(s / 3600);
+          const m = Math.floor((s % 3600) / 60);
+          const sec = s % 60;
+          return `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${sec}s`.trim();
+        };
+
+        const tTrack = `[TIME_LOG] Travel: ${travelSecs ? formatSecs(Number(travelSecs)) : 'N/A'} | Measuring: ${measSecs ? formatSecs(measSecs) : 'N/A'}`;
+        
+        const currentJob = [...schedule.today, ...schedule.tomorrow, ...schedule.upcoming, ...schedule.completed].find(j => j.id === id);
+        const currentNotes = currentJob?.notes || "";
+        
+        // Clean out any old TIME_LOG before appending new one
+        const cleanedNotes = currentNotes.replace(/\[TIME_LOG\][\s\S]*$/, "").trim();
+        appendedNotes = cleanedNotes ? `${cleanedNotes}\n\n${tTrack}` : tTrack;
+
+        // Cleanup local storage
+        localStorage.removeItem(storageKeyMeasStart);
+        localStorage.removeItem(storageKeyTravelStart);
+        localStorage.removeItem(storageKeyTravelSecs);
       }
     }
 
     setSchedule(prev => {
       const updated = { ...prev };
-      updated[activeTab] = updated[activeTab].map((j) => j.id === id ? { ...j, status: displayStatus } : j);
+      const tabs: Tab[] = ["today", "tomorrow", "upcoming", "completed"];
+      for (const tab of tabs) {
+        updated[tab] = updated[tab].map((j) => {
+          if (j.id === id) {
+            return { ...j, status: displayStatus, notes: appendedNotes || j.notes };
+          }
+          return j;
+        });
+      }
       return updated;
     });
 
     if (selectedJob && selectedJob.id === id) {
-      setSelectedJob((prev) => prev ? { ...prev, status: displayStatus } : prev);
+      setSelectedJob((prev) => prev ? { ...prev, status: displayStatus, notes: appendedNotes || prev.notes } : prev);
     }
 
     try {
-      await updateJob(id, { status: toApiStatus(displayStatus) });
+      await updateJob(id, { 
+        status: toApiStatus(displayStatus),
+        ...(appendedNotes ? { notes: appendedNotes } : {})
+      });
+      if (user?._id) {
+        let userStatus: any = "Available";
+        if (displayStatus === "On the way") {
+          userStatus = "On the way";
+        } else if (displayStatus === "In Progress") {
+          userStatus = "In progress";
+        } else if (displayStatus === "Done") {
+          userStatus = "Available";
+        }
+        await updateUser(user._id, { liveStatus: userStatus });
+      }
     } catch (error) {
       console.error("Unable to update salesman job status", error);
     }
@@ -213,7 +318,7 @@ function SalesmanPageContent() {
 
 
   return (
-    <div className="flex flex-col h-full overflow-hidden select-none bg-stone-50/50">
+    <div className="flex flex-col h-[calc(100vh-64px)] md:h-screen overflow-hidden select-none bg-stone-50/50">
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar Filtered List */}
         <aside className={cn(
@@ -226,7 +331,7 @@ function SalesmanPageContent() {
             {(["today", "tomorrow", "upcoming", "completed"] as Tab[]).map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => handleTabChange(tab)}
                 className={cn(
                   "flex-1 py-3 text-[10px] font-bold uppercase tracking-widest text-center transition-all rounded-lg",
                   activeTab === tab
@@ -237,6 +342,36 @@ function SalesmanPageContent() {
                 {tab}
               </button>
             ))}
+          </div>
+
+          <div className="px-3 py-2 bg-stone-50/50 border-b border-stone-200 flex items-center gap-2">
+            <div className={cn(
+              "flex items-center gap-2 flex-1 px-3 py-1.5 rounded-lg border transition-all",
+              activeTab === "custom" 
+                ? "border-neutral-900 ring-1 ring-neutral-900/10 shadow-sm bg-white" 
+                : "border-stone-200 bg-white/60 hover:bg-white hover:border-stone-300"
+            )}>
+              <Calendar className={cn("w-3.5 h-3.5", activeTab === "custom" ? "text-neutral-900" : "text-stone-400")} />
+              <input 
+                type="date"
+                value={filterDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className={cn(
+                  "w-full text-xs font-semibold bg-transparent focus:outline-none cursor-pointer",
+                  activeTab === "custom" ? "text-neutral-900" : "text-stone-500"
+                )}
+                title="Filter by specific date"
+              />
+            </div>
+            {filterDate && (
+              <button 
+                onClick={() => handleDateChange("")}
+                className="flex-shrink-0 p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                title="Clear date filter"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
 
           {/* Job List */}
@@ -265,9 +400,10 @@ function SalesmanPageContent() {
           selectedJob ? "opacity-100 z-50 pointer-events-auto" : "opacity-100 z-10 md:z-0"
         )}>
           {selectedJob ? (
-            <div className="h-full overflow-y-auto flex flex-col animate-fadeIn bg-stone-50/30">
+            <div className="h-full overflow-hidden flex flex-col animate-fadeIn bg-stone-50/30">
               <JobDetailView
                 job={selectedJob}
+                hasActiveJob={hasActiveJob}
                 onStatusChange={(newStatus) => handleUpdateStatus(selectedJob.id, newStatus)}
                 onBack={() => setSelectedJob(null)}
               />
@@ -316,12 +452,12 @@ function WorkspaceOverview({
           ))}
         </div>
 
-        <Button
+        {/* <Button
           onClick={onSelectFirst}
           className="mt-16 bg-neutral-900 hover:bg-neutral-800 text-white font-bold h-12 px-10 rounded-lg shadow-lg"
         >
           Begin Session
-        </Button>
+        </Button> */}
       </div>
     </div>
   );
@@ -402,7 +538,7 @@ interface CompletedQuotationItem {
   unitPrice?: number;
 }
 
-function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJob; onStatusChange: (status: string) => void; onBack: () => void }) {
+function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: SalesmanScheduleJob; hasActiveJob: boolean; onStatusChange: (status: string) => Promise<void> | void; onBack: () => void }) {
   const router = useRouter();
   const [seconds, setSeconds] = useState(0);
   const [measurementData, setMeasurementData] = useState<{ rooms?: CompletedRoom[] } | null>(null);
@@ -445,32 +581,39 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
     }
   })();
 
+  const [travelSeconds, setTravelSeconds] = useState(0);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const storageKey = `eb_measurement_start_${job.id}`;
+    const storageKeyMeasStart = `eb_measurement_start_${job.id}`;
+    const storageKeyTravelStart = `eb_travel_start_${job.id}`;
+    const storageKeyTravelSecs = `eb_travel_secs_${job.id}`;
 
-    // Auto-create a start time if in-progress state is active but time is uninitialized
-    if (job.status === "In Progress" || job.status === "In progress") {
-      if (!localStorage.getItem(storageKey)) {
-        localStorage.setItem(storageKey, Date.now().toString());
+    const updateTimers = () => {
+      // Travel Timer
+      const travelStart = localStorage.getItem(storageKeyTravelStart);
+      const fixedTravel = localStorage.getItem(storageKeyTravelSecs);
+      
+      if (fixedTravel) {
+         setTravelSeconds(Number(fixedTravel));
+      } else if (travelStart && job.status === "On the way") {
+         const elapsed = Math.floor((Date.now() - Number(travelStart)) / 1000);
+         setTravelSeconds(elapsed >= 0 ? elapsed : 0);
       }
-    }
 
-    const updateTimer = () => {
-      const startTime = localStorage.getItem(storageKey);
-      if (startTime && (job.status === "In Progress" || job.status === "In progress")) {
-        const elapsed = Math.floor((Date.now() - Number(startTime)) / 1000);
+      // Measurement Timer
+      const measStart = localStorage.getItem(storageKeyMeasStart);
+      if (measStart && (job.status === "In Progress" || job.status === "In progress")) {
+        const elapsed = Math.floor((Date.now() - Number(measStart)) / 1000);
         setSeconds(elapsed >= 0 ? elapsed : 0);
-      } else {
-        setSeconds(0);
       }
     };
 
-    updateTimer();
+    updateTimers();
 
     let interval: NodeJS.Timeout;
-    if (job.status === "In Progress" || job.status === "In progress") {
-      interval = setInterval(updateTimer, 1000);
+    if (job.status === "On the way" || job.status === "In Progress" || job.status === "In progress") {
+      interval = setInterval(updateTimers, 1000);
     }
 
     return () => {
@@ -485,10 +628,18 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
     return `${h > 0 ? h + ':' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const parsedTimeLog = useMemo(() => {
+    const match = job.notes?.match(/\[TIME_LOG\] Travel: (.*?) \| Measuring: (.*)/);
+    if (match) {
+      return { travel: match[1], measuring: match[2] };
+    }
+    return null;
+  }, [job.notes]);
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-white">
+    <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
       {/* Visual Context Header - Full Screen Map with Glassmorphism Overlay */}
-      <div className="h-[460px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
+      <div className="h-[40vh] min-h-[250px] max-h-[460px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
         <div className="absolute inset-0 z-0">
           <JobDetailMap coordinates={job.coordinates || [25.20, 55.27]} />
         </div>
@@ -545,9 +696,9 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
           {/* Stats Bar */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              // { label: "Assigned By", val: job.assignedBy || "Sales Manager", color: "bg-blue-500" },
-              { label: "Session Time", val: job.status === "In Progress" || job.status === "In progress" ? formatTimer(seconds) : "Paused", color: "bg-purple-500", mono: true },
-              { label: "Estimated", val: "1h 15m", color: "bg-amber-500" },
+              { label: "Travel Time", val: parsedTimeLog?.travel || (job.status === "On the way" ? formatTimer(travelSeconds) : travelSeconds > 0 ? formatTimer(travelSeconds) : "N/A"), color: "bg-amber-500", mono: true },
+              { label: "Measuring Time", val: parsedTimeLog?.measuring || ((job.status === "In Progress" || job.status === "In progress") ? formatTimer(seconds) : seconds > 0 ? formatTimer(seconds) : "N/A"), color: "bg-purple-500", mono: true },
+              // { label: "Estimated", val: "1h 15m", color: "bg-neutral-300" },
               { label: "Status", val: job.status, color: "bg-emerald-500" }
             ].map((node, i) => (
               <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm relative overflow-hidden">
@@ -587,7 +738,7 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
                       <div key={room.id || rIdx} className="border border-stone-200/80 rounded-xl overflow-hidden shadow-sm">
                         <div className="bg-stone-50 px-4 py-3 border-b border-stone-100 flex items-center justify-between">
                           <span className="text-xs font-bold text-neutral-800 uppercase tracking-wider">{room.name} ({room.category || "General"})</span>
-                          <span className="text-[10px] bg-neutral-905 bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full font-bold">{(room.openings || []).length} Openings</span>
+                          {/* <span className="text-[10px] bg-neutral-905 bg-neutral-200 text-neutral-800 px-2 py-0.5 rounded-full font-bold">{(room.openings || []).length} Openings</span> */}
                         </div>
                         <div className="divide-y divide-stone-100 bg-white">
                           {(room.openings || []).map((open: CompletedOpening, oIdx: number) => (
@@ -721,7 +872,7 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
             </div>
           )}
 
-          <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+          {/* <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
             <div className="flex items-center gap-3 mb-6">
               <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center">
                 <ClipboardList className="w-5 h-5" />
@@ -731,7 +882,7 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
             <div className="p-6 bg-stone-50 rounded border border-stone-100 italic text-neutral-700 text-lg">
               {managerNote ? `"${managerNote}"` : ""}
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -742,37 +893,39 @@ function JobDetailView({ job, onStatusChange, onBack }: { job: SalesmanScheduleJ
             <ActionButton
               icon={Navigation} label="Travel" activeLabel="On Road"
               isActive={job.status === "On the way"}
-              disabled={job.status !== "Pending"}
+              disabled={job.status !== "Pending" || (hasActiveJob && job.status === "Pending")}
               variant="amber"
               onClick={() => onStatusChange("On the way")}
             />
             <ActionButton
               icon={Timer} label="Measure" activeLabel="Measuring"
               isActive={job.status === "In Progress" || job.status === "In progress"}
-              disabled={job.status !== "On the way" && job.status !== "In Progress" && job.status !== "Pending"}
+              disabled={(job.status !== "On the way" && job.status !== "In Progress" && job.status !== "Pending") || (hasActiveJob && job.status === "Pending")}
               variant="blue"
               onClick={() => {
                 onStatusChange("In progress");
                 router.push(`/salesman/measurements/new?jobId=${job.id}`);
               }}
             />
-            <Link href={`/salesman/quotes/new?jobId=${job.id}`} className="flex-[1.5] group">
+            <div className="flex-[1.5] group">
               <button
                 disabled={!(job.status === "In Progress" || job.status === "In progress")}
                 className={cn(
-                  "w-full h-full rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all duration-300 relative overflow-hidden",
-                  (job.status === "In Progress" || job.status === "In progress")
-                    ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/20 active:scale-[0.98] cursor-pointer"
-                    : "bg-white/5 text-white/20 cursor-not-allowed border border-white/5 grayscale"
+                  "w-full h-full rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm border",
+                  (job.status === "In Progress" || job.status === "In progress") 
+                    ? "bg-white text-neutral-900 border-white/20 hover:bg-neutral-100 hover:scale-[1.02]" 
+                    : "bg-white/5 text-white/40 border-transparent cursor-not-allowed"
                 )}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  await onStatusChange("Completed");
+                  router.push(`/salesman/quotes/new?jobId=${job.id}`);
+                }}
               >
-                {(job.status === "In Progress" || job.status === "In progress") && (
-                  <div className="absolute top-0 left-0 w-full h-[3px] bg-white/30 animate-pulse"></div>
-                )}
-                <ClipboardList className={cn("w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:scale-110", (job.status === "In Progress" || job.status === "In progress") ? "text-white" : "text-white/20")} />
-                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest">New Quote</span>
+                <FileText className="w-4 h-4" />
+                <span className="text-sm font-bold tracking-wide">New Quote</span>
               </button>
-            </Link>
+            </div>
             <ActionButton
               icon={CheckCircle} label="Finalize" activeLabel="Done"
               isActive={false}
@@ -910,6 +1063,9 @@ function SalesmanGpsControl() {
                 accuracy: lastKnownFix.accuracy,
                 isOnline: false,
             });
+            if (user?._id) {
+                await updateUser(user._id, { liveStatus: "Offline" });
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
             setErrorMessage(message);
@@ -970,6 +1126,9 @@ function SalesmanGpsControl() {
                         heading: typeof position.coords.heading === "number" ? position.coords.heading : undefined,
                         isOnline: true,
                     });
+                    if (user?._id && ((user as any).liveStatus === "Offline" || !(user as any).liveStatus)) {
+                        await updateUser(user._id, { liveStatus: "Available" });
+                    }
 
                     if (!mountedRef.current) return;
                     setStatus("tracking");

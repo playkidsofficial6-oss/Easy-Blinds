@@ -9,7 +9,7 @@ import {
   type FitterProfileStatus,
 } from "./fitters-api";
 import { getJobs, type Job } from "./jobs";
-import { getUsers, updateUser, type UserRecord } from "./users";
+import { getUsers, updateUser, type UserRecord, extractLatLng } from "./users";
 import { getAllLiveLocations } from "@/services/api";
 import {
   disconnectSocket,
@@ -37,6 +37,7 @@ export interface FitterJob {
   address: string;
   time: string;
   endTime: string;
+  scheduledAt?: string;
   status: "Pending" | "In Progress" | "Done";
   fabric?: string;
   rooms?: string[];
@@ -141,6 +142,7 @@ function toFitterJob(job: Job): FitterJob {
     address: job.address,
     time: toDisplayTime(job.scheduledAt),
     endTime: toDisplayEndTime(job.scheduledAt),
+    scheduledAt: job.scheduledAt,
     status: job.status === "completed" ? "Done" : job.status === "in_progress" ? "In Progress" : "Pending",
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
@@ -172,17 +174,23 @@ function toReadableLastUpdated(source?: string) {
   }
 }
 
+function toIsoString(v?: string | Date): string | undefined {
+  if (!v) return undefined;
+  if (typeof v === "string") return v;
+  return v.toISOString();
+}
+
 function getLastUpdated(
   profile: FitterProfileRecord,
   liveLocation?: LiveLocationRecord,
 ) {
   return toReadableLastUpdated(
-    liveLocation?.lastUpdatedAt ??
-      liveLocation?.updatedAt ??
-      profile.location?.updatedAt ??
-      profile.updatedAt ??
-      profile.user.location?.updatedAt ??
-      profile.user.updatedAt,
+    toIsoString(liveLocation?.lastUpdatedAt) ??
+      toIsoString(liveLocation?.updatedAt) ??
+      toIsoString(profile.location?.updatedAt) ??
+      toIsoString(profile.updatedAt) ??
+      toIsoString(profile.user.location?.updatedAt) ??
+      toIsoString(profile.user.updatedAt),
   );
 }
 
@@ -241,9 +249,7 @@ function buildFitter(
   const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending");
   const location = liveLocation
     ? ([liveLocation.lat, liveLocation.lng] as [number, number])
-    : profile.location
-      ? ([profile.location.lat, profile.location.lng] as [number, number])
-      : undefined;
+    : (() => { const ll = extractLatLng(profile.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })();
 
   return {
     id: user._id,

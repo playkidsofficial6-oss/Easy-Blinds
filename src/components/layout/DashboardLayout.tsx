@@ -25,17 +25,10 @@ import {
 interface DashboardLayoutProps {
     children: React.ReactNode;
     allowedRoles?: UserRole[];
+    basePath?: string;
 }
 
-const navItems = [
-    { href: "/field", label: "Field Work", icon: Ruler },
-    { href: "/field/quotes", label: "Quotes", icon: FileText },
-    { href: "/field/products", label: "Products", icon: Package },
-    { href: "/field/gallery", label: "Our Gallery", icon: LayoutDashboard },
-    { href: "/field/reviews", label: "Reviews", icon: Star },
-];
-
-export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps) {
+export function DashboardLayout({ children, allowedRoles, basePath }: DashboardLayoutProps) {
     const pathname = usePathname();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { selectedBrand, setSelectedBrand } = useBrand();
@@ -46,6 +39,16 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
         .join("")
         .slice(0, 2)
         .toUpperCase() || "EB";
+
+    const actualBasePath = basePath || (pathname.startsWith("/salesman") ? "/salesman" : "/field");
+    
+    const navItems = [
+        { href: `${actualBasePath}`, label: "Field Work", icon: Ruler },
+        { href: `${actualBasePath}/quotes`, label: "Quotes", icon: FileText },
+        { href: `${actualBasePath}/products`, label: "Products", icon: Package },
+        { href: `${actualBasePath}/gallery`, label: "Our Gallery", icon: LayoutDashboard },
+        { href: `${actualBasePath}/reviews`, label: "Reviews", icon: Star },
+    ];
 
     const NavContent = () => (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800">
@@ -81,7 +84,9 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                 </DropdownMenu>
             </div>
             <nav className="flex-1 px-6 py-12 space-y-3">{navItems.map((item) => {
-                const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+                const isActive = item.href === actualBasePath 
+                    ? pathname === actualBasePath 
+                    : pathname.startsWith(item.href);
                 return (
                     <Link
                         key={item.href}
