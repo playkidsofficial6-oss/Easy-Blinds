@@ -117,11 +117,17 @@ export function WindowMeasurementStep({
     };
 
     const handleNext = () => {
-        const totalWindows = rooms.reduce((sum, room) => sum + room.windows.length, 0);
-        if (totalWindows === 0) {
-            alert("Please add at least one window measurement");
+        if (rooms.length === 0) {
+            alert("Please add at least one room first.");
             return;
         }
+
+        const emptyRooms = rooms.filter(room => room.windows.length === 0);
+        if (emptyRooms.length > 0) {
+            alert(`The following rooms have no items: ${emptyRooms.map(r => r.name).join(", ")}.\nPlease add at least one item to each room or remove the empty rooms.`);
+            return;
+        }
+
         onNext();
     };
 

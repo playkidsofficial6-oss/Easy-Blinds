@@ -34,6 +34,7 @@ export default function NewQuotePage() {
     const [clientPhone, setClientPhone] = useState("");
     const [clientEmail, setClientEmail] = useState("");
     const [notes, setNotes] = useState("");
+    const [originalJobNotes, setOriginalJobNotes] = useState("");
     
     // Invoice preview states
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
@@ -76,6 +77,7 @@ export default function NewQuotePage() {
                     setClientPhone(job.customerPhone || "");
                     setClientEmail(job.customerEmail || "");
                 }
+                setOriginalJobNotes(job.notes || "");
             } catch (error) {
                 toast.error("Failed to load job details");
             } finally {
@@ -101,7 +103,11 @@ export default function NewQuotePage() {
     const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
         setLineItems(lineItems.map(item => {
             if (item.id === id) {
-                return { ...item, [field]: value };
+                let finalValue = value;
+                if (field === 'description' && typeof value === 'string') {
+                    finalValue = value.charAt(0).toUpperCase() + value.slice(1);
+                }
+                return { ...item, [field]: finalValue };
             }
             return item;
         }));
@@ -138,7 +144,7 @@ export default function NewQuotePage() {
 
             await updateJob(jobId, {
                 status: "completed",
-                notes: [notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
+                notes: [originalJobNotes, notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
                 quotation,
             });
 
@@ -196,7 +202,8 @@ export default function NewQuotePage() {
                                         placeholder="e.g. Ahmed Al Mansoori"
                                         value={clientName}
                                         onChange={(e) => setClientName(e.target.value)}
-                                        className="h-11"
+                                        className="h-11 bg-stone-50 text-stone-500 cursor-not-allowed"
+                                        readOnly
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -206,7 +213,8 @@ export default function NewQuotePage() {
                                         placeholder="+971 50 123 4567"
                                         value={clientPhone}
                                         onChange={(e) => setClientPhone(e.target.value)}
-                                        className="h-11"
+                                        className="h-11 bg-stone-50 text-stone-500 cursor-not-allowed"
+                                        readOnly
                                     />
                                 </div>
                             </div>
@@ -218,7 +226,8 @@ export default function NewQuotePage() {
                                     placeholder="client@example.com"
                                     value={clientEmail}
                                     onChange={(e) => setClientEmail(e.target.value)}
-                                    className="h-11"
+                                    className="h-11 bg-stone-50 text-stone-500 cursor-not-allowed"
+                                    readOnly
                                  />
                             </div>
                         </CardContent>

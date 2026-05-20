@@ -7,6 +7,7 @@ import {
   Marker,
   Popup,
   Tooltip,
+  Polyline,
   useMap,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -69,6 +70,13 @@ interface FitterMapProps {
   fitters: Fitter[];
   selectedFitterId: string | null;
   onSelectFitter: (id: string) => void;
+  filterRole?: "Salesman" | "Fitter";
+  selectedJob?: {
+    id: string;
+    location: { lat: number; lng: number };
+    address: string;
+    client: string;
+  } | null;
 }
 
 const statusConfig: Record<LiveMarkerStatus | "Late", { color: string; ringColor: string }> = {
@@ -324,9 +332,78 @@ function groupIdenticalMarkers(markers: LiveMapMarker[]): LiveMapMarker[] {
   return result;
 }
 
+function RoutingPolyline({
+  start,
+  end,
+  markerId,
+}: {
+  start: [number, number];
+  end: [number, number];
+  markerId: string;
+}) {
+  const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
+  const [distanceKm, setDistanceKm] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const fetchRoute = async () => {
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Network response was not ok");
+        const data = await res.json();
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const coords = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
+          if (active) {
+            setRouteCoords(coords);
+            setDistanceKm((route.distance / 1000).toFixed(1));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch route", err);
+      }
+    };
+    fetchRoute();
+    return () => { active = false; };
+  }, [start[0], start[1], end[0], end[1]]);
+
+  if (!routeCoords) {
+    return (
+      <Polyline
+        key={`line-loading-${markerId}`}
+        positions={[start, end]}
+        color="#94a3b8"
+        weight={2}
+        dashArray="5, 10"
+        opacity={0.6}
+      >
+        <Tooltip permanent direction="center" className="bg-white/90 border border-slate-200 px-1 py-0.5 rounded text-[9px] font-bold text-slate-600">
+          Calculating...
+        </Tooltip>
+      </Polyline>
+    );
+  }
+
+  return (
+    <Polyline
+      key={`line-route-${markerId}`}
+      positions={routeCoords}
+      color="#3b82f6"
+      weight={4}
+      opacity={0.8}
+    >
+      <Tooltip permanent direction="center" className="bg-white/90 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-bold text-blue-700 shadow-sm">
+        {distanceKm} km
+      </Tooltip>
+    </Polyline>
+  );
+}
+
 function buildMapMarkers(
   fitters: Fitter[],
   liveLocations: LiveLocationRecord[],
+  filterRole?: "Salesman" | "Fitter"
 ): LiveMapMarker[] {
   const now = Date.now();
   const activeLiveLocations = liveLocations.filter(
@@ -349,13 +426,32 @@ function buildMapMarkers(
     .filter((location) => !knownFitterIds.has(location.userId))
     .map(buildLiveLocationMarker);
 
-  return groupIdenticalMarkers([...fitterMarkers, ...liveOnlyMarkers]);
+  let allMarkers = [...fitterMarkers, ...liveOnlyMarkers];
+  
+  if (filterRole) {
+    allMarkers = allMarkers.filter((m) => m.role === filterRole);
+  }
+
+  return groupIdenticalMarkers(allMarkers);
 }
+
+const jobMarkerIcon = new L.Icon({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [16, -28],
+  className: "job-marker"
+});
 
 export default function FitterMap({
   fitters,
   selectedFitterId,
   onSelectFitter,
+  filterRole,
+  selectedJob,
 }: FitterMapProps) {
   const {
     locations: liveLocations,
@@ -402,12 +498,12 @@ export default function FitterMap({
   }, []);
 
   const markers = useMemo(
-    () => buildMapMarkers(fitters, liveLocations),
-    [fitters, liveLocations],
+    () => buildMapMarkers(fitters, liveLocations, filterRole),
+    [fitters, liveLocations, filterRole],
   );
   const selectedMarker = markers.find((marker) => marker.id === selectedFitterId);
   const center: [number, number] =
-    selectedMarker?.position ?? markers[0]?.position ?? [25.2048, 55.2708];
+    selectedJob?.location ? [selectedJob.location.lat, selectedJob.location.lng] : (selectedMarker?.position ?? [25.2048, 55.2708]);
 
   return (
     <div className="relative h-full w-full">
@@ -471,6 +567,31 @@ export default function FitterMap({
             </Popup>
           </Marker>
         ))}
+
+        {/* Selected Job Marker & Polylines */}
+        {selectedJob && (
+          <>
+            <Marker position={[selectedJob.location.lat, selectedJob.location.lng]} icon={jobMarkerIcon}>
+              <Tooltip direction="top" offset={[0, -40]} opacity={1} permanent className="font-bold text-blue-600 bg-white border border-blue-200">
+                Pending Job: {selectedJob.client}
+              </Tooltip>
+              <Popup>
+                <div className="text-xs">
+                  <div className="font-bold">{selectedJob.client}</div>
+                  <div className="text-slate-500">{selectedJob.address}</div>
+                </div>
+              </Popup>
+            </Marker>
+            {markers.map((marker) => (
+              <RoutingPolyline
+                key={`route-${marker.id}`}
+                markerId={marker.id}
+                start={marker.position}
+                end={[selectedJob.location.lat, selectedJob.location.lng]}
+              />
+            ))}
+          </>
+        )}
       </MapContainer>
 
       {!liveLocationsLoaded && (

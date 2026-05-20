@@ -10,11 +10,34 @@ export type LiveUserStatus =
   | "Offline"
   | "Fully Booked";
 
+/** GeoJSON Point as returned by the backend /users endpoint */
 export interface UserLocation {
-  lat: number;
-  lng: number;
+  type?: "Point";
+  /** GeoJSON order: [longitude, latitude] */
+  coordinates?: [number, number];
+  /** Flat lat/lng fields (legacy fallback) */
+  lat?: number;
+  lng?: number;
   address?: string;
-  updatedAt?: string;
+  updatedAt?: string | Date;
+}
+
+/** Extract {lat, lng} from a UserLocation regardless of its format */
+export function extractLatLng(location?: UserLocation | null): { lat: number; lng: number } | null {
+  if (!location) return null;
+  // GeoJSON coordinates: [longitude, latitude]
+  if (Array.isArray(location.coordinates) && location.coordinates.length === 2) {
+    const lng = Number(location.coordinates[0]);
+    const lat = Number(location.coordinates[1]);
+    if (!Number.isNaN(lat) && !Number.isNaN(lng)) return { lat, lng };
+  }
+  // Flat lat/lng fallback
+  if (location.lat !== undefined && location.lng !== undefined) {
+    const lat = Number(location.lat);
+    const lng = Number(location.lng);
+    if (!Number.isNaN(lat) && !Number.isNaN(lng)) return { lat, lng };
+  }
+  return null;
 }
 
 export interface UserRecord {

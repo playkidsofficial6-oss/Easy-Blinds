@@ -1,39 +1,64 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Download, Send, Edit, Phone, Mail, Calendar, FileText, CheckCircle, Clock, XCircle } from "lucide-react";
+import { ArrowLeft, Download, Send, Edit, Phone, Mail, Calendar, FileText, CheckCircle, Clock, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
-
-// Mock data function to simulate fetching a quote
-const getQuote = (id: string) => {
-    return {
-        id,
-        clientName: "Ahmed Al Mansoori",
-        clientPhone: "+971 50 123 4567",
-        clientEmail: "ahmed.m@example.com",
-        status: "Approved",
-        createdAt: "2024-01-15",
-        sentAt: "2024-01-16",
-        approvedAt: "2024-01-17",
-        lineItems: [
-            { id: "1", description: "Living Room - Motorized Roller Blinds (Somfy Motor)", quantity: 3, unitPrice: 2500 },
-            { id: "2", description: "Master Bedroom - Blackout Curtains (Velvet)", quantity: 2, unitPrice: 1800 },
-            { id: "3", description: "Installation Service", quantity: 1, unitPrice: 1400 },
-        ],
-        subtotal: 12500,
-        vat: 625,
-        total: 13125,
-        notes: "Installation to be scheduled on weekends only as per client request."
-    };
-};
+import { getJobs } from "@/lib/jobs";
+import { useAuth } from "@/components/providers/auth-provider";
+import { toast } from "sonner";
 
 export default function ViewQuotePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
-    const quote = getQuote(id);
+    const { user } = useAuth();
+    const [quote, setQuote] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchQuote = async () => {
+            if (!user?._id) return;
+            try {
+                const response = await getJobs({ limit: 100 });
+                const assignedJobs = response.items.filter((job) =>
+                    job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email
+                );
+                
+                // Find the job containing this quotation ID
+                const jobWithQuote = assignedJobs.find(job => job.quotation?.id === id);
+                
+                if (jobWithQuote && jobWithQuote.quotation) {
+                    const q = jobWithQuote.quotation;
+                    
+                    // Normalize the data structure
+                    setQuote({
+                        id: q.id,
+                        clientName: q.client || jobWithQuote.customerName,
+                        clientPhone: q.clientPhone || jobWithQuote.customerPhone,
+                        clientEmail: q.clientEmail || jobWithQuote.customerEmail || "Not Provided",
+                        status: q.status || "Draft",
+                        createdAt: q.date,
+                        sentAt: q.sentDate,
+                        lineItems: q.items || [],
+                        subtotal: q.items?.reduce((sum: number, item: any) => sum + (item.price || item.unitPrice || 0) * (item.quantity || 1), 0) || 0,
+                        vat: (q.items?.reduce((sum: number, item: any) => sum + (item.price || item.unitPrice || 0) * (item.quantity || 1), 0) || 0) * 0.05,
+                        total: q.total,
+                        notes: q.notes || "No additional notes."
+                    });
+                } else {
+                    toast.error("Quote not found");
+                }
+            } catch (error) {
+                toast.error("Failed to load quote details");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        void fetchQuote();
+    }, [id, user?._id, user?.email, user?.name]);
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -62,10 +87,25 @@ export default function ViewQuotePage({ params }: { params: Promise<{ id: string
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto pb-20">
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center h-64 gap-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-neutral-400" />
+                    <p className="text-neutral-500 font-light">Loading Quote Details...</p>
+                </div>
+            ) : !quote ? (
+                <div className="flex flex-col items-center justify-center h-64 gap-4">
+                    <XCircle className="w-12 h-12 text-neutral-300" />
+                    <h2 className="text-2xl font-light text-neutral-700">Quote Not Found</h2>
+                    <Link href="/salesman/quotes">
+                        <Button variant="outline">Back to Quotes</Button>
+                    </Link>
+                </div>
+            ) : (
+                <>
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Link href="/field/quotes">
+                    <Link href="/salesman/quotes">
                         <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
@@ -128,12 +168,12 @@ export default function ViewQuotePage({ params }: { params: Promise<{ id: string
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                                        {quote.lineItems.map((item) => (
+                                        {quote.lineItems.map((item: any) => (
                                             <tr key={item.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/50">
-                                                <td className="px-6 py-4 font-medium text-neutral-900 dark:text-white">{item.description}</td>
-                                                <td className="px-6 py-4 text-center text-neutral-600 dark:text-neutral-400">{item.quantity}</td>
-                                                <td className="px-6 py-4 text-right text-neutral-600 dark:text-neutral-400">AED {item.unitPrice.toLocaleString()}</td>
-                                                <td className="px-6 py-4 text-right font-medium text-neutral-900 dark:text-white">AED {(item.quantity * item.unitPrice).toLocaleString()}</td>
+                                                <td className="px-6 py-4 font-medium text-neutral-900 dark:text-white">{item.description || item.name}</td>
+                                                <td className="px-6 py-4 text-center text-neutral-600 dark:text-neutral-400">{item.quantity || 1}</td>
+                                                <td className="px-6 py-4 text-right text-neutral-600 dark:text-neutral-400">AED {(item.unitPrice || item.price || 0).toLocaleString()}</td>
+                                                <td className="px-6 py-4 text-right font-medium text-neutral-900 dark:text-white">AED {((item.quantity || 1) * (item.unitPrice || item.price || 0)).toLocaleString()}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -211,6 +251,8 @@ export default function ViewQuotePage({ params }: { params: Promise<{ id: string
                     </Card>
                 </div>
             </div>
+                </>
+            )}
         </div>
     );
 }

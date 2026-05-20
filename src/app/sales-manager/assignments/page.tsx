@@ -19,7 +19,7 @@ import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
 import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
-import { getUserErrorMessage, getUsers, type UserRecord } from "@/lib/users";
+import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
   ssr: false,
@@ -161,13 +161,9 @@ function toSalesmanWorkforceMember(user: UserRecord): Fitter {
     role: "Salesman",
     jobRef: "--",
     status: user.liveStatus ?? "Available",
-    location: user.location
-      ? ([user.location.lat, user.location.lng] as [number, number])
-      : undefined,
+    location: (() => { const ll = extractLatLng(user.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
     locationLabel: user.location?.address,
-    lastUpdated: user.location?.updatedAt
-      ? toReadableLastUpdated(user.location.updatedAt)
-      : "Not updated",
+    lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
     avatar: user.avatar,
     email: user.email,
     phone: user.phone,
@@ -429,7 +425,7 @@ export default function SmartAssignmentsPage() {
       .map((fitter) => ({
         id: fitter.id,
         name: fitter.name,
-        workDetails: `${fitter.schedule.today.length}/${fitter.capacity.max} Jobs Today • Next slot: ${fitter.nextAvailableSlot === "None" ? "N/A" : fitter.nextAvailableSlot}`
+        workDetails: `${fitter.schedule.today.length} Jobs Today • Next slot: ${fitter.nextAvailableSlot === "None" ? "N/A" : fitter.nextAvailableSlot}`
       }));
   }, [selectedJobId, fitters]);
 
@@ -683,7 +679,7 @@ export default function SmartAssignmentsPage() {
                   </div>
                   <div className="p-6 space-y-6 flex-1 overflow-y-auto">
                     <div>
-                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2"><span>Workload ({format(viewDate, "MMM do")})</span><span className={cn(fitter.capacity.remaining === 0 ? "text-red-600" : "text-emerald-600")}>{activeSchedule.length} / {fitter.capacity.max} Assignments</span></div>
+                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2"><span>Workload ({format(viewDate, "MMM do")})</span><span className={cn(fitter.capacity.remaining === 0 ? "text-red-600" : "text-emerald-600")}>{activeSchedule.length} Assignments</span></div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={cn("h-full transition-all", capacityPercent >= 100 ? "bg-red-500" : "bg-emerald-500")} style={{ width: `${capacityPercent}%` }}></div></div>
                     </div>
                     <div>

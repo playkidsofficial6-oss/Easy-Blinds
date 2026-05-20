@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ClientDetails, Room } from "@/types/measurement";
 import { CheckCircle, MapPin, Phone, Calendar, Home } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { updateJob } from "@/lib/jobs";
+import { updateJob, getJob } from "@/lib/jobs";
 import { toast } from "sonner";
 
 import { saveMeasurementToBackend } from "@/lib/measurements";
@@ -105,28 +105,43 @@ export function ReviewStep({
             // Save to dedicated measurements collection in backend
             await saveMeasurementToBackend(backendPayload);
 
-            // Calculate exact elapsed measuring duration from localStorage start timestamp
-            let durationStr = "";
+            let appendedNotes = "";
             if (typeof window !== "undefined") {
-                const startTime = localStorage.getItem(`eb_measurement_start_${jobId}`);
-                if (startTime) {
-                    const elapsed = Math.floor((Date.now() - Number(startTime)) / 1000);
-                    if (elapsed > 0) {
-                        const h = Math.floor(elapsed / 3600);
-                        const mins = Math.floor((elapsed % 3600) / 60);
-                        const secs = elapsed % 60;
-                        durationStr = ` Measuring took ${h > 0 ? h + "h " : ""}${mins}m ${secs}s.`;
-                    }
-                    if (status === "Completed") {
-                        localStorage.removeItem(`eb_measurement_start_${jobId}`);
-                    }
+                const measStart = localStorage.getItem(`eb_measurement_start_${jobId}`);
+                let measSecs = 0;
+                if (measStart) {
+                    measSecs = Math.floor((Date.now() - Number(measStart)) / 1000);
                 }
+                const travelSecs = localStorage.getItem(`eb_travel_secs_${jobId}`);
+                
+                const formatSecs = (s: number) => {
+                    const h = Math.floor(s / 3600);
+                    const m = Math.floor((s % 3600) / 60);
+                    const sec = s % 60;
+                    return `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${sec}s`.trim();
+                };
+
+                appendedNotes = `[TIME_LOG] Travel: ${travelSecs ? formatSecs(Number(travelSecs)) : 'N/A'} | Measuring: ${measSecs > 0 ? formatSecs(measSecs) : 'N/A'}`;
+
+                if (status === "Completed") {
+                    localStorage.removeItem(`eb_measurement_start_${jobId}`);
+                    localStorage.removeItem(`eb_travel_start_${jobId}`);
+                    localStorage.removeItem(`eb_travel_secs_${jobId}`);
+                }
+            }
+
+            let originalNotes = "";
+            try {
+                const job = await getJob(jobId);
+                originalNotes = job.notes || "";
+            } catch (err) {
+                console.warn("Failed to fetch original job notes", err);
             }
 
             // Also keep job notes & status updated for backwards compatibility with a concise note
             await updateJob(jobId, {
                 status: status === "Completed" ? "in_progress" : "scheduled",
-                notes: `Time taken: ${durationStr}`,
+                notes: [originalNotes, appendedNotes].filter(Boolean).join("\n"),
             });
         }
     };

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,20 +14,46 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createJob, getJobErrorMessage, type JobPriority } from "@/lib/jobs";
 
-function buildScheduledAt(date: FormDataEntryValue | null, time: FormDataEntryValue | null) {
-  const dateValue = typeof date === "string" ? date : "";
-  const timeValue = typeof time === "string" && time ? time : "09:00";
+const AddressPickerMap = dynamic(() => import("@/components/common/AddressPickerMap"), {
+  ssr: false,
+  loading: () => <div className="h-64 w-full rounded-xl bg-slate-100 animate-pulse mt-2 flex items-center justify-center text-slate-400 text-xs uppercase tracking-widest font-bold">Loading Map...</div>,
+});
 
-  if (!dateValue) {
-    return undefined;
-  }
-
-  return new Date(`${dateValue}T${timeValue}:00`).toISOString();
-}
+// Removed buildScheduledAt, handled inline
 
 export default function NewJobPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isCustomCountryCode, setIsCustomCountryCode] = useState(false);
+  const addressInputRef = useRef<HTMLInputElement>(null);
+
+  const [addressValue, setAddressValue] = useState("");
+  const [mapCoords, setMapCoords] = useState<[number, number] | null>(null);
+
+  const handleAddressSelect = (address: string) => {
+    setAddressValue(address);
+    if (addressInputRef.current) {
+      addressInputRef.current.value = address;
+    }
+  };
+
+  // Synchronize typed address to the map using forward geocoding
+  useEffect(() => {
+    if (!addressValue || addressValue.length < 5) return;
+
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressValue)}&limit=1&countrycodes=ae`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          setMapCoords([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+        }
+      } catch (err) {
+        console.error("Geocoding failed", err);
+      }
+    }, 1200); // 1.2s debounce
+    return () => clearTimeout(timeout);
+  }, [addressValue]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -36,16 +63,36 @@ export default function NewJobPage() {
     const projectValueRaw = formData.get("projectValue");
     const projectValue = projectValueRaw ? Number(projectValueRaw) : undefined;
 
+    const countryCode = String(formData.get("countryCode") || "+971").trim();
+    const phoneNumber = String(formData.get("phoneNumber") || "").trim();
+    const customerPhone = phoneNumber ? `${countryCode} ${phoneNumber}`.trim() : "";
+
+    const dateValue = String(formData.get("scheduledDate") || "").trim();
+    const timeValue = String(formData.get("scheduledTime") || "").trim();
+
+    let scheduledAt: string | undefined = undefined;
+    let appendedNotes = "";
+
+    if (dateValue && timeValue) {
+      scheduledAt = new Date(`${dateValue}T${timeValue}:00`).toISOString();
+    } else if (dateValue && !timeValue) {
+      scheduledAt = new Date(`${dateValue}T00:00:00`).toISOString();
+      appendedNotes = "REQ_DATE_ONLY";
+    } else if (!dateValue && timeValue) {
+      appendedNotes = `REQ_TIME_ONLY:${timeValue}`;
+    }
+
     try {
       await createJob({
         customerName: String(formData.get("customerName") || "").trim(),
-        customerPhone: String(formData.get("customerPhone") || "").trim(),
+        customerPhone: customerPhone,
         address: String(formData.get("address") || "").trim(),
         propertyType: String(formData.get("propertyType") || "").trim() || undefined,
         projectValue: Number.isFinite(projectValue) ? projectValue : undefined,
         priority: String(formData.get("priority") || "medium") as JobPriority,
         status: "pending",
-        scheduledAt: buildScheduledAt(formData.get("scheduledDate"), formData.get("scheduledTime")),
+        scheduledAt,
+        notes: appendedNotes || undefined,
       });
 
       toast.success("Job created and saved successfully.");
@@ -101,15 +148,81 @@ export default function NewJobPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="customerPhone">WhatsApp Number</Label>
-              <Input id="customerPhone" name="customerPhone" type="tel" required placeholder="+971 50 123 4567" />
+              <Label htmlFor="phoneNumber">WhatsApp Number</Label>
+              <div className="flex gap-2 items-center">
+                {!isCustomCountryCode ? (
+                  <Select 
+                    name="countryCode" 
+                    defaultValue="+971"
+                    onValueChange={(val) => {
+                      if (val === "custom") {
+                        setIsCustomCountryCode(true);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[120px]">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      <SelectItem value="+971">🇦🇪 +971</SelectItem>
+                      <SelectItem value="+966">🇸🇦 +966</SelectItem>
+                      <SelectItem value="+974">🇶🇦 +974</SelectItem>
+                      <SelectItem value="+973">🇧🇭 +973</SelectItem>
+                      <SelectItem value="+965">🇰🇼 +965</SelectItem>
+                      <SelectItem value="+968">🇴🇲 +968</SelectItem>
+                      <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                      <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                      <SelectItem value="+91">🇮🇳 +91</SelectItem>
+                      <SelectItem value="+92">🇵🇰 +92</SelectItem>
+                      <SelectItem value="+63">🇵🇭 +63</SelectItem>
+                      <SelectItem value="custom">✏️ Custom...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="flex gap-1 items-center">
+                    <Input 
+                      name="countryCode" 
+                      defaultValue="+"
+                      placeholder="+971" 
+                      className="w-[80px]" 
+                      autoFocus
+                    />
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setIsCustomCountryCode(false)}
+                      className="px-2 h-10 text-xs text-slate-400 hover:text-slate-600"
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                )}
+                <Input id="phoneNumber" name="phoneNumber" type="tel" required placeholder="50 123 4567" className="flex-1" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="address">Area / Location</Label>
+                <div className="relative">
+                  <Input
+                    ref={addressInputRef}
+                    id="address"
+                    name="address"
+                    required
+                    minLength={5}
+                    maxLength={250}
+                    placeholder="Search Area or click on the map below..."
+                    value={addressValue}
+                    onChange={(e) => setAddressValue(e.target.value)}
+                  />
+                  <AddressPickerMap onAddressSelect={handleAddressSelect} externalCoords={mapCoords} />
+                </div>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="address">Area / Location</Label>
-                <Input id="address" name="address" required minLength={5} maxLength={250} placeholder="e.g. Downtown Dubai" />
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="projectValue">Project Value (AED)</Label>
                 <Input id="projectValue" name="projectValue" type="number" step="0.01" min="0" placeholder="0.00" />
