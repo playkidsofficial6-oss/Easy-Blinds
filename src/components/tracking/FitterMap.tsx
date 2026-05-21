@@ -153,8 +153,13 @@ function normalizeStatus(status?: string, isOnline = true): LiveMarkerStatus {
   const normalizedStatus = status?.toLowerCase() ?? "";
 
   if (normalizedStatus.includes("offline") || normalizedStatus.includes("busy")) return "Offline";
+  if (
+    normalizedStatus.includes("way") ||
+    normalizedStatus.includes("travel") ||
+    normalizedStatus.includes("ongoing") ||
+    normalizedStatus.includes("moving")
+  ) return "On The Way";
   if (normalizedStatus.includes("progress") || normalizedStatus.includes("working")) return "Working";
-  if (normalizedStatus.includes("way") || normalizedStatus.includes("travel")) return "On The Way";
   if (normalizedStatus.includes("booked")) return "Working";
 
   return "Available";
@@ -389,9 +394,9 @@ function SmoothLiveMarker({
       <Tooltip
         permanent
         direction="top"
-        offset={[0, marker.role === "Salesman" && marker.status === "On The Way" ? -30 : -36]}
+        offset={[0, marker.role === "Salesman" && marker.status === "On The Way" ? -26 : -36]}
         opacity={1}
-        className="custom-tooltip bg-white border border-slate-200 shadow-md rounded px-2 py-1"
+        className="custom-tooltip bg-white/90 border border-slate-200 shadow-md rounded px-2 py-1 backdrop-blur-sm"
       >
         <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
           {marker.name}
