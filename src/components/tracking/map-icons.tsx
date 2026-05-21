@@ -56,73 +56,50 @@ export function createLiveMarkerIcon({
     <div
       style={{
         position: "relative",
-        width: "68px",
-        height: "46px",
+        width: "78px",
+        height: "54px",
+        filter: "drop-shadow(0 13px 16px rgba(15, 23, 42, 0.28))",
         transform: `rotate(${bearing}deg)`,
         transformOrigin: "center",
       }}
     >
+      <svg xmlns="http://www.w3.org/2000/svg" width="78" height="54" viewBox="0 0 78 54" fill="none" aria-hidden="true">
+        <ellipse cx="39" cy="46" rx="30" ry="5" fill="rgba(15,23,42,0.22)" />
+        <path d="M12.8 31.4c.7-5.2 4.1-9 9.4-10.1l7.1-9.2c1.6-2.1 4.1-3.3 6.8-3.3h13.5c3.3 0 6.4 1.8 8 4.7l4 7.2c5.9 1.3 9.7 5.5 10 11.1l.2 4.2c.1 2.5-1.8 4.7-4.3 4.9l-4.8.4c-1-4.7-5.2-8.2-10.2-8.2-5.1 0-9.3 3.6-10.3 8.4H31.9c-1-4.8-5.2-8.4-10.3-8.4-5 0-9.2 3.5-10.2 8.2l-2.2-.2c-2.6-.2-4.5-2.5-4.1-5.1l.7-4.6h7Z" fill="#f97316" />
+        <path d="M14.2 30.6c1-3.8 3.8-6.2 8.4-7.1l7.9-10.1c1.2-1.5 3-2.4 4.9-2.4h13.1c2.5 0 4.8 1.4 6 3.6l4.4 8.1c5.6.8 9.4 4.2 10.2 8.9l.2 1.2c-8.8-1.2-17.8-1.7-27-1.7-9.6 0-19 .5-28.1 1.6v-2.1Z" fill="url(#carBodyGradient)" />
+        <path d="M31.5 15.2h9.1v8.6H25.2l6.3-8.6Z" fill="#93c5fd" />
+        <path d="M43.5 15.2h5.4c1.4 0 2.7.8 3.4 2l3.6 6.6H43.5v-8.6Z" fill="#60a5fa" />
+        <path d="M29.8 15.8h10.8v2.1H28.3l1.5-2.1ZM43.5 15.8h5.3c1.3 0 2.5.8 3 1.9l.5 1H43.5v-2.9Z" fill="rgba(255,255,255,0.45)" />
+        <path d="M12.5 31.7h7.7c1.2 0 2.2 1 2.2 2.2v.3h-9.9v-2.5Z" fill="#fed7aa" />
+        <path d="M64.7 31.8h5.9l.2 2.5h-8.3v-.3c0-1.2 1-2.2 2.2-2.2Z" fill="#fde68a" />
+        <path d="M24.3 25.7h33.2" stroke="rgba(154,52,18,0.35)" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M41.7 13.2v18.2" stroke="rgba(154,52,18,0.32)" strokeWidth="1.5" strokeLinecap="round" />
+        <circle cx="21.6" cy="41.4" r="8.2" fill="#111827" />
+        <circle cx="21.6" cy="41.4" r="4.1" fill="#9ca3af" />
+        <circle cx="21.6" cy="41.4" r="1.8" fill="#f8fafc" />
+        <circle cx="52.6" cy="41.4" r="8.2" fill="#111827" />
+        <circle cx="52.6" cy="41.4" r="4.1" fill="#9ca3af" />
+        <circle cx="52.6" cy="41.4" r="1.8" fill="#f8fafc" />
+        <path d="M17.9 20.8c2.1-.9 4.5-1.5 7.4-1.8" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" />
+        <defs>
+          <linearGradient id="carBodyGradient" x1="17" y1="12" x2="63" y2="38" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#fb923c" />
+            <stop offset="0.55" stopColor="#f97316" />
+            <stop offset="1" stopColor="#c2410c" />
+          </linearGradient>
+        </defs>
+      </svg>
       <div
         style={{
           position: "absolute",
-          left: "8px",
-          bottom: "8px",
-          width: "52px",
-          height: "23px",
-          borderRadius: "13px 17px 8px 8px",
-          background: "linear-gradient(145deg, #fb923c 0%, #f97316 58%, #ea580c 100%)",
-          border: "2px solid rgba(154, 52, 18, 0.5)",
-          boxShadow: "0 10px 18px rgba(15, 23, 42, 0.24)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "23px",
-          bottom: "28px",
-          width: "25px",
-          height: "16px",
-          borderRadius: "11px 13px 4px 4px",
-          background: "linear-gradient(145deg, #fb923c 0%, #f97316 100%)",
-          border: "2px solid rgba(154, 52, 18, 0.48)",
-          borderBottom: "0",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "27px",
-          bottom: "31px",
-          width: "8px",
-          height: "8px",
-          borderRadius: "2px",
-          background: "#60a5fa",
-          boxShadow: "12px 0 0 #60a5fa",
-          opacity: 0.95,
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          left: "15px",
-          bottom: "3px",
+          right: "8px",
+          top: "11px",
           width: "10px",
           height: "10px",
           borderRadius: "50%",
-          background: "#111827",
-          border: "2px solid #9ca3af",
-          boxShadow: "32px 0 0 #111827, 32px 0 0 2px #9ca3af",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          right: "5px",
-          bottom: "16px",
-          width: "5px",
-          height: "5px",
-          borderRadius: "50%",
-          background: "#fde68a",
+          background: accentColor,
+          border: "2px solid white",
+          boxShadow: "0 2px 6px rgba(15, 23, 42, 0.28)",
         }}
       />
     </div>
@@ -227,8 +204,8 @@ export function createLiveMarkerIcon({
       <div
         style={{
           position: "absolute",
-          bottom: isMovingSalesman ? "19px" : "10px",
-          right: isMovingSalesman ? "20px" : "10px",
+          bottom: isMovingSalesman ? "16px" : "10px",
+          right: isMovingSalesman ? "14px" : "10px",
           width: "13px",
           height: "13px",
           backgroundColor: statusConf.color,
