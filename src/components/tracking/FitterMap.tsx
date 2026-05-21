@@ -1,6 +1,5 @@
-"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -13,15 +12,21 @@ import {
 import "leaflet/dist/leaflet.css";
 import { Fitter } from "@/lib/live-store";
 import L from "leaflet";
-import { renderToStaticMarkup } from "react-dom/server";
 import { format, isPast, parse, parseISO } from "date-fns";
 import { useLiveLocation } from "@/hooks";
 import type { LiveLocationRecord } from "@/types/live-location";
+import {
+  createCompanyMarkerIcon,
+  createLiveMarkerIcon,
+  EASYBLINDS_HQ,
+  MARKER_STATUS_CONFIG,
+  type LiveMarkerRole,
+  type LiveMarkerStatus,
+} from "./map-icons";
 
 const OFFLINE_LOCATION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-type LiveMarkerStatus = "Available" | "Working" | "On The Way" | "Offline";
-type LiveMarkerRole = "Salesman" | "Fitter";
+const KERALA_CENTER: [number, number] = [10.8505, 76.2711];
+const MARKER_ANIMATION_MS = 1200;
 
 interface LiveMapMarker {
   id: string;
@@ -30,12 +35,16 @@ interface LiveMapMarker {
   status: LiveMarkerStatus;
   position: [number, number];
   avatar?: string;
+  phone?: string;
   lastUpdated: string;
   lastUpdatedAt?: string;
   isLate: boolean;
   isLiveLocation: boolean;
   clusterIndex?: number;
   clusterTotal?: number;
+  speed?: number;
+  heading?: number;
+  assignedJobCount: number;
 }
 
 // Check for late status helper (same logic as FitterList)
@@ -55,56 +64,65 @@ function isLate(fitter: Fitter) {
   });
 }
 
-function MapUpdater({ center }: { center: [number, number] }) {
-  const map = useMap();
-
-  useEffect(() => {
-    map.flyTo(center, 13, { duration: 1.5 });
-    setTimeout(() => map.invalidateSize(), 500);
-  }, [center, map]);
-
-  return null;
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180;
 }
 
-interface FitterMapProps {
-  fitters: Fitter[];
-  selectedFitterId: string | null;
-  onSelectFitter: (id: string) => void;
-  filterRole?: "Salesman" | "Fitter";
-  selectedJob?: {
-    id: string;
-    location: { lat: number; lng: number };
-    address: string;
-    client: string;
-  } | null;
+function toDegrees(value: number): number {
+  return (value * 180) / Math.PI;
 }
 
-const statusConfig: Record<LiveMarkerStatus | "Late", { color: string; ringColor: string }> = {
-  Late: { color: "#ef4444", ringColor: "rgba(239, 68, 68, 0.4)" },
-  Available: { color: "#16a34a", ringColor: "rgba(22, 163, 74, 0.4)" },
-  Working: { color: "#2563eb", ringColor: "rgba(37, 99, 235, 0.4)" },
-  "On The Way": { color: "#f97316", ringColor: "rgba(249, 115, 22, 0.4)" },
-  Offline: { color: "#ef4444", ringColor: "rgba(239, 68, 68, 0.3)" },
-};
-
-function normalizeStatus(status?: string, isOnline = true): LiveMarkerStatus {
-  if (!isOnline) return "Offline";
-
-  const normalizedStatus = status?.toLowerCase() ?? "";
-
-  if (normalizedStatus.includes("offline")) return "Offline";
-  if (normalizedStatus.includes("progress") || normalizedStatus.includes("working")) return "Working";
-  if (normalizedStatus.includes("way")) return "On The Way";
-  if (normalizedStatus.includes("booked")) return "Working";
-
-  return "Available";
+function distanceKm(start: [number, number], end: [number, number]): number {
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(end[0] - start[0]);
+  const dLng = toRadians(end[1] - start[1]);
+  const lat1 = toRadians(start[0]);
+  const lat2 = toRadians(end[0]);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function normalizeRole(role?: string): LiveMarkerRole {
-  const normalizedRole = role?.toLowerCase() ?? "";
+function calculateBearing(start: [number, number], end: [number, number]): number {
+  if (start[0] === end[0] && start[1] === end[1]) return 0;
 
-  if (normalizedRole.includes("sales")) return "Salesman";
-  return "Fitter";
+  const startLat = toRadians(start[0]);
+  const endLat = toRadians(end[0]);
+  const dLng = toRadians(end[1] - start[1]);
+  const y = Math.sin(dLng) * Math.cos(endLat);
+  const x = Math.cos(startLat) * Math.sin(endLat) - Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
+  return (toDegrees(Math.atan2(y, x)) + 360) % 360;
+}
+
+function estimateEtaMinutes(distance: number): number {
+  return Math.max(1, Math.round((distance / 32) * 60));
+}
+
+function formatEta(minutes?: number | null): string {
+  if (!minutes) return "Calculating";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `${hours} hr ${remainder} min` : `${hours} hr`;
+}
+
+function formatDistance(distance?: number | null): string {
+  if (!distance) return "Calculating";
+  return `${distance.toFixed(distance >= 10 ? 0 : 1)} km`;
+}
+
+function formatSpeed(speed?: number): string {
+  if (typeof speed !== "number" || Number.isNaN(speed)) return "Not available";
+  const kmh = speed > 45 ? speed : speed * 3.6;
+  return `${Math.max(0, kmh).toFixed(0)} km/h`;
+}
+
+function getRoutePreview(marker: LiveMapMarker, selectedJob?: FitterMapProps["selectedJob"] | null) {
+  if (!selectedJob) return { distance: null, eta: null, status: "No active route" };
+  const end: [number, number] = [selectedJob.location.lat, selectedJob.location.lng];
+  const distance = distanceKm(marker.position, end);
+  const eta = estimateEtaMinutes(distance);
+  const status = marker.status === "On The Way" ? "On the way" : marker.status === "Working" ? "In progress" : "Ready to dispatch";
+  return { distance, eta, status };
 }
 
 function toReadableLastUpdated(source?: string) {
@@ -129,6 +147,30 @@ function isTimedOutOffline(location: LiveLocationRecord, now: number) {
   return now - lastUpdatedTime > OFFLINE_LOCATION_TIMEOUT_MS;
 }
 
+function normalizeStatus(status?: string, isOnline = true): LiveMarkerStatus {
+  if (!isOnline) return "Offline";
+
+  const normalizedStatus = status?.toLowerCase() ?? "";
+
+  if (normalizedStatus.includes("offline") || normalizedStatus.includes("busy")) return "Offline";
+  if (normalizedStatus.includes("progress") || normalizedStatus.includes("working")) return "Working";
+  if (normalizedStatus.includes("way") || normalizedStatus.includes("travel")) return "On The Way";
+  if (normalizedStatus.includes("booked")) return "Working";
+
+  return "Available";
+}
+
+function normalizeRole(role?: string): LiveMarkerRole {
+  const normalizedRole = role?.toLowerCase() ?? "";
+
+  if (normalizedRole.includes("sales")) return "Salesman";
+  return "Fitter";
+}
+
+function assignedJobCount(fitter: Fitter): number {
+  return fitter.schedule.today.length + fitter.schedule.tomorrow.length + fitter.schedule.upcoming.length;
+}
+
 function buildFitterMarker(
   fitter: Fitter,
   liveLocation?: LiveLocationRecord,
@@ -150,16 +192,21 @@ function buildFitterMarker(
     status,
     position,
     avatar: fitter.avatar,
+    phone: fitter.phone,
     lastUpdated: lastUpdatedAt ? toReadableLastUpdated(lastUpdatedAt) : fitter.lastUpdated,
     lastUpdatedAt,
     isLate: isLate(fitter),
     isLiveLocation: Boolean(liveLocation),
+    speed: liveLocation?.speed,
+    heading: liveLocation?.heading,
+    assignedJobCount: assignedJobCount(fitter),
   };
 }
 
 function buildLiveLocationMarker(location: LiveLocationRecord): LiveMapMarker {
   const lastUpdatedAt = location.lastUpdatedAt ?? location.updatedAt;
   const userName = location.user?.name ?? `User ${location.userId.slice(-6)}`;
+  const userPhone = (location.user as { phone?: string } | undefined)?.phone;
 
   return {
     id: location.userId,
@@ -167,369 +214,15 @@ function buildLiveLocationMarker(location: LiveLocationRecord): LiveMapMarker {
     role: normalizeRole(location.role),
     status: normalizeStatus(location.role, location.isOnline),
     position: [location.lat, location.lng],
+    phone: userPhone,
     lastUpdated: toReadableLastUpdated(lastUpdatedAt),
     lastUpdatedAt,
     isLate: false,
     isLiveLocation: true,
+    speed: location.speed,
+    heading: location.heading,
+    assignedJobCount: 0,
   };
-}
-
-function createCustomIcon(
-  status: LiveMarkerStatus,
-  late: boolean,
-  avatarUrl?: string,
-  name?: string,
-  role?: LiveMarkerRole,
-  clusterIndex = 0,
-  clusterTotal = 1,
-) {
-  const activeStatus = late ? "Late" : status;
-  const statusConf = statusConfig[activeStatus];
-  const isPulsing = status !== "Offline" || late;
-  const isOnTheWay = status === "On The Way";
-  const roleColor = role === "Salesman" ? "#16a34a" : "#2563eb";
-  const roleRingColor = role === "Salesman" ? "rgba(22, 163, 74, 0.4)" : "rgba(37, 99, 235, 0.4)";
-
-  const initials = name
-    ?.split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || (role === "Salesman" ? "SM" : "FT");
-
-  // Car SVG — uses same role color so it matches the existing theme
-  const carSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${roleColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2z"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/><path d="M5 9l2-4h10l2 4"/></svg>`;
-
-  const html = renderToStaticMarkup(
-    <div
-      style={{
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "60px",
-        height: "60px",
-        zIndex: clusterIndex,
-      }}
-    >
-      {isPulsing && (
-        <div
-          style={{
-            position: "absolute",
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            backgroundColor: roleRingColor,
-            animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
-            opacity: 0.75,
-          }}
-        />
-      )}
-
-      <div
-        style={{
-          position: "relative",
-          width: "48px",
-          height: "48px",
-          borderRadius: "50%",
-          backgroundColor: "white",
-          padding: "2px",
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            border: `2px solid ${roleColor}`,
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "#f8fafc",
-            position: "relative",
-          }}
-        >
-          {isOnTheWay ? (
-            // Show car icon + first letter stacked when salesman is on the way
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "1px",
-                width: "100%",
-                height: "100%",
-              }}
-            >
-              <div
-                // eslint-disable-next-line react/no-danger
-                dangerouslySetInnerHTML={{ __html: carSvg }}
-                style={{ lineHeight: 0, display: "flex" }}
-              />
-              <span style={{ fontSize: "8px", fontWeight: "bold", color: roleColor, lineHeight: 1 }}>
-                {name ? name.charAt(0).toUpperCase() : initials.charAt(0)}
-              </span>
-            </div>
-          ) : avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              alt={name || "User"}
-            />
-          ) : (
-            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#64748b" }}>
-              {initials}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          bottom: "6px",
-          right: "6px",
-          width: "12px",
-          height: "12px",
-          backgroundColor: statusConf.color,
-          border: "2px solid white",
-          borderRadius: "50%",
-          zIndex: 20,
-        }}
-      />
-    </div>,
-  );
-
-  let offsetX = 0;
-  let offsetY = 0;
-  if (clusterTotal > 1) {
-    const angle = (clusterIndex / clusterTotal) * Math.PI * 2;
-    offsetX = Math.round(Math.cos(angle) * 36);
-    offsetY = Math.round(Math.sin(angle) * 36);
-  }
-
-  return L.divIcon({
-    html,
-    className: "custom-map-marker",
-    iconSize: [60, 60],
-    iconAnchor: [30 - offsetX, 30 - offsetY],
-    popupAnchor: [offsetX, -28 + offsetY],
-  });
-}
-
-interface LiveMarkersListProps {
-  fitters: Fitter[];
-  liveLocations: LiveLocationRecord[];
-  filterRole?: "Salesman" | "Fitter";
-  selectedFitterId: string | null;
-  onSelectFitter: (id: string) => void;
-}
-
-function LiveMarkersList({
-  fitters,
-  liveLocations,
-  filterRole,
-  selectedFitterId,
-  onSelectFitter,
-}: LiveMarkersListProps) {
-  const map = useMap();
-  const [version, setVersion] = useState(0);
-
-  useEffect(() => {
-    const onMoveOrZoom = () => {
-      setVersion((v) => v + 1);
-    };
-    map.on("zoomend", onMoveOrZoom);
-    map.on("moveend", onMoveOrZoom);
-    return () => {
-      map.off("zoomend", onMoveOrZoom);
-      map.off("moveend", onMoveOrZoom);
-    };
-  }, [map]);
-
-  const groupedMarkers = useMemo(() => {
-    const rawMarkers = buildMapMarkers(fitters, liveLocations, filterRole);
-    const groups: LiveMapMarker[][] = [];
-
-    for (const marker of rawMarkers) {
-      let added = false;
-      const markerPoint = map.latLngToContainerPoint(L.latLng(marker.position[0], marker.position[1]));
-
-      for (const group of groups) {
-        const firstInGroup = group[0];
-        const groupPoint = map.latLngToContainerPoint(L.latLng(firstInGroup.position[0], firstInGroup.position[1]));
-
-        // Group together if visual distance is less than 55 pixels on screen
-        if (markerPoint.distanceTo(groupPoint) < 55) {
-          group.push(marker);
-          added = true;
-          break;
-        }
-      }
-
-      if (!added) {
-        groups.push([marker]);
-      }
-    }
-
-    const result: LiveMapMarker[] = [];
-    for (const group of Object.values(groups)) {
-      if (group.length === 1) {
-        result.push(group[0]);
-      } else {
-        group.forEach((marker, index) => {
-          result.push({
-            ...marker,
-            clusterIndex: index,
-            clusterTotal: group.length,
-          });
-        });
-      }
-    }
-
-    return result;
-  }, [fitters, liveLocations, filterRole, version, map]);
-
-  return (
-    <>
-      {groupedMarkers.map((marker) => (
-        <Marker
-          key={marker.id}
-          position={marker.position}
-          icon={createCustomIcon(
-            marker.status,
-            marker.isLate,
-            marker.avatar,
-            marker.name,
-            marker.role,
-            marker.clusterIndex,
-            marker.clusterTotal,
-          )}
-          eventHandlers={{
-            click: () => onSelectFitter(marker.id),
-          }}
-        >
-          <Tooltip
-            direction="top"
-            offset={[0, -30]}
-            opacity={1}
-            className="custom-tooltip bg-white border border-slate-200 shadow-md rounded-sm px-2 py-1"
-          >
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
-              {marker.name}
-            </div>
-          </Tooltip>
-          <Popup closeButton={false} className="live-location-popup">
-            <div className="min-w-40 space-y-1 text-xs text-slate-600">
-              <div className="text-sm font-semibold text-slate-900">{marker.name}</div>
-              <div className="flex justify-between gap-4">
-                <span className="font-medium text-slate-500">Role</span>
-                <span>{marker.role}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="font-medium text-slate-500">Status</span>
-                <span>{marker.isLate ? "Late" : marker.status}</span>
-              </div>
-              <div className="flex justify-between gap-4">
-                <span className="font-medium text-slate-500">Last updated</span>
-                <span>{marker.lastUpdated}</span>
-              </div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </>
-  );
-}
-
-function RoutingPolyline({
-  start,
-  end,
-  markerId,
-}: {
-  start: [number, number];
-  end: [number, number];
-  markerId: string;
-}) {
-  const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
-  const [distanceKm, setDistanceKm] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    const fetchRoute = async () => {
-      try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        if (!res.ok) {
-          // OSRM could not find a route (e.g. cross-country, no road data).
-          // Fall back to straight-line display without crashing.
-          if (active) {
-            setRouteCoords(null);
-            // Compute straight-line distance as fallback label
-            const R = 6371;
-            const dLat = (end[0] - start[0]) * Math.PI / 180;
-            const dLon = (end[1] - start[1]) * Math.PI / 180;
-            const a = Math.sin(dLat / 2) ** 2 + Math.cos(start[0] * Math.PI / 180) * Math.cos(end[0] * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-            const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            setDistanceKm(`~${dist.toFixed(1)}`);
-          }
-          return;
-        }
-        const data = await res.json();
-        if (data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          const coords = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
-          if (active) {
-            setRouteCoords(coords);
-            setDistanceKm((route.distance / 1000).toFixed(1));
-          }
-        }
-      } catch {
-        // Network error — silently fall back, no console spam
-        if (active) setRouteCoords(null);
-      }
-    };
-    fetchRoute();
-    return () => { active = false; };
-  }, [start[0], start[1], end[0], end[1]]);
-
-  if (!routeCoords) {
-    return (
-      <Polyline
-        key={`line-loading-${markerId}`}
-        positions={[start, end]}
-        color="#94a3b8"
-        weight={2}
-        dashArray="5, 10"
-        opacity={0.6}
-      >
-        <Tooltip permanent direction="center" className="bg-white/90 border border-slate-200 px-1 py-0.5 rounded text-[9px] font-bold text-slate-600">
-          Calculating...
-        </Tooltip>
-      </Polyline>
-    );
-  }
-
-  return (
-    <Polyline
-      key={`line-route-${markerId}`}
-      positions={routeCoords}
-      color="#3b82f6"
-      weight={4}
-      opacity={0.8}
-    >
-      <Tooltip permanent direction="center" className="bg-white/90 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-bold text-blue-700 shadow-sm">
-        {distanceKm} km
-      </Tooltip>
-    </Polyline>
-  );
 }
 
 function buildMapMarkers(
@@ -561,10 +254,370 @@ function buildMapMarkers(
   let allMarkers = [...fitterMarkers, ...liveOnlyMarkers];
   
   if (filterRole) {
-    allMarkers = allMarkers.filter((m) => m.role === filterRole);
+    allMarkers = allMarkers.filter((marker) => marker.role === filterRole);
   }
 
   return allMarkers;
+}
+
+function MapCameraController({
+  center,
+  markers,
+  selectedJob,
+  selectedMarker,
+}: {
+  center: [number, number];
+  markers: LiveMapMarker[];
+  selectedJob?: FitterMapProps["selectedJob"] | null;
+  selectedMarker?: LiveMapMarker;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (selectedJob) {
+      const boundsPoints: [number, number][] = [[selectedJob.location.lat, selectedJob.location.lng]];
+      if (selectedMarker) {
+        boundsPoints.push(selectedMarker.position);
+      } else {
+        boundsPoints.push(...markers.map((marker) => marker.position));
+      }
+
+      if (boundsPoints.length > 1) {
+        map.flyToBounds(L.latLngBounds(boundsPoints), {
+          padding: [70, 70],
+          maxZoom: 14,
+          duration: 1.1,
+        });
+      } else {
+        map.flyTo(center, 13, { duration: 1.1 });
+      }
+    } else {
+      map.flyTo(center, 13, { duration: 1.1 });
+    }
+
+    const timeoutId = window.setTimeout(() => map.invalidateSize(), 500);
+    return () => window.clearTimeout(timeoutId);
+  }, [center, map, markers, selectedJob, selectedMarker]);
+
+  return null;
+}
+
+function SmoothLiveMarker({
+  marker,
+  selectedJob,
+  onSelectFitter,
+}: {
+  marker: LiveMapMarker;
+  selectedJob?: FitterMapProps["selectedJob"] | null;
+  onSelectFitter: (id: string) => void;
+}) {
+  const markerRef = useRef<L.Marker | null>(null);
+  const previousPositionRef = useRef<[number, number]>(marker.position);
+  const animationFrameRef = useRef<number | null>(null);
+  const [displayPosition, setDisplayPosition] = useState<[number, number]>(marker.position);
+  const [movementBearing, setMovementBearing] = useState(marker.heading ?? 0);
+  const routePreview = getRoutePreview(marker, selectedJob);
+
+  useEffect(() => {
+    const start = previousPositionRef.current;
+    const end = marker.position;
+    if (start[0] === end[0] && start[1] === end[1]) {
+      setDisplayPosition(end);
+      return undefined;
+    }
+
+    const bearing = typeof marker.heading === "number" ? marker.heading : calculateBearing(start, end);
+    setMovementBearing(bearing);
+    const startedAt = performance.now();
+    const leafletMarker = markerRef.current;
+
+    const animate = (timestamp: number) => {
+      const progress = Math.min(1, (timestamp - startedAt) / MARKER_ANIMATION_MS);
+      const easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - ((-2 * progress + 2) ** 2) / 2;
+      const next: [number, number] = [
+        start[0] + (end[0] - start[0]) * easedProgress,
+        start[1] + (end[1] - start[1]) * easedProgress,
+      ];
+      leafletMarker?.setLatLng(next);
+
+      if (progress < 1) {
+        animationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        previousPositionRef.current = end;
+        setDisplayPosition(end);
+      }
+    };
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    animationFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [marker.heading, marker.position]);
+
+  const icon = useMemo(
+    () => createLiveMarkerIcon({
+      status: marker.status,
+      late: marker.isLate,
+      avatarUrl: marker.avatar,
+      name: marker.name,
+      role: marker.role,
+      clusterIndex: marker.clusterIndex,
+      clusterTotal: marker.clusterTotal,
+      bearing: movementBearing,
+    }),
+    [marker.avatar, marker.clusterIndex, marker.clusterTotal, marker.isLate, marker.name, marker.role, marker.status, movementBearing],
+  );
+
+  const statusLabel = marker.isLate ? "Late" : MARKER_STATUS_CONFIG[marker.status].label;
+
+  return (
+    <Marker
+      ref={markerRef}
+      key={marker.id}
+      position={displayPosition}
+      icon={icon}
+      eventHandlers={{
+        click: () => onSelectFitter(marker.id),
+      }}
+    >
+      <Tooltip
+        permanent
+        direction="top"
+        offset={[0, -36]}
+        opacity={1}
+        className="custom-tooltip bg-white/90 border border-slate-200 shadow-md rounded-md px-2 py-1 backdrop-blur"
+      >
+        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
+          {marker.name}
+        </div>
+      </Tooltip>
+      <Popup closeButton={false} className="live-location-popup">
+        <div className="min-w-56 space-y-2 text-xs text-slate-600">
+          <div>
+            <div className="text-sm font-semibold text-slate-900">{marker.name}</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{marker.role}</div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+            <span className="font-medium text-slate-500">Phone</span>
+            <span className="text-right">{marker.phone || "Not available"}</span>
+            <span className="font-medium text-slate-500">Current status</span>
+            <span className="text-right">{statusLabel}</span>
+            <span className="font-medium text-slate-500">Distance</span>
+            <span className="text-right">{formatDistance(routePreview.distance)}</span>
+            <span className="font-medium text-slate-500">ETA</span>
+            <span className="text-right">{formatEta(routePreview.eta)}</span>
+            <span className="font-medium text-slate-500">Travel status</span>
+            <span className="text-right">{routePreview.status}</span>
+            <span className="font-medium text-slate-500">Speed</span>
+            <span className="text-right">{formatSpeed(marker.speed)}</span>
+            <span className="font-medium text-slate-500">Last updated</span>
+            <span className="text-right">{marker.lastUpdated}</span>
+            <span className="font-medium text-slate-500">Assigned jobs</span>
+            <span className="text-right">{marker.assignedJobCount}</span>
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
+interface LiveMarkersListProps {
+  markers: LiveMapMarker[];
+  selectedJob?: FitterMapProps["selectedJob"] | null;
+  selectedFitterId: string | null;
+  onSelectFitter: (id: string) => void;
+}
+
+function LiveMarkersList({
+  markers,
+  selectedJob,
+  selectedFitterId,
+  onSelectFitter,
+}: LiveMarkersListProps) {
+  const map = useMap();
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    const onMoveOrZoom = () => {
+      setVersion((value) => value + 1);
+    };
+    map.on("zoomend", onMoveOrZoom);
+    map.on("moveend", onMoveOrZoom);
+    return () => {
+      map.off("zoomend", onMoveOrZoom);
+      map.off("moveend", onMoveOrZoom);
+    };
+  }, [map]);
+
+  const groupedMarkers = useMemo(() => {
+    const groups: LiveMapMarker[][] = [];
+    const orderedMarkers = [...markers].sort((left, right) => {
+      if (left.id === selectedFitterId) return 1;
+      if (right.id === selectedFitterId) return -1;
+      return 0;
+    });
+    void version;
+
+    for (const marker of orderedMarkers) {
+      let added = false;
+      const markerPoint = map.latLngToContainerPoint(L.latLng(marker.position[0], marker.position[1]));
+
+      for (const group of groups) {
+        const firstInGroup = group[0];
+        const groupPoint = map.latLngToContainerPoint(L.latLng(firstInGroup.position[0], firstInGroup.position[1]));
+
+        if (markerPoint.distanceTo(groupPoint) < 55) {
+          group.push(marker);
+          added = true;
+          break;
+        }
+      }
+
+      if (!added) {
+        groups.push([marker]);
+      }
+    }
+
+    const result: LiveMapMarker[] = [];
+    for (const group of Object.values(groups)) {
+      if (group.length === 1) {
+        result.push(group[0]);
+      } else {
+        group.forEach((marker, index) => {
+          result.push({
+            ...marker,
+            clusterIndex: index,
+            clusterTotal: group.length,
+          });
+        });
+      }
+    }
+
+    return result;
+  }, [markers, selectedFitterId, version, map]);
+
+  return (
+    <>
+      {groupedMarkers.map((marker) => (
+        <SmoothLiveMarker
+          key={marker.id}
+          marker={marker}
+          selectedJob={selectedJob}
+          onSelectFitter={onSelectFitter}
+        />
+      ))}
+    </>
+  );
+}
+
+function RoutingPolyline({
+  start,
+  end,
+  markerId,
+}: {
+  start: [number, number];
+  end: [number, number];
+  markerId: string;
+}) {
+  const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
+  const [distanceLabel, setDistanceLabel] = useState<string | null>(null);
+  const [etaLabel, setEtaLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const fetchRoute = async () => {
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        if (!res.ok) {
+          if (active) {
+            const fallbackDistance = distanceKm(start, end);
+            setRouteCoords(null);
+            setDistanceLabel(`~${formatDistance(fallbackDistance)}`);
+            setEtaLabel(formatEta(estimateEtaMinutes(fallbackDistance)));
+          }
+          return;
+        }
+        const data = await res.json();
+        if (data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const coords = route.geometry.coordinates.map((coordinate: [number, number]) => [coordinate[1], coordinate[0]] as [number, number]);
+          if (active) {
+            setRouteCoords(coords);
+            setDistanceLabel(formatDistance(route.distance / 1000));
+            setEtaLabel(formatEta(Math.max(1, Math.round(route.duration / 60))));
+          }
+        }
+      } catch {
+        if (active) {
+          const fallbackDistance = distanceKm(start, end);
+          setRouteCoords(null);
+          setDistanceLabel(`~${formatDistance(fallbackDistance)}`);
+          setEtaLabel(formatEta(estimateEtaMinutes(fallbackDistance)));
+        }
+      }
+    };
+    fetchRoute();
+    return () => { active = false; };
+  }, [start, end]);
+
+  if (!routeCoords) {
+    return (
+      <Polyline
+        key={`line-loading-${markerId}`}
+        positions={[start, end]}
+        color="#64748b"
+        weight={3}
+        dashArray="6, 12"
+        opacity={0.65}
+      >
+        <Tooltip permanent direction="center" className="bg-white/90 border border-slate-200 px-1.5 py-0.5 rounded text-[9px] font-bold text-slate-600 shadow-sm">
+          {distanceLabel ? `${distanceLabel} · ${etaLabel}` : "Calculating route"}
+        </Tooltip>
+      </Polyline>
+    );
+  }
+
+  return (
+    <>
+      <Polyline
+        key={`route-shadow-${markerId}`}
+        positions={routeCoords}
+        color="#1e293b"
+        weight={8}
+        opacity={0.16}
+      />
+      <Polyline
+        key={`route-${markerId}`}
+        positions={routeCoords}
+        color="#2563eb"
+        weight={5}
+        opacity={0.92}
+        lineCap="round"
+        lineJoin="round"
+      >
+        <Tooltip permanent direction="center" className="bg-white/95 border border-blue-200 px-2 py-1 rounded-md text-[10px] font-bold text-blue-700 shadow-sm">
+          {distanceLabel} · {etaLabel} · Live route
+        </Tooltip>
+      </Polyline>
+      <Polyline
+        key={`route-motion-${markerId}`}
+        positions={routeCoords}
+        color="#93c5fd"
+        weight={3}
+        opacity={0.85}
+        dashArray="2, 14"
+        lineCap="round"
+        className="animated-route-line"
+      />
+    </>
+  );
 }
 
 const jobMarkerIcon = new L.Icon({
@@ -577,6 +630,19 @@ const jobMarkerIcon = new L.Icon({
   tooltipAnchor: [16, -28],
   className: "job-marker"
 });
+
+interface FitterMapProps {
+  fitters: Fitter[];
+  selectedFitterId: string | null;
+  onSelectFitter: (id: string) => void;
+  filterRole?: "Salesman" | "Fitter";
+  selectedJob?: {
+    id: string;
+    location: { lat: number; lng: number };
+    address: string;
+    client: string;
+  } | null;
+}
 
 export default function FitterMap({
   fitters,
@@ -592,7 +658,7 @@ export default function FitterMap({
     reload: reloadLiveLocations,
   } = useLiveLocation();
 
-  // Poll every 30 s so the map refreshes without a page reload
+  // Poll every 30 s so the map refreshes without a page reload; Socket.IO updates continue between polls.
   useEffect(() => {
     const intervalId = setInterval(() => {
       void reloadLiveLocations().catch(() => undefined);
@@ -619,10 +685,20 @@ export default function FitterMap({
           }
         }
 
-        .custom-map-marker {
+        @keyframes routeDash {
+          from { stroke-dashoffset: 24; }
+          to { stroke-dashoffset: 0; }
+        }
+
+        .custom-map-marker,
+        .company-hq-marker {
           background: transparent !important;
           border: 0 !important;
           overflow: visible !important;
+        }
+
+        .animated-route-line {
+          animation: routeDash 1.2s linear infinite;
         }
       `;
       document.head.appendChild(style);
@@ -635,7 +711,8 @@ export default function FitterMap({
   );
   const selectedMarker = markers.find((marker) => marker.id === selectedFitterId);
   const center: [number, number] =
-    selectedJob?.location ? [selectedJob.location.lat, selectedJob.location.lng] : (selectedMarker?.position ?? [10.8505, 76.2711]);
+    selectedJob?.location ? [selectedJob.location.lat, selectedJob.location.lng] : (selectedMarker?.position ?? KERALA_CENTER);
+  const companyMarkerIcon = useMemo(() => createCompanyMarkerIcon(), []);
 
   return (
     <div className="relative h-full w-full">
@@ -645,18 +722,32 @@ export default function FitterMap({
         style={{ height: "100%", width: "100%", background: "#f1f5f9" }}
         zoomControl={false}
         className="h-full w-full relative z-0"
+        zoomAnimation
+        fadeAnimation
+        markerZoomAnimation
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
 
-        <MapUpdater center={center} />
+        <MapCameraController center={center} markers={markers} selectedJob={selectedJob} selectedMarker={selectedMarker} />
+
+        <Marker position={EASYBLINDS_HQ.position} icon={companyMarkerIcon} zIndexOffset={500}>
+          <Tooltip permanent direction="top" offset={[0, -34]} opacity={1} className="bg-white/95 border border-orange-200 shadow-md rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-900">
+            EasyBlinds HQ
+          </Tooltip>
+          <Popup closeButton={false}>
+            <div className="space-y-1 text-xs text-slate-600">
+              <div className="text-sm font-bold text-slate-900">EasyBlinds HQ</div>
+              <div>Nilambur, Kerala</div>
+            </div>
+          </Popup>
+        </Marker>
 
         <LiveMarkersList
-          fitters={fitters}
-          liveLocations={liveLocations}
-          filterRole={filterRole}
+          markers={markers}
+          selectedJob={selectedJob}
           selectedFitterId={selectedFitterId}
           onSelectFitter={onSelectFitter}
         />
