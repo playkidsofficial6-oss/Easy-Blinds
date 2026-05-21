@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeft, Check, ChevronsUpDown, Mail, MapPin, Phone, User, Calendar, Clock, DollarSign, Building, AlertCircle } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, Mail, MapPin, Phone, User, Calendar, Clock, Building, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -330,7 +330,7 @@ export default function NewJobPage() {
                                 <span className="text-slate-500">{country.code}</span>
                               </CommandItem>
                             ))}
-                            <CommandItem
+                            {/* <CommandItem
                               value="custom"
                               onSelect={() => {
                                 setIsCustom(true);
@@ -340,7 +340,7 @@ export default function NewJobPage() {
                             >
                               <Check className="mr-2 h-4 w-4 opacity-0" />
                               <span className="flex-1">✏️ Custom Code...</span>
-                            </CommandItem>
+                            </CommandItem> */}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -482,7 +482,7 @@ export default function NewJobPage() {
             <div className="space-y-2">
               <Label htmlFor="projectValue" className="text-slate-600 dark:text-slate-300">Project Value (AED)</Label>
               <div className="relative">
-                <DollarSign className={cn("w-4 h-4 absolute left-3 top-3 text-slate-400", errors.projectValue && "text-red-500")} />
+                <span className={cn("absolute left-3 top-2.5 text-[11px] font-bold text-slate-400 select-none", errors.projectValue && "text-red-500")}>AED</span>
                 <Input 
                   id="projectValue" 
                   name="projectValue" 
@@ -490,7 +490,7 @@ export default function NewJobPage() {
                   step="0.01" 
                   placeholder="0.00" 
                   onChange={handleInputChange}
-                  className={cn("pl-9 bg-white dark:bg-slate-900", errors.projectValue && "border-red-500 focus-visible:ring-red-500")}
+                  className={cn("pl-12 bg-white dark:bg-slate-900", errors.projectValue && "border-red-500 focus-visible:ring-red-500")}
                 />
               </div>
               {errors.projectValue && <p className="text-sm text-red-500 mt-1">{errors.projectValue}</p>}

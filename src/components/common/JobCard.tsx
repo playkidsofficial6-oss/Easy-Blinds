@@ -15,6 +15,16 @@ function safeFormatDate(dateStr: string) {
     }
 }
 
+function formatDuration(secs: number) {
+    const mins = Math.round(secs / 60);
+    if (mins < 1) return "1 min";
+    if (mins < 60) return `${mins} min${mins > 1 ? 's' : ''}`;
+    const hrs = Math.floor(mins / 60);
+    const remMins = mins % 60;
+    if (remMins === 0) return `${hrs} hr${hrs > 1 ? 's' : ''}`;
+    return `${hrs} hr${hrs > 1 ? 's' : ''} ${remMins} min${remMins > 1 ? 's' : ''}`;
+}
+
 // Unified Job Interface compatible with both pages
 export interface UnifiedJob {
     id: string;
@@ -33,7 +43,7 @@ export interface UnifiedJob {
     endTime?: string;
     requestedDate?: string;
     // For Assignments Page Logic
-    recommendedFitters?: Array<{ id: string; name: string; role?: string; dist?: number; countdownSecs?: number; isFree?: boolean; timerStartedAt?: string; }>;
+    recommendedFitters?: Array<{ id: string; name: string; role?: string; dist?: number; duration?: number; countdownSecs?: number; isFree?: boolean; timerStartedAt?: string; }>;
     team?: string; // Assigned fitter name
     assignedFitterName?: string;
     assignedSalesmanName?: string;
@@ -206,6 +216,12 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                                                     <>
                                                         <span className="text-slate-300">•</span>
                                                         <span>{rec.dist < 1 ? "< 1" : rec.dist.toFixed(1)} km away</span>
+                                                    </>
+                                                )}
+                                                {typeof rec.duration === "number" && (
+                                                    <>
+                                                        <span className="text-slate-300">•</span>
+                                                        <span className="font-semibold text-slate-600 dark:text-slate-400">~{formatDuration(rec.duration)}</span>
                                                     </>
                                                 )}
                                             </div>
