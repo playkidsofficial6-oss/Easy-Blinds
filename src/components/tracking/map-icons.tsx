@@ -64,26 +64,37 @@ export function createLiveMarkerIcon({
       }}
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="58" height="42" viewBox="0 0 58 42" fill="none" aria-hidden="true">
-        <ellipse cx="29" cy="36" rx="21" ry="4" fill="rgba(15,23,42,0.2)" />
-        <path d="M8.8 23.7c.5-3.4 2.7-5.8 6.3-6.5l5-6.3c1.1-1.4 2.7-2.1 4.5-2.1h9.3c2.2 0 4.2 1.2 5.2 3.1l2.8 5.2c4.8.8 7.6 3.4 8.1 7.5l.3 2.7c.2 1.7-1.1 3.2-2.8 3.3l-3.1.2c-.7-3.5-3.8-6.1-7.5-6.1-3.8 0-6.9 2.7-7.6 6.3h-8.5c-.7-3.6-3.8-6.3-7.6-6.3-3.6 0-6.7 2.5-7.5 5.9l-1.3-.1c-1.8-.1-3.1-1.7-2.8-3.5l.5-3.3h4.7Z" fill="#f97316" />
-        <path d="M10.6 22.6c.9-2.4 2.8-3.8 5.6-4.3l5.4-6.8c.7-.9 1.8-1.4 3-1.4h8.6c1.6 0 3.1.9 3.9 2.3l3 5.6c3.9.5 6.5 2.4 7.5 5.5-12.6-1.8-25.1-1.8-37-.2v-.7Z" fill="url(#googleCarGradient)" />
-        <path d="M21.9 13.2h7.3v5.5H17.6l4.3-5.5Z" fill="#7dd3fc" />
-        <path d="M31.1 13.2h3c.9 0 1.7.5 2.1 1.3l2.2 4.2h-7.3v-5.5Z" fill="#38bdf8" />
-        <path d="M20.5 13.8h8.7v1.4h-9.8l1.1-1.4ZM31.1 13.8h3c.8 0 1.5.5 1.9 1.2l.2.4h-5.1v-1.6Z" fill="rgba(255,255,255,0.62)" />
-        <circle cx="13.2" cy="30.9" r="5.7" fill="#111827" />
-        <circle cx="13.2" cy="30.9" r="2.9" fill="#e5e7eb" />
-        <circle cx="13.2" cy="30.9" r="1.1" fill="#64748b" />
-        <circle cx="36.9" cy="30.9" r="5.7" fill="#111827" />
-        <circle cx="36.9" cy="30.9" r="2.9" fill="#e5e7eb" />
-        <circle cx="36.9" cy="30.9" r="1.1" fill="#64748b" />
-        <path d="M8.4 22.6h5.9c.8 0 1.4.6 1.4 1.4v.4H8.4v-1.8Z" fill="#fed7aa" />
-        <path d="M45.2 22.6h4.5l.3 1.8h-6.2V24c0-.8.6-1.4 1.4-1.4Z" fill="#fde68a" />
-        <circle cx="48.4" cy="17.8" r="2.8" fill="#94a3b8" stroke="white" strokeWidth="1.5" />
+        <ellipse cx="28.5" cy="35.4" rx="18.6" ry="3.6" fill="rgba(15,23,42,0.22)" />
+        <path d="M8.7 25.8c.3-3.8 2.6-6.4 6.6-7.4l5.1-6.5c1.1-1.4 2.8-2.2 4.6-2.2h7.5c2.1 0 4 1.1 5.1 2.9l3.2 5.5c4.6.8 7.8 3.5 8.3 7l.4 2.3c.3 1.6-.9 3.1-2.5 3.2l-3.2.3c-.6-3.1-3.3-5.4-6.6-5.4-3.4 0-6.1 2.5-6.7 5.7H19.9c-.6-3.2-3.3-5.7-6.7-5.7-3.2 0-5.9 2.3-6.6 5.3h-.9c-1.5 0-2.7-1.4-2.5-2.9l.4-2.1h5.1Z" fill="#c2410c" opacity="0.95" />
+        <path d="M9.8 24.2c.6-2.8 2.8-4.7 6.4-5.3l5.5-6.9c.8-1 2-1.6 3.3-1.6h7.1c1.5 0 3 .8 3.8 2.2l3.4 6c3.9.6 6.7 2.6 7.5 5.5-12.5-1.9-24.8-1.9-37 .1Z" fill="url(#googleCarPaint)" />
+        <path d="M14.2 18.4c1.2-.3 2.6-.5 4.1-.6l3.8-4.8c.6-.8 1.5-1.2 2.5-1.2h3.9v6.8H14.2v-.2Z" fill="#fb923c" />
+        <path d="M30 11.8h2.2c1 0 1.9.5 2.5 1.4l3.1 5.4H30v-6.8Z" fill="#ea580c" />
+        <path d="M22.5 13.2c.5-.6 1.2-.9 2-.9h4v5.3H18.8l3.7-4.4Z" fill="url(#frontWindow)" />
+        <path d="M30.2 12.3h1.8c.8 0 1.5.4 1.9 1.1l2.4 4.2h-6.1v-5.3Z" fill="url(#rearWindow)" />
+        <path d="M23.2 13.1h5.2v1.1h-6.1l.9-1.1ZM30.2 13.1H32c.6 0 1.1.3 1.4.8l.3.5h-3.5v-1.3Z" fill="rgba(255,255,255,0.62)" />
+        <path d="M11 23.3h5.1c.8 0 1.4.6 1.4 1.4v.3H10.6l.4-1.7Z" fill="#fed7aa" />
+        <path d="M43.8 23.3h4.1l.3 1.7h-5.8v-.3c0-.8.6-1.4 1.4-1.4Z" fill="#fde68a" />
+        <path d="M18.4 20.3c5.8-.6 12.4-.6 19.5.1" stroke="rgba(154,52,18,0.35)" strokeWidth="1.1" strokeLinecap="round" />
+        <circle cx="13.4" cy="30.6" r="5.8" fill="#0f172a" />
+        <circle cx="13.4" cy="30.6" r="3" fill="#f8fafc" />
+        <circle cx="13.4" cy="30.6" r="1.2" fill="#64748b" />
+        <circle cx="37.4" cy="30.6" r="5.8" fill="#0f172a" />
+        <circle cx="37.4" cy="30.6" r="3" fill="#f8fafc" />
+        <circle cx="37.4" cy="30.6" r="1.2" fill="#64748b" />
+        <circle cx="48.3" cy="17.8" r="2.8" fill="#94a3b8" stroke="#ffffff" strokeWidth="1.4" />
         <defs>
-          <linearGradient id="googleCarGradient" x1="12" y1="10" x2="42" y2="30" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#fb923c" />
-            <stop offset="0.55" stopColor="#f97316" />
-            <stop offset="1" stopColor="#ea580c" />
+          <linearGradient id="googleCarPaint" x1="12" y1="10" x2="43" y2="29" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#ffb15f" />
+            <stop offset="0.38" stopColor="#f97316" />
+            <stop offset="1" stopColor="#dc2626" />
+          </linearGradient>
+          <linearGradient id="frontWindow" x1="19" y1="12" x2="29" y2="18" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#bfdbfe" />
+            <stop offset="1" stopColor="#38bdf8" />
+          </linearGradient>
+          <linearGradient id="rearWindow" x1="30" y1="12" x2="37" y2="18" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#93c5fd" />
+            <stop offset="1" stopColor="#0ea5e9" />
           </linearGradient>
         </defs>
       </svg>
