@@ -64,37 +64,29 @@ export function createLiveMarkerIcon({
       }}
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="58" height="42" viewBox="0 0 58 42" fill="none" aria-hidden="true">
-        <ellipse cx="28.5" cy="35.4" rx="18.6" ry="3.6" fill="rgba(15,23,42,0.22)" />
-        <path d="M8.7 25.8c.3-3.8 2.6-6.4 6.6-7.4l5.1-6.5c1.1-1.4 2.8-2.2 4.6-2.2h7.5c2.1 0 4 1.1 5.1 2.9l3.2 5.5c4.6.8 7.8 3.5 8.3 7l.4 2.3c.3 1.6-.9 3.1-2.5 3.2l-3.2.3c-.6-3.1-3.3-5.4-6.6-5.4-3.4 0-6.1 2.5-6.7 5.7H19.9c-.6-3.2-3.3-5.7-6.7-5.7-3.2 0-5.9 2.3-6.6 5.3h-.9c-1.5 0-2.7-1.4-2.5-2.9l.4-2.1h5.1Z" fill="#c2410c" opacity="0.95" />
-        <path d="M9.8 24.2c.6-2.8 2.8-4.7 6.4-5.3l5.5-6.9c.8-1 2-1.6 3.3-1.6h7.1c1.5 0 3 .8 3.8 2.2l3.4 6c3.9.6 6.7 2.6 7.5 5.5-12.5-1.9-24.8-1.9-37 .1Z" fill="url(#googleCarPaint)" />
-        <path d="M14.2 18.4c1.2-.3 2.6-.5 4.1-.6l3.8-4.8c.6-.8 1.5-1.2 2.5-1.2h3.9v6.8H14.2v-.2Z" fill="#fb923c" />
-        <path d="M30 11.8h2.2c1 0 1.9.5 2.5 1.4l3.1 5.4H30v-6.8Z" fill="#ea580c" />
-        <path d="M22.5 13.2c.5-.6 1.2-.9 2-.9h4v5.3H18.8l3.7-4.4Z" fill="url(#frontWindow)" />
-        <path d="M30.2 12.3h1.8c.8 0 1.5.4 1.9 1.1l2.4 4.2h-6.1v-5.3Z" fill="url(#rearWindow)" />
-        <path d="M23.2 13.1h5.2v1.1h-6.1l.9-1.1ZM30.2 13.1H32c.6 0 1.1.3 1.4.8l.3.5h-3.5v-1.3Z" fill="rgba(255,255,255,0.62)" />
-        <path d="M11 23.3h5.1c.8 0 1.4.6 1.4 1.4v.3H10.6l.4-1.7Z" fill="#fed7aa" />
-        <path d="M43.8 23.3h4.1l.3 1.7h-5.8v-.3c0-.8.6-1.4 1.4-1.4Z" fill="#fde68a" />
-        <path d="M18.4 20.3c5.8-.6 12.4-.6 19.5.1" stroke="rgba(154,52,18,0.35)" strokeWidth="1.1" strokeLinecap="round" />
-        <circle cx="13.4" cy="30.6" r="5.8" fill="#0f172a" />
-        <circle cx="13.4" cy="30.6" r="3" fill="#f8fafc" />
-        <circle cx="13.4" cy="30.6" r="1.2" fill="#64748b" />
-        <circle cx="37.4" cy="30.6" r="5.8" fill="#0f172a" />
-        <circle cx="37.4" cy="30.6" r="3" fill="#f8fafc" />
-        <circle cx="37.4" cy="30.6" r="1.2" fill="#64748b" />
-        <circle cx="48.3" cy="17.8" r="2.8" fill="#94a3b8" stroke="#ffffff" strokeWidth="1.4" />
+        <ellipse cx="29" cy="35.8" rx="21" ry="4.2" fill="rgba(15,23,42,0.2)" />
+        <path d="M8.2 25.4c.4-4.2 2.8-6.7 7.1-7.5l5.2-6.8c1-1.3 2.5-2 4.1-2h10.1c2 0 3.9 1 5 2.7l3.9 6.1c4.8 1 7.5 3.8 7.8 7.8l.1 1.8c.1 1.7-1.2 3.2-2.9 3.3l-3.8.3c-.5-3.4-3.5-6-7.1-6-3.7 0-6.8 2.7-7.2 6.3H19.1c-.5-3.6-3.5-6.3-7.2-6.3-3.5 0-6.5 2.5-7.1 5.9h-.5c-1.7 0-3-1.6-2.6-3.2l.5-2.4h6Z" fill="#a83d10" />
+        <path d="M9.5 24.1c.6-3.3 2.7-5.2 6.4-5.8l5.8-7.2c.8-.9 1.9-1.5 3.1-1.5h9.3c1.5 0 2.9.8 3.7 2.1l4.1 6.5c4 .8 6.4 2.9 7.1 6.2-12.6-2.2-25.8-2.3-39.5-.3Z" fill="url(#toyCarBody)" />
+        <path d="M15.4 18.2l6.1-7.1c.8-.9 1.9-1.4 3-1.4h4.2v8.7H15.4v-.2Z" fill="#f97316" />
+        <path d="M30.4 9.7h3.6c1.4 0 2.6.7 3.3 1.9l4.1 6.8h-11V9.7Z" fill="#ea580c" />
+        <path d="M22.7 12.4c.5-.6 1.3-1 2.1-1h4v6H18.4l4.3-5Z" fill="#60a5fa" />
+        <path d="M30.5 11.4h3.2c.8 0 1.6.4 2.1 1.1l2.9 4.9h-8.2v-6Z" fill="#3b82f6" />
+        <path d="M23.2 12.3h5.6v1.4h-6.8l1.2-1.4ZM30.5 12.3h3.1c.7 0 1.4.4 1.7 1l.4.7h-5.2v-1.7Z" fill="rgba(255,255,255,0.48)" />
+        <path d="M10.5 23.2h5.5c.8 0 1.5.7 1.5 1.5v.5H10l.5-2Z" fill="#fed7aa" />
+        <path d="M44.7 23.2h5.3l.2 2h-7v-.5c0-.8.7-1.5 1.5-1.5Z" fill="#fde68a" />
+        <path d="M15.8 19.7c8.4-.9 17.1-.7 26.1.4" stroke="rgba(124,45,18,0.32)" strokeWidth="1.25" strokeLinecap="round" />
+        <circle cx="11.9" cy="31" r="6.3" fill="#111827" />
+        <circle cx="11.9" cy="31" r="3.4" fill="#d1d5db" />
+        <circle cx="11.9" cy="31" r="1.2" fill="#f8fafc" />
+        <circle cx="37.7" cy="31" r="6.3" fill="#111827" />
+        <circle cx="37.7" cy="31" r="3.4" fill="#d1d5db" />
+        <circle cx="37.7" cy="31" r="1.2" fill="#f8fafc" />
+        <ellipse cx="49.2" cy="17.7" rx="2.7" ry="2.3" fill="#94a3b8" stroke="white" strokeWidth="1.3" />
         <defs>
-          <linearGradient id="googleCarPaint" x1="12" y1="10" x2="43" y2="29" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#ffb15f" />
-            <stop offset="0.38" stopColor="#f97316" />
-            <stop offset="1" stopColor="#dc2626" />
-          </linearGradient>
-          <linearGradient id="frontWindow" x1="19" y1="12" x2="29" y2="18" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#bfdbfe" />
-            <stop offset="1" stopColor="#38bdf8" />
-          </linearGradient>
-          <linearGradient id="rearWindow" x1="30" y1="12" x2="37" y2="18" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#93c5fd" />
-            <stop offset="1" stopColor="#0ea5e9" />
+          <linearGradient id="toyCarBody" x1="9" y1="10" x2="48" y2="30" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#ff9f5a" />
+            <stop offset="0.48" stopColor="#f97316" />
+            <stop offset="1" stopColor="#c2410c" />
           </linearGradient>
         </defs>
       </svg>
