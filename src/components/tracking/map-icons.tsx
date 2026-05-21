@@ -148,8 +148,8 @@ export function createLiveMarkerIcon({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: isMovingSalesman ? "72px" : "72px",
-        height: isMovingSalesman ? "54px" : "72px",
+        width: isMovingSalesman ? "64px" : "72px",
+        height: isMovingSalesman ? "64px" : "72px",
         zIndex: clusterIndex,
       }}
     >
@@ -157,32 +157,35 @@ export function createLiveMarkerIcon({
         <div
           style={{
             position: "absolute",
-            width: isMovingSalesman ? "56px" : "58px",
-            height: isMovingSalesman ? "34px" : "58px",
-            borderRadius: isMovingSalesman ? "999px" : "50%",
+            width: isMovingSalesman ? "60px" : "58px",
+            height: isMovingSalesman ? "60px" : "58px",
+            borderRadius: "50%",
             backgroundColor: statusConf.ringColor,
             animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
             opacity: 0.75,
           }}
         />
       )}
-      <div style={{ position: "absolute", top: isMovingSalesman ? "8px" : "12px" }}>
+      <div style={{ position: "relative" }}>
         {isMovingSalesman ? carIcon : avatarMarker}
       </div>
-      <div
-        style={{
-          position: "absolute",
-          bottom: isMovingSalesman ? "13px" : "10px",
-          right: isMovingSalesman ? "10px" : "10px",
-          width: "13px",
-          height: "13px",
-          backgroundColor: statusConf.color,
-          border: "2px solid white",
-          borderRadius: "50%",
-          zIndex: 20,
-          boxShadow: "0 2px 5px rgba(15,23,42,0.25)",
-        }}
-      />
+      {/* Status dot — only shown on avatar markers, not on the car */}
+      {!isMovingSalesman && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "10px",
+            right: "10px",
+            width: "13px",
+            height: "13px",
+            backgroundColor: statusConf.color,
+            border: "2px solid white",
+            borderRadius: "50%",
+            zIndex: 20,
+            boxShadow: "0 2px 5px rgba(15,23,42,0.25)",
+          }}
+        />
+      )}
     </div>,
   );
 
@@ -194,12 +197,23 @@ export function createLiveMarkerIcon({
     offsetY = Math.round(Math.sin(angle) * 38);
   }
 
+  if (isMovingSalesman) {
+    // 64×64 wrapper; car image (54×54 ish) is centered — anchor at center of wrapper
+    return L.divIcon({
+      html,
+      className: "custom-map-marker",
+      iconSize: [64, 64],
+      iconAnchor: [32 - offsetX, 32 - offsetY],
+      popupAnchor: [offsetX, -36 + offsetY],
+    });
+  }
+
   return L.divIcon({
     html,
     className: "custom-map-marker",
-    iconSize: isMovingSalesman ? [72, 54] : [72, 72],
-    iconAnchor: isMovingSalesman ? [36 - offsetX, 23 - offsetY] : [36 - offsetX, 36 - offsetY],
-    popupAnchor: isMovingSalesman ? [offsetX, -30 + offsetY] : [offsetX, -34 + offsetY],
+    iconSize: [72, 72],
+    iconAnchor: [36 - offsetX, 36 - offsetY],
+    popupAnchor: [offsetX, -34 + offsetY],
   });
 }
 
