@@ -56,52 +56,37 @@ export function createLiveMarkerIcon({
     <div
       style={{
         position: "relative",
-        width: "78px",
-        height: "54px",
-        filter: "drop-shadow(0 13px 16px rgba(15, 23, 42, 0.28))",
+        width: "58px",
+        height: "42px",
+        filter: "drop-shadow(0 7px 8px rgba(15, 23, 42, 0.28))",
         transform: `rotate(${bearing}deg)`,
         transformOrigin: "center",
       }}
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="78" height="54" viewBox="0 0 78 54" fill="none" aria-hidden="true">
-        <ellipse cx="39" cy="46" rx="30" ry="5" fill="rgba(15,23,42,0.22)" />
-        <path d="M12.8 31.4c.7-5.2 4.1-9 9.4-10.1l7.1-9.2c1.6-2.1 4.1-3.3 6.8-3.3h13.5c3.3 0 6.4 1.8 8 4.7l4 7.2c5.9 1.3 9.7 5.5 10 11.1l.2 4.2c.1 2.5-1.8 4.7-4.3 4.9l-4.8.4c-1-4.7-5.2-8.2-10.2-8.2-5.1 0-9.3 3.6-10.3 8.4H31.9c-1-4.8-5.2-8.4-10.3-8.4-5 0-9.2 3.5-10.2 8.2l-2.2-.2c-2.6-.2-4.5-2.5-4.1-5.1l.7-4.6h7Z" fill="#f97316" />
-        <path d="M14.2 30.6c1-3.8 3.8-6.2 8.4-7.1l7.9-10.1c1.2-1.5 3-2.4 4.9-2.4h13.1c2.5 0 4.8 1.4 6 3.6l4.4 8.1c5.6.8 9.4 4.2 10.2 8.9l.2 1.2c-8.8-1.2-17.8-1.7-27-1.7-9.6 0-19 .5-28.1 1.6v-2.1Z" fill="url(#carBodyGradient)" />
-        <path d="M31.5 15.2h9.1v8.6H25.2l6.3-8.6Z" fill="#93c5fd" />
-        <path d="M43.5 15.2h5.4c1.4 0 2.7.8 3.4 2l3.6 6.6H43.5v-8.6Z" fill="#60a5fa" />
-        <path d="M29.8 15.8h10.8v2.1H28.3l1.5-2.1ZM43.5 15.8h5.3c1.3 0 2.5.8 3 1.9l.5 1H43.5v-2.9Z" fill="rgba(255,255,255,0.45)" />
-        <path d="M12.5 31.7h7.7c1.2 0 2.2 1 2.2 2.2v.3h-9.9v-2.5Z" fill="#fed7aa" />
-        <path d="M64.7 31.8h5.9l.2 2.5h-8.3v-.3c0-1.2 1-2.2 2.2-2.2Z" fill="#fde68a" />
-        <path d="M24.3 25.7h33.2" stroke="rgba(154,52,18,0.35)" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M41.7 13.2v18.2" stroke="rgba(154,52,18,0.32)" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="21.6" cy="41.4" r="8.2" fill="#111827" />
-        <circle cx="21.6" cy="41.4" r="4.1" fill="#9ca3af" />
-        <circle cx="21.6" cy="41.4" r="1.8" fill="#f8fafc" />
-        <circle cx="52.6" cy="41.4" r="8.2" fill="#111827" />
-        <circle cx="52.6" cy="41.4" r="4.1" fill="#9ca3af" />
-        <circle cx="52.6" cy="41.4" r="1.8" fill="#f8fafc" />
-        <path d="M17.9 20.8c2.1-.9 4.5-1.5 7.4-1.8" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" />
+      <svg xmlns="http://www.w3.org/2000/svg" width="58" height="42" viewBox="0 0 58 42" fill="none" aria-hidden="true">
+        <ellipse cx="29" cy="36" rx="21" ry="4" fill="rgba(15,23,42,0.2)" />
+        <path d="M8.8 23.7c.5-3.4 2.7-5.8 6.3-6.5l5-6.3c1.1-1.4 2.7-2.1 4.5-2.1h9.3c2.2 0 4.2 1.2 5.2 3.1l2.8 5.2c4.8.8 7.6 3.4 8.1 7.5l.3 2.7c.2 1.7-1.1 3.2-2.8 3.3l-3.1.2c-.7-3.5-3.8-6.1-7.5-6.1-3.8 0-6.9 2.7-7.6 6.3h-8.5c-.7-3.6-3.8-6.3-7.6-6.3-3.6 0-6.7 2.5-7.5 5.9l-1.3-.1c-1.8-.1-3.1-1.7-2.8-3.5l.5-3.3h4.7Z" fill="#f97316" />
+        <path d="M10.6 22.6c.9-2.4 2.8-3.8 5.6-4.3l5.4-6.8c.7-.9 1.8-1.4 3-1.4h8.6c1.6 0 3.1.9 3.9 2.3l3 5.6c3.9.5 6.5 2.4 7.5 5.5-12.6-1.8-25.1-1.8-37-.2v-.7Z" fill="url(#googleCarGradient)" />
+        <path d="M21.9 13.2h7.3v5.5H17.6l4.3-5.5Z" fill="#7dd3fc" />
+        <path d="M31.1 13.2h3c.9 0 1.7.5 2.1 1.3l2.2 4.2h-7.3v-5.5Z" fill="#38bdf8" />
+        <path d="M20.5 13.8h8.7v1.4h-9.8l1.1-1.4ZM31.1 13.8h3c.8 0 1.5.5 1.9 1.2l.2.4h-5.1v-1.6Z" fill="rgba(255,255,255,0.62)" />
+        <circle cx="13.2" cy="30.9" r="5.7" fill="#111827" />
+        <circle cx="13.2" cy="30.9" r="2.9" fill="#e5e7eb" />
+        <circle cx="13.2" cy="30.9" r="1.1" fill="#64748b" />
+        <circle cx="36.9" cy="30.9" r="5.7" fill="#111827" />
+        <circle cx="36.9" cy="30.9" r="2.9" fill="#e5e7eb" />
+        <circle cx="36.9" cy="30.9" r="1.1" fill="#64748b" />
+        <path d="M8.4 22.6h5.9c.8 0 1.4.6 1.4 1.4v.4H8.4v-1.8Z" fill="#fed7aa" />
+        <path d="M45.2 22.6h4.5l.3 1.8h-6.2V24c0-.8.6-1.4 1.4-1.4Z" fill="#fde68a" />
+        <circle cx="48.4" cy="17.8" r="2.8" fill="#94a3b8" stroke="white" strokeWidth="1.5" />
         <defs>
-          <linearGradient id="carBodyGradient" x1="17" y1="12" x2="63" y2="38" gradientUnits="userSpaceOnUse">
+          <linearGradient id="googleCarGradient" x1="12" y1="10" x2="42" y2="30" gradientUnits="userSpaceOnUse">
             <stop stopColor="#fb923c" />
             <stop offset="0.55" stopColor="#f97316" />
-            <stop offset="1" stopColor="#c2410c" />
+            <stop offset="1" stopColor="#ea580c" />
           </linearGradient>
         </defs>
       </svg>
-      <div
-        style={{
-          position: "absolute",
-          right: "8px",
-          top: "11px",
-          width: "10px",
-          height: "10px",
-          borderRadius: "50%",
-          background: accentColor,
-          border: "2px solid white",
-          boxShadow: "0 2px 6px rgba(15, 23, 42, 0.28)",
-        }}
-      />
     </div>
   );
 
@@ -154,43 +139,17 @@ export function createLiveMarkerIcon({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: isMovingSalesman ? "96px" : "72px",
-        height: isMovingSalesman ? "92px" : "72px",
+        width: isMovingSalesman ? "72px" : "72px",
+        height: isMovingSalesman ? "58px" : "72px",
         zIndex: clusterIndex,
       }}
     >
-      {isMovingSalesman && name && (
-        <div
-          style={{
-            position: "absolute",
-            top: "0px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            maxWidth: "92px",
-            padding: "3px 8px",
-            borderRadius: "999px",
-            background: "rgba(255, 255, 255, 0.96)",
-            color: "#111827",
-            fontSize: "11px",
-            fontWeight: 800,
-            lineHeight: 1.1,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            boxShadow: "0 5px 12px rgba(15, 23, 42, 0.2)",
-            border: `1px solid ${accentColor}`,
-            zIndex: 30,
-          }}
-        >
-          {name}
-        </div>
-      )}
       {isPulsing && (
         <div
           style={{
             position: "absolute",
-            width: isMovingSalesman ? "76px" : "58px",
-            height: isMovingSalesman ? "54px" : "58px",
+            width: isMovingSalesman ? "52px" : "58px",
+            height: isMovingSalesman ? "38px" : "58px",
             borderRadius: isMovingSalesman ? "999px" : "50%",
             backgroundColor: statusConf.ringColor,
             animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
@@ -198,14 +157,14 @@ export function createLiveMarkerIcon({
           }}
         />
       )}
-      <div style={{ position: "absolute", top: isMovingSalesman ? "34px" : "12px" }}>
+      <div style={{ position: "absolute", top: isMovingSalesman ? "8px" : "12px" }}>
         {isMovingSalesman ? carIcon : avatarMarker}
       </div>
       <div
         style={{
           position: "absolute",
-          bottom: isMovingSalesman ? "16px" : "10px",
-          right: isMovingSalesman ? "14px" : "10px",
+          bottom: isMovingSalesman ? "15px" : "10px",
+          right: isMovingSalesman ? "10px" : "10px",
           width: "13px",
           height: "13px",
           backgroundColor: statusConf.color,
@@ -229,9 +188,9 @@ export function createLiveMarkerIcon({
   return L.divIcon({
     html,
     className: "custom-map-marker",
-    iconSize: isMovingSalesman ? [96, 92] : [72, 72],
-    iconAnchor: isMovingSalesman ? [48 - offsetX, 72 - offsetY] : [36 - offsetX, 36 - offsetY],
-    popupAnchor: isMovingSalesman ? [offsetX, -64 + offsetY] : [offsetX, -34 + offsetY],
+    iconSize: isMovingSalesman ? [72, 58] : [72, 72],
+    iconAnchor: isMovingSalesman ? [36 - offsetX, 48 - offsetY] : [36 - offsetX, 36 - offsetY],
+    popupAnchor: isMovingSalesman ? [offsetX, -46 + offsetY] : [offsetX, -34 + offsetY],
   });
 }
 

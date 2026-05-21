@@ -389,9 +389,9 @@ function SmoothLiveMarker({
       <Tooltip
         permanent
         direction="top"
-        offset={[0, -36]}
+        offset={[0, marker.role === "Salesman" && marker.status === "On The Way" ? -30 : -36]}
         opacity={1}
-        className="custom-tooltip bg-white/90 border border-slate-200 shadow-md rounded-md px-2 py-1 backdrop-blur"
+        className="custom-tooltip bg-white border border-slate-200 shadow-md rounded px-2 py-1"
       >
         <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
           {marker.name}
