@@ -186,9 +186,10 @@ function createCustomIcon(
   const activeStatus = late ? "Late" : status;
   const statusConf = statusConfig[activeStatus];
   const isPulsing = status !== "Offline" || late;
+  const isOnTheWay = status === "On The Way";
   const roleColor = role === "Salesman" ? "#16a34a" : "#2563eb";
   const roleRingColor = role === "Salesman" ? "rgba(22, 163, 74, 0.4)" : "rgba(37, 99, 235, 0.4)";
-  
+
   const initials = name
     ?.split(" ")
     .map((part) => part[0])
@@ -196,14 +197,8 @@ function createCustomIcon(
     .slice(0, 2)
     .toUpperCase() || (role === "Salesman" ? "SM" : "FT");
 
-  let offsetX = 0;
-  let offsetY = 0;
-  if (clusterTotal > 1) {
-    const angle = (clusterIndex / clusterTotal) * Math.PI * 2;
-    // Push them out radially by 32px so they don't perfectly overlap
-    offsetX = Math.cos(angle) * 32;
-    offsetY = Math.sin(angle) * 32;
-  }
+  // Car SVG — uses same role color so it matches the existing theme
+  const carSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${roleColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2z"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/><path d="M5 9l2-4h10l2 4"/></svg>`;
 
   const html = renderToStaticMarkup(
     <div
@@ -214,8 +209,6 @@ function createCustomIcon(
         justifyContent: "center",
         width: "60px",
         height: "60px",
-        transform: `translate(${offsetX}px, ${offsetY}px)`,
-        transition: "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
         zIndex: clusterIndex,
       }}
     >
@@ -241,8 +234,7 @@ function createCustomIcon(
           borderRadius: "50%",
           backgroundColor: "white",
           padding: "2px",
-          boxShadow:
-            "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -262,7 +254,29 @@ function createCustomIcon(
             position: "relative",
           }}
         >
-          {avatarUrl ? (
+          {isOnTheWay ? (
+            // Show car icon + first letter stacked when salesman is on the way
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "1px",
+                width: "100%",
+                height: "100%",
+              }}
+            >
+              <div
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: carSvg }}
+                style={{ lineHeight: 0, display: "flex" }}
+              />
+              <span style={{ fontSize: "8px", fontWeight: "bold", color: roleColor, lineHeight: 1 }}>
+                {name ? name.charAt(0).toUpperCase() : initials.charAt(0)}
+              </span>
+            </div>
+          ) : avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={avatarUrl}
@@ -293,41 +307,146 @@ function createCustomIcon(
     </div>,
   );
 
+  let offsetX = 0;
+  let offsetY = 0;
+  if (clusterTotal > 1) {
+    const angle = (clusterIndex / clusterTotal) * Math.PI * 2;
+    offsetX = Math.round(Math.cos(angle) * 36);
+    offsetY = Math.round(Math.sin(angle) * 36);
+  }
+
   return L.divIcon({
     html,
     className: "custom-map-marker",
     iconSize: [60, 60],
-    iconAnchor: [30, 30],
-    popupAnchor: [0, -28],
+    iconAnchor: [30 - offsetX, 30 - offsetY],
+    popupAnchor: [offsetX, -28 + offsetY],
   });
 }
 
-function groupIdenticalMarkers(markers: LiveMapMarker[]): LiveMapMarker[] {
-  const coordGroups: Record<string, LiveMapMarker[]> = {};
+interface LiveMarkersListProps {
+  fitters: Fitter[];
+  liveLocations: LiveLocationRecord[];
+  filterRole?: "Salesman" | "Fitter";
+  selectedFitterId: string | null;
+  onSelectFitter: (id: string) => void;
+}
 
-  for (const marker of markers) {
-    // 4 decimal places is roughly 11 meters accuracy
-    const key = `${marker.position[0].toFixed(4)},${marker.position[1].toFixed(4)}`;
-    if (!coordGroups[key]) coordGroups[key] = [];
-    coordGroups[key].push(marker);
-  }
+function LiveMarkersList({
+  fitters,
+  liveLocations,
+  filterRole,
+  selectedFitterId,
+  onSelectFitter,
+}: LiveMarkersListProps) {
+  const map = useMap();
+  const [version, setVersion] = useState(0);
 
-  const result: LiveMapMarker[] = [];
-  for (const group of Object.values(coordGroups)) {
-    if (group.length === 1) {
-      result.push(group[0]);
-    } else {
-      group.forEach((marker, index) => {
-        result.push({
-          ...marker,
-          clusterIndex: index,
-          clusterTotal: group.length,
-        });
-      });
+  useEffect(() => {
+    const onMoveOrZoom = () => {
+      setVersion((v) => v + 1);
+    };
+    map.on("zoomend", onMoveOrZoom);
+    map.on("moveend", onMoveOrZoom);
+    return () => {
+      map.off("zoomend", onMoveOrZoom);
+      map.off("moveend", onMoveOrZoom);
+    };
+  }, [map]);
+
+  const groupedMarkers = useMemo(() => {
+    const rawMarkers = buildMapMarkers(fitters, liveLocations, filterRole);
+    const groups: LiveMapMarker[][] = [];
+
+    for (const marker of rawMarkers) {
+      let added = false;
+      const markerPoint = map.latLngToContainerPoint(L.latLng(marker.position[0], marker.position[1]));
+
+      for (const group of groups) {
+        const firstInGroup = group[0];
+        const groupPoint = map.latLngToContainerPoint(L.latLng(firstInGroup.position[0], firstInGroup.position[1]));
+
+        // Group together if visual distance is less than 55 pixels on screen
+        if (markerPoint.distanceTo(groupPoint) < 55) {
+          group.push(marker);
+          added = true;
+          break;
+        }
+      }
+
+      if (!added) {
+        groups.push([marker]);
+      }
     }
-  }
 
-  return result;
+    const result: LiveMapMarker[] = [];
+    for (const group of Object.values(groups)) {
+      if (group.length === 1) {
+        result.push(group[0]);
+      } else {
+        group.forEach((marker, index) => {
+          result.push({
+            ...marker,
+            clusterIndex: index,
+            clusterTotal: group.length,
+          });
+        });
+      }
+    }
+
+    return result;
+  }, [fitters, liveLocations, filterRole, version, map]);
+
+  return (
+    <>
+      {groupedMarkers.map((marker) => (
+        <Marker
+          key={marker.id}
+          position={marker.position}
+          icon={createCustomIcon(
+            marker.status,
+            marker.isLate,
+            marker.avatar,
+            marker.name,
+            marker.role,
+            marker.clusterIndex,
+            marker.clusterTotal,
+          )}
+          eventHandlers={{
+            click: () => onSelectFitter(marker.id),
+          }}
+        >
+          <Tooltip
+            direction="top"
+            offset={[0, -30]}
+            opacity={1}
+            className="custom-tooltip bg-white border border-slate-200 shadow-md rounded-sm px-2 py-1"
+          >
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
+              {marker.name}
+            </div>
+          </Tooltip>
+          <Popup closeButton={false} className="live-location-popup">
+            <div className="min-w-40 space-y-1 text-xs text-slate-600">
+              <div className="text-sm font-semibold text-slate-900">{marker.name}</div>
+              <div className="flex justify-between gap-4">
+                <span className="font-medium text-slate-500">Role</span>
+                <span>{marker.role}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="font-medium text-slate-500">Status</span>
+                <span>{marker.isLate ? "Late" : marker.status}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="font-medium text-slate-500">Last updated</span>
+                <span>{marker.lastUpdated}</span>
+              </div>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </>
+  );
 }
 
 function RoutingPolyline({
@@ -348,7 +467,21 @@ function RoutingPolyline({
       try {
         const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`;
         const res = await fetch(url);
-        if (!res.ok) throw new Error("Network response was not ok");
+        if (!res.ok) {
+          // OSRM could not find a route (e.g. cross-country, no road data).
+          // Fall back to straight-line display without crashing.
+          if (active) {
+            setRouteCoords(null);
+            // Compute straight-line distance as fallback label
+            const R = 6371;
+            const dLat = (end[0] - start[0]) * Math.PI / 180;
+            const dLon = (end[1] - start[1]) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(start[0] * Math.PI / 180) * Math.cos(end[0] * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            setDistanceKm(`~${dist.toFixed(1)}`);
+          }
+          return;
+        }
         const data = await res.json();
         if (data.routes && data.routes.length > 0) {
           const route = data.routes[0];
@@ -358,8 +491,9 @@ function RoutingPolyline({
             setDistanceKm((route.distance / 1000).toFixed(1));
           }
         }
-      } catch (err) {
-        console.error("Failed to fetch route", err);
+      } catch {
+        // Network error — silently fall back, no console spam
+        if (active) setRouteCoords(null);
       }
     };
     fetchRoute();
@@ -430,7 +564,7 @@ function buildMapMarkers(
     allMarkers = allMarkers.filter((m) => m.role === filterRole);
   }
 
-  return groupIdenticalMarkers(allMarkers);
+  return allMarkers;
 }
 
 const jobMarkerIcon = new L.Icon({
@@ -519,52 +653,13 @@ export default function FitterMap({
 
         <MapUpdater center={center} />
 
-        {markers.map((marker) => (
-          <Marker
-            key={marker.id}
-            position={marker.position}
-            icon={createCustomIcon(
-              marker.status,
-              marker.isLate,
-              marker.avatar,
-              marker.name,
-              marker.role,
-              marker.clusterIndex,
-              marker.clusterTotal,
-            )}
-            eventHandlers={{
-              click: () => onSelectFitter(marker.id),
-            }}
-          >
-            <Tooltip
-              direction="top"
-              offset={[0, -30]}
-              opacity={1}
-              className="custom-tooltip bg-white border border-slate-200 shadow-md rounded-sm px-2 py-1"
-            >
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
-                {marker.name}
-              </div>
-            </Tooltip>
-            <Popup closeButton={false} className="live-location-popup">
-              <div className="min-w-40 space-y-1 text-xs text-slate-600">
-                <div className="text-sm font-semibold text-slate-900">{marker.name}</div>
-                <div className="flex justify-between gap-4">
-                  <span className="font-medium text-slate-500">Role</span>
-                  <span>{marker.role}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="font-medium text-slate-500">Status</span>
-                  <span>{marker.isLate ? "Late" : marker.status}</span>
-                </div>
-                <div className="flex justify-between gap-4">
-                  <span className="font-medium text-slate-500">Last updated</span>
-                  <span>{marker.lastUpdated}</span>
-                </div>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        <LiveMarkersList
+          fitters={fitters}
+          liveLocations={liveLocations}
+          filterRole={filterRole}
+          selectedFitterId={selectedFitterId}
+          onSelectFitter={onSelectFitter}
+        />
 
         {/* Selected Job Marker & Polylines */}
         {selectedJob && (

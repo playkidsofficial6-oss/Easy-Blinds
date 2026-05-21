@@ -493,34 +493,130 @@ export default function SmartSalesmanAssignmentsPage() {
 
 
 
-  const [roadDistances, setRoadDistances] = useState<Record<string, number>>({});
+  const [roadData, setRoadData] = useState<Record<string, {
+    distToNewJob: number;
+    durationToNewJob: number;
+    distToActiveJob?: number;
+    durationToActiveJob?: number;
+  }>>({});
 
   useEffect(() => {
     if (!selectedJobId || !selectedPendingJobForMap) {
-      setRoadDistances({});
+      setRoadData({});
       return;
     }
 
     let active = true;
 
+    const getRouteData = async (start: [number, number], end: { lat: number; lng: number }) => {
+      const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end.lng},${end.lat}?overview=false`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("OSRM error");
+      const data = await res.json();
+      if (data.routes && data.routes.length > 0) {
+        const dist = data.routes[0].distance / 1000; // in km
+        const rawDuration = data.routes[0].duration; // in seconds
+        
+        let trafficMultiplier = 1.25;
+        if (dist < 10) {
+          trafficMultiplier = 1.40;
+        } else if (dist < 30) {
+          trafficMultiplier = 1.30;
+        } else {
+          trafficMultiplier = 1.20;
+        }
+        const intersectionBuffer = dist * 15;
+        const duration = Math.round(rawDuration * trafficMultiplier + intersectionBuffer);
+        return { dist, duration };
+      }
+      throw new Error("No route found");
+    };
+
+    const getFallbackRouteData = (start: [number, number], end: [number, number]) => {
+      const R = 6371; 
+      const dLat = (end[0] - start[0]) * Math.PI / 180;
+      const dLon = (end[1] - start[1]) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(start[0] * Math.PI / 180) * Math.cos(end[0] * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const dist = R * c;
+      const duration = (dist / 32) * 3600;
+      return { dist, duration };
+    };
+
     const fetchRoadDistances = async () => {
-      const newDistances: Record<string, number> = {};
+      const newData: Record<string, {
+        distToNewJob: number;
+        durationToNewJob: number;
+        distToActiveJob?: number;
+        durationToActiveJob?: number;
+      }> = {};
+      
       const membersToFetch = workforceMembers.filter(m => m.location && m.capacity.remaining > 0);
       
       await Promise.all(
         membersToFetch.map(async (member) => {
           if (!member.location) return;
           try {
-            const start = member.location; // [lat, lng]
-            const end = selectedPendingJobForMap.location; // { lat, lng }
-            const url = `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end.lng},${end.lat}?overview=false`;
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("OSRM error");
-            const data = await res.json();
-            if (data.routes && data.routes.length > 0) {
-              const dist = data.routes[0].distance / 1000; // in km
-              newDistances[member.id] = dist;
+            const rawActiveJob = jobs.find(j => j._id === member.jobRef);
+            let activeJobLocation: { lat: number; lng: number } | null = null;
+            if (rawActiveJob?.location?.coordinates && rawActiveJob.location.coordinates.length >= 2) {
+              activeJobLocation = {
+                lng: rawActiveJob.location.coordinates[0],
+                lat: rawActiveJob.location.coordinates[1],
+              };
             }
+
+            const statusLower = member.status?.toLowerCase() ?? "";
+            const isMeasuring = statusLower.includes("progress") || statusLower.includes("working");
+            const isOnTheWay = statusLower.includes("way");
+
+            // 1. Fetch direct route (from current location to new job) for visual distance
+            let distToNewJob = 0;
+            let directDuration = 0;
+            try {
+              const route = await getRouteData(member.location, selectedPendingJobForMap.location);
+              distToNewJob = route.dist;
+              directDuration = route.duration;
+            } catch (err) {
+              console.warn(`Fallback for member ${member.id} direct route`, err);
+              const fallback = getFallbackRouteData(member.location, [selectedPendingJobForMap.location.lat, selectedPendingJobForMap.location.lng]);
+              distToNewJob = fallback.dist;
+              directDuration = fallback.duration;
+            }
+
+            // 2. Fetch active job leg if they are on the way
+            let distToActiveJob: number | undefined;
+            let durationToActiveJob: number | undefined;
+
+            if (isOnTheWay && activeJobLocation) {
+              try {
+                const route = await getRouteData(member.location, activeJobLocation);
+                distToActiveJob = route.dist;
+                durationToActiveJob = route.duration;
+              } catch (err) {
+                console.warn(`Fallback for member ${member.id} to active job`, err);
+              }
+            }
+
+            // 3. Fetch second leg duration (from active job to new job) if they are busy
+            let durationToNewJob = directDuration; // Default to direct duration if they are available
+            if (activeJobLocation && (isMeasuring || isOnTheWay)) {
+              try {
+                const route = await getRouteData([activeJobLocation.lat, activeJobLocation.lng], selectedPendingJobForMap.location);
+                durationToNewJob = route.duration;
+              } catch (err) {
+                console.warn(`Fallback for member ${member.id} active job to new job`, err);
+                const fallback = getFallbackRouteData([activeJobLocation.lat, activeJobLocation.lng], [selectedPendingJobForMap.location.lat, selectedPendingJobForMap.location.lng]);
+                durationToNewJob = fallback.duration;
+              }
+            }
+
+            newData[member.id] = {
+              distToNewJob,
+              durationToNewJob,
+              distToActiveJob,
+              durationToActiveJob,
+            };
           } catch (err) {
             console.error(`Failed to fetch road distance for member ${member.id}`, err);
           }
@@ -528,7 +624,7 @@ export default function SmartSalesmanAssignmentsPage() {
       );
 
       if (active) {
-        setRoadDistances(newDistances);
+        setRoadData(newData);
       }
     };
 
@@ -537,7 +633,7 @@ export default function SmartSalesmanAssignmentsPage() {
     return () => {
       active = false;
     };
-  }, [selectedJobId, selectedPendingJobForMap, workforceMembers]);
+  }, [selectedJobId, selectedPendingJobForMap, workforceMembers, jobs]);
 
   const recommendedFitters = useMemo(() => {
     if (!selectedJobId || !selectedPendingJobForMap) return [];
@@ -545,30 +641,84 @@ export default function SmartSalesmanAssignmentsPage() {
     const result = workforceMembers
       .filter((member) => member.capacity.remaining > 0)
       .map((member) => {
-        let dist = roadDistances[member.id];
-        if (dist === undefined && member.location && selectedPendingJobForMap.location) {
-           // Fallback to straight-line distance
-           const R = 6371; 
-           const dLat = (selectedPendingJobForMap.location.lat - member.location[0]) * Math.PI / 180;
-           const dLon = (selectedPendingJobForMap.location.lng - member.location[1]) * Math.PI / 180;
-           const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(member.location[0] * Math.PI / 180) * Math.cos(selectedPendingJobForMap.location.lat * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-           dist = R * c;
+        const rawActiveJob = jobs.find(j => j._id === member.jobRef);
+        let activeJobLocation: { lat: number; lng: number } | null = null;
+        if (rawActiveJob?.location?.coordinates && rawActiveJob.location.coordinates.length >= 2) {
+          activeJobLocation = {
+            lng: rawActiveJob.location.coordinates[0],
+            lat: rawActiveJob.location.coordinates[1],
+          };
         }
 
+        const statusLower = member.status?.toLowerCase() ?? "";
+        const isMeasuring = statusLower.includes("progress") || statusLower.includes("working");
+        const isOnTheWay = statusLower.includes("way");
+
+        const getFallback = (start: [number, number], end: [number, number]) => {
+          const R = 6371; 
+          const dLat = (end[0] - start[0]) * Math.PI / 180;
+          const dLon = (end[1] - start[1]) * Math.PI / 180;
+          const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(start[0] * Math.PI / 180) * Math.cos(end[0] * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const dist = R * c;
+          const duration = (dist / 32) * 3600;
+          return { dist, duration };
+        };
+
+        let durationToActiveJob = 0;
+        if (isOnTheWay && activeJobLocation && member.location) {
+          const data = roadData[member.id];
+          if (data?.durationToActiveJob !== undefined) {
+            durationToActiveJob = data.durationToActiveJob;
+          } else {
+            durationToActiveJob = getFallback(member.location, [activeJobLocation.lat, activeJobLocation.lng]).duration;
+          }
+        }
+
+        let distToNewJob = 0;
+        let durationToNewJob = 0;
+
+        if (member.location && selectedPendingJobForMap.location) {
+          const data = roadData[member.id];
+          if (data?.distToNewJob !== undefined) {
+            distToNewJob = data.distToNewJob;
+            durationToNewJob = data.durationToNewJob;
+          } else {
+            const fbDirect = getFallback(member.location, [selectedPendingJobForMap.location.lat, selectedPendingJobForMap.location.lng]);
+            distToNewJob = fbDirect.dist;
+
+            if (activeJobLocation && (isMeasuring || isOnTheWay)) {
+              const fbActiveToNew = getFallback([activeJobLocation.lat, activeJobLocation.lng], [selectedPendingJobForMap.location.lat, selectedPendingJobForMap.location.lng]);
+              durationToNewJob = fbActiveToNew.duration;
+            } else {
+              durationToNewJob = fbDirect.duration;
+            }
+          }
+        }
+
+        let measureTimeSecs = 0;
         const activeJob = member.schedule.today.find(j => j.id === member.jobRef);
         let countdownSecs = -1;
-        if (activeJob && activeJob.status === "In Progress" && activeJob.timerStartedAt) {
-           const elapsed = Math.floor((Date.now() - new Date(activeJob.timerStartedAt).getTime()) / 1000);
-           const remaining = (45 * 60) - elapsed;
-           countdownSecs = remaining > 0 ? remaining : 0;
+
+        if (isMeasuring) {
+          if (activeJob && activeJob.status === "In Progress" && activeJob.timerStartedAt) {
+            const elapsed = Math.floor((Date.now() - new Date(activeJob.timerStartedAt).getTime()) / 1000);
+            const remaining = (45 * 60) - elapsed;
+            countdownSecs = remaining > 0 ? remaining : 0;
+          }
+          measureTimeSecs = countdownSecs >= 0 ? countdownSecs : (45 * 60);
+        } else if (isOnTheWay) {
+          measureTimeSecs = 45 * 60;
         }
+
+        const duration = durationToActiveJob + measureTimeSecs + durationToNewJob;
 
         return {
           id: member.id,
           name: member.name,
           role: member.role,
-          dist,
+          dist: distToNewJob,
+          duration,
           countdownSecs,
           timerStartedAt: activeJob?.timerStartedAt,
           isFree: member.status === "Available"
@@ -579,16 +729,13 @@ export default function SmartSalesmanAssignmentsPage() {
        if (a.isFree && !b.isFree) return -1;
        if (!a.isFree && b.isFree) return 1;
 
-       if (a.countdownSecs >= 0 && b.countdownSecs >= 0) {
-          return a.countdownSecs - b.countdownSecs;
+       if (a.duration !== undefined && b.duration !== undefined) {
+          return a.duration - b.duration;
        }
-       if (a.countdownSecs >= 0) return -1;
-       if (b.countdownSecs >= 0) return 1;
-
        if (a.dist !== undefined && b.dist !== undefined) return a.dist - b.dist;
        return 0;
     });
-  }, [selectedJobId, workforceMembers, selectedPendingJobForMap, roadDistances]);
+  }, [selectedJobId, workforceMembers, selectedPendingJobForMap, roadData, jobs]);
 
   const initiateAssignment = (jobId: string, memberId: string) => {
     const member = workforceMembers.find((item) => item.id === memberId);
