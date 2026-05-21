@@ -55,24 +55,76 @@ export function createLiveMarkerIcon({
   const carIcon = (
     <div
       style={{
-        width: "42px",
-        height: "42px",
-        borderRadius: "18px 18px 20px 20px",
-        background: "linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)",
-        boxShadow: "0 12px 24px rgba(15, 23, 42, 0.24), inset 0 0 0 2px rgba(255,255,255,0.85)",
-        border: `3px solid ${accentColor}`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        position: "relative",
+        width: "68px",
+        height: "46px",
         transform: `rotate(${bearing}deg)`,
         transformOrigin: "center",
       }}
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M12 2.7 17.8 8.2c.6.6.9 1.4.9 2.2v6.4c0 .9-.7 1.6-1.6 1.6h-1.2v1.4c0 .8-.6 1.4-1.4 1.4h-5c-.8 0-1.4-.6-1.4-1.4v-1.4H6.9c-.9 0-1.6-.7-1.6-1.6v-6.4c0-.8.3-1.6.9-2.2L12 2.7Z" fill={accentColor} />
-        <path d="M9 9.2h6l1.2 3.1H7.8L9 9.2Z" fill="white" opacity="0.9" />
-        <path d="M8.2 15.8h1.9M13.9 15.8h1.9" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
+      <div
+        style={{
+          position: "absolute",
+          left: "8px",
+          bottom: "8px",
+          width: "52px",
+          height: "23px",
+          borderRadius: "13px 17px 8px 8px",
+          background: "linear-gradient(145deg, #fb923c 0%, #f97316 58%, #ea580c 100%)",
+          border: "2px solid rgba(154, 52, 18, 0.5)",
+          boxShadow: "0 10px 18px rgba(15, 23, 42, 0.24)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: "23px",
+          bottom: "28px",
+          width: "25px",
+          height: "16px",
+          borderRadius: "11px 13px 4px 4px",
+          background: "linear-gradient(145deg, #fb923c 0%, #f97316 100%)",
+          border: "2px solid rgba(154, 52, 18, 0.48)",
+          borderBottom: "0",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: "27px",
+          bottom: "31px",
+          width: "8px",
+          height: "8px",
+          borderRadius: "2px",
+          background: "#60a5fa",
+          boxShadow: "12px 0 0 #60a5fa",
+          opacity: 0.95,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          left: "15px",
+          bottom: "3px",
+          width: "10px",
+          height: "10px",
+          borderRadius: "50%",
+          background: "#111827",
+          border: "2px solid #9ca3af",
+          boxShadow: "32px 0 0 #111827, 32px 0 0 2px #9ca3af",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          right: "5px",
+          bottom: "16px",
+          width: "5px",
+          height: "5px",
+          borderRadius: "50%",
+          background: "#fde68a",
+        }}
+      />
     </div>
   );
 
@@ -125,30 +177,58 @@ export function createLiveMarkerIcon({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: "72px",
-        height: "72px",
+        width: isMovingSalesman ? "96px" : "72px",
+        height: isMovingSalesman ? "92px" : "72px",
         zIndex: clusterIndex,
       }}
     >
+      {isMovingSalesman && name && (
+        <div
+          style={{
+            position: "absolute",
+            top: "0px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            maxWidth: "92px",
+            padding: "3px 8px",
+            borderRadius: "999px",
+            background: "rgba(255, 255, 255, 0.96)",
+            color: "#111827",
+            fontSize: "11px",
+            fontWeight: 800,
+            lineHeight: 1.1,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            boxShadow: "0 5px 12px rgba(15, 23, 42, 0.2)",
+            border: `1px solid ${accentColor}`,
+            zIndex: 30,
+          }}
+        >
+          {name}
+        </div>
+      )}
       {isPulsing && (
         <div
           style={{
             position: "absolute",
-            width: "58px",
-            height: "58px",
-            borderRadius: "50%",
+            width: isMovingSalesman ? "76px" : "58px",
+            height: isMovingSalesman ? "54px" : "58px",
+            borderRadius: isMovingSalesman ? "999px" : "50%",
             backgroundColor: statusConf.ringColor,
             animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
             opacity: 0.75,
           }}
         />
       )}
-      {isMovingSalesman ? carIcon : avatarMarker}
+      <div style={{ position: "absolute", top: isMovingSalesman ? "34px" : "12px" }}>
+        {isMovingSalesman ? carIcon : avatarMarker}
+      </div>
       <div
         style={{
           position: "absolute",
-          bottom: "10px",
-          right: "10px",
+          bottom: isMovingSalesman ? "19px" : "10px",
+          right: isMovingSalesman ? "20px" : "10px",
           width: "13px",
           height: "13px",
           backgroundColor: statusConf.color,
@@ -172,9 +252,9 @@ export function createLiveMarkerIcon({
   return L.divIcon({
     html,
     className: "custom-map-marker",
-    iconSize: [72, 72],
-    iconAnchor: [36 - offsetX, 36 - offsetY],
-    popupAnchor: [offsetX, -34 + offsetY],
+    iconSize: isMovingSalesman ? [96, 92] : [72, 72],
+    iconAnchor: isMovingSalesman ? [48 - offsetX, 72 - offsetY] : [36 - offsetX, 36 - offsetY],
+    popupAnchor: isMovingSalesman ? [offsetX, -64 + offsetY] : [offsetX, -34 + offsetY],
   });
 }
 
