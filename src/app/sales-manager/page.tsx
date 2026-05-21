@@ -35,6 +35,7 @@ export default function SalesManagerDashboard() {
   }, []);
 
   const unassignedJobs = useMemo(() => jobs.filter((job) => job.status === "pending").length, [jobs]);
+  const scheduledJobs = useMemo(() => jobs.filter((job) => job.status === "scheduled").length, [jobs]);
   const completedThisMonth = useMemo(() => {
     const now = new Date();
     return jobs.filter((job) => {
@@ -48,36 +49,32 @@ export default function SalesManagerDashboard() {
   }, [jobs]);
 
   const activeFitters = useMemo(() => users.filter((u) => u.role === "fitter").length, [users]);
-  const pendingReviews = 0;
+  const activeSalesmen = useMemo(() => users.filter((u) => u.role === "salesman").length, [users]);
 
   const stats = [
     {
       title: "Unassigned Jobs",
       value: isLoading ? "..." : unassignedJobs,
       icon: AlertCircle,
-      trend: "MongoDB",
-      trendColor: "text-amber-600",
+      href: "/sales-manager/salesman-assignments",
     },
     {
-      title: "Active Fitters",
-      value: isLoading ? "..." : activeFitters,
-      icon: Users,
-      trend: "Team data",
-      trendColor: "text-emerald-600",
+      title: "Scheduled Jobs",
+      value: isLoading ? "..." : scheduledJobs,
+      icon: CheckCircle,
+      href: null,
     },
     {
       title: "Completed (Month)",
       value: isLoading ? "..." : completedThisMonth,
       icon: CheckCircle,
-      trend: "MongoDB",
-      trendColor: "text-emerald-600",
+      href: null,
     },
     {
-      title: "Pending Reviews",
-      value: pendingReviews,
-      icon: ClipboardList,
-      trend: "No dummy jobs",
-      trendColor: "text-neutral-600",
+      title: "Active Salesmen",
+      value: isLoading ? "..." : activeSalesmen,
+      icon: Users,
+      href: "/sales-manager/salesmen",
     },
   ];
 
@@ -116,10 +113,10 @@ export default function SalesManagerDashboard() {
                 </div>
                 <div className="text-[11px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400 mb-2 font-semibold">{stat.title}</div>
                 <div className="text-5xl font-light text-neutral-900 dark:text-white mb-3">{stat.value}</div>
-                <div className={`flex items-center gap-1 text-xs ${stat.trendColor}`}>
+                {/* <div className={`flex items-center gap-1 text-xs ${stat.trendColor}`}>
                   <ArrowUp className="w-3 h-3" />
                   <span>{stat.trend}</span>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           );

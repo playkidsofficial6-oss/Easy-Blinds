@@ -59,8 +59,8 @@ function LocationMarker({ onAddressSelect, externalCoords }: AddressPickerMapPro
 }
 
 export default function AddressPickerMap({ onAddressSelect, externalCoords }: AddressPickerMapProps) {
-    // Default to Dubai center
-    const defaultCenter: [number, number] = [25.2048, 55.2708]; 
+    // Default to Kerala center
+    const defaultCenter: [number, number] = [10.8505, 76.2711];
 
     return (
         <div className="h-64 w-full rounded-xl border-2 border-slate-200 overflow-hidden relative z-0 mt-2 shadow-sm">

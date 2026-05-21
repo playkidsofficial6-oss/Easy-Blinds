@@ -364,8 +364,8 @@ export default function SmartSalesmanAssignmentsPage() {
     const job = jobs.find((j) => j._id === selectedJobId && j.status === "pending");
     if (!job) return undefined;
     
-    let lat = 25.2048;
-    let lng = 55.2708;
+    let lat = 10.8505;
+    let lng = 76.2711;
     if (job.location?.coordinates && job.location.coordinates.length >= 2) {
       lng = job.location.coordinates[0];
       lat = job.location.coordinates[1];
@@ -421,7 +421,7 @@ export default function SmartSalesmanAssignmentsPage() {
                     selectedPendingJobForMap.location.lng + (Math.random() - 0.5) * 0.05
                 ] as [number, number];
             }
-            return [25.2048, 55.2708] as [number, number]; 
+            return [10.8505, 76.2711] as [number, number];
         })(),
         locationLabel: (() => {
             const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
