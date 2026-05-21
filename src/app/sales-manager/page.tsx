@@ -55,29 +55,29 @@ export default function SalesManagerDashboard() {
       title: "Unassigned Jobs",
       value: isLoading ? "..." : unassignedJobs,
       icon: AlertCircle,
-      trend: "MongoDB",
-      trendColor: "text-amber-600",
+      // trend: "MongoDB",
+      // trendColor: "text-amber-600",
     },
     {
       title: "Active Fitters",
       value: isLoading ? "..." : activeFitters,
       icon: Users,
-      trend: "Team data",
-      trendColor: "text-emerald-600",
+      // trend: "Team data",
+      // trendColor: "text-emerald-600",
     },
     {
       title: "Completed (Month)",
       value: isLoading ? "..." : completedThisMonth,
       icon: CheckCircle,
-      trend: "MongoDB",
-      trendColor: "text-emerald-600",
+      // // trend: "MongoDB",
+      // // trendColor: "text-emerald-600",
     },
     {
       title: "Pending Reviews",
       value: pendingReviews,
       icon: ClipboardList,
-      trend: "No dummy jobs",
-      trendColor: "text-neutral-600",
+      // trend: "No dummy jobs",
+      // trendColor: "text-neutral-600",
     },
   ];
 
@@ -116,10 +116,10 @@ export default function SalesManagerDashboard() {
                 </div>
                 <div className="text-[11px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400 mb-2 font-semibold">{stat.title}</div>
                 <div className="text-5xl font-light text-neutral-900 dark:text-white mb-3">{stat.value}</div>
-                <div className={`flex items-center gap-1 text-xs ${stat.trendColor}`}>
+                {/* <div className={`flex items-center gap-1 text-xs ${stat.trendColor}`}>
                   <ArrowUp className="w-3 h-3" />
                   <span>{stat.trend}</span>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           );
