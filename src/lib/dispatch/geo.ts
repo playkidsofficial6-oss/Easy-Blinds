@@ -33,7 +33,7 @@ export function nudgeTowards(current: Coordinates, target: Coordinates, ratio = 
   };
 }
 
-export function fallbackDubaiCoordinates(area: string): Coordinates {
+export function fallbackKeralaCoordinates(area: string): Coordinates {
   const normalized = area.toLowerCase();
   if (normalized.includes("marina")) return { lat: 25.0868, lng: 55.145 };
   if (normalized.includes("downtown")) return { lat: 25.1972, lng: 55.2744 };
@@ -41,7 +41,11 @@ export function fallbackDubaiCoordinates(area: string): Coordinates {
   if (normalized.includes("springs")) return { lat: 25.0487, lng: 55.1765 };
   if (normalized.includes("jumeirah")) return { lat: 25.0441, lng: 55.1522 };
   if (normalized.includes("ranches")) return { lat: 25.0298, lng: 55.2917 };
-  return { lat: 25.2048, lng: 55.2708 };
+  if (normalized.includes("kochi") || normalized.includes("ernakulam")) return { lat: 9.9312, lng: 76.2673 };
+  if (normalized.includes("trivandrum") || normalized.includes("thiruvananthapuram")) return { lat: 8.5241, lng: 76.9366 };
+  if (normalized.includes("kozhikode") || normalized.includes("calicut")) return { lat: 11.2588, lng: 75.7804 };
+  if (normalized.includes("thrissur")) return { lat: 10.5276, lng: 76.2144 };
+  return { lat: 10.8505, lng: 76.2711 };
 }
 
 function toRad(value: number): number {

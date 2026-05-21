@@ -635,7 +635,7 @@ export default function FitterMap({
   );
   const selectedMarker = markers.find((marker) => marker.id === selectedFitterId);
   const center: [number, number] =
-    selectedJob?.location ? [selectedJob.location.lat, selectedJob.location.lng] : (selectedMarker?.position ?? [25.2048, 55.2708]);
+    selectedJob?.location ? [selectedJob.location.lat, selectedJob.location.lng] : (selectedMarker?.position ?? [10.8505, 76.2711]);
 
   return (
     <div className="relative h-full w-full">

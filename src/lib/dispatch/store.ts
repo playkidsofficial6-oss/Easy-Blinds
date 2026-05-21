@@ -12,7 +12,7 @@ import type {
   UpdateJobStatusInput,
 } from "./types";
 import { DISPATCH_AGENTS_SEED, DISPATCH_EVENTS_SEED, DISPATCH_JOBS_SEED } from "./seed";
-import { fallbackDubaiCoordinates, routeSummary } from "./geo";
+import { fallbackKeralaCoordinates, routeSummary } from "./geo";
 import { canAssignAgent } from "./engine";
 
 type DispatchState = {
@@ -58,7 +58,7 @@ export function createDispatchJob(input: CreateDispatchJobInput): DispatchJob {
     whatsapp: input.whatsapp,
     address: input.address,
     area: input.area,
-    coordinates: input.coordinates ?? fallbackDubaiCoordinates(input.area || input.address),
+    coordinates: input.coordinates ?? fallbackKeralaCoordinates(input.area || input.address),
     propertyType: input.propertyType,
     productCategory: input.productCategory,
     priority: input.priority,
