@@ -56,8 +56,8 @@ export function createLiveMarkerIcon({
     <div
       style={{
         position: "relative",
-        width: "48px",
-        height: "32px",
+        width: "54px",
+        height: "30px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -73,9 +73,9 @@ export function createLiveMarkerIcon({
       <div
         style={{
           position: "absolute",
-          bottom: "-4px",
-          width: "38px",
-          height: "9px",
+          bottom: "-5px",
+          width: "44px",
+          height: "8px",
           borderRadius: "999px",
           background: "rgba(15,23,42,0.22)",
           filter: "blur(4px)",
@@ -88,7 +88,7 @@ export function createLiveMarkerIcon({
         alt="Moving salesman"
         style={{
           position: "relative",
-          width: "48px",
+          width: "52px",
           height: "auto",
           display: "block",
           objectFit: "contain",
@@ -149,7 +149,7 @@ export function createLiveMarkerIcon({
         alignItems: "center",
         justifyContent: "center",
         width: isMovingSalesman ? "72px" : "72px",
-        height: isMovingSalesman ? "58px" : "72px",
+        height: isMovingSalesman ? "54px" : "72px",
         zIndex: clusterIndex,
       }}
     >
@@ -157,8 +157,8 @@ export function createLiveMarkerIcon({
         <div
           style={{
             position: "absolute",
-            width: isMovingSalesman ? "52px" : "58px",
-            height: isMovingSalesman ? "38px" : "58px",
+            width: isMovingSalesman ? "56px" : "58px",
+            height: isMovingSalesman ? "34px" : "58px",
             borderRadius: isMovingSalesman ? "999px" : "50%",
             backgroundColor: statusConf.ringColor,
             animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
@@ -172,7 +172,7 @@ export function createLiveMarkerIcon({
       <div
         style={{
           position: "absolute",
-          bottom: isMovingSalesman ? "15px" : "10px",
+          bottom: isMovingSalesman ? "13px" : "10px",
           right: isMovingSalesman ? "10px" : "10px",
           width: "13px",
           height: "13px",
@@ -197,9 +197,9 @@ export function createLiveMarkerIcon({
   return L.divIcon({
     html,
     className: "custom-map-marker",
-    iconSize: isMovingSalesman ? [72, 58] : [72, 72],
-    iconAnchor: isMovingSalesman ? [36 - offsetX, 28 - offsetY] : [36 - offsetX, 36 - offsetY],
-    popupAnchor: isMovingSalesman ? [offsetX, -32 + offsetY] : [offsetX, -34 + offsetY],
+    iconSize: isMovingSalesman ? [72, 54] : [72, 72],
+    iconAnchor: isMovingSalesman ? [36 - offsetX, 23 - offsetY] : [36 - offsetX, 36 - offsetY],
+    popupAnchor: isMovingSalesman ? [offsetX, -30 + offsetY] : [offsetX, -34 + offsetY],
   });
 }
 
