@@ -33,7 +33,7 @@ export interface UnifiedJob {
     endTime?: string;
     requestedDate?: string;
     // For Assignments Page Logic
-    recommendedFitters?: Array<{ id: string; name: string; role?: string; dist?: number }>;
+    recommendedFitters?: Array<{ id: string; name: string; role?: string; dist?: number; countdownSecs?: number; isFree?: boolean; timerStartedAt?: string; }>;
     team?: string; // Assigned fitter name
     assignedFitterName?: string;
     assignedSalesmanName?: string;
@@ -47,6 +47,27 @@ interface JobCardProps {
     onSelect: () => void;
     onAction?: (actionType: string, payload?: any) => void; // Generic action handler
     variant?: "assignment" | "schedule";
+}
+
+function LiveCountdown({ startedAt }: { startedAt: string }) {
+    const [timeLeft, setTimeLeft] = React.useState<number>(0);
+
+    React.useEffect(() => {
+        const calculateTime = () => {
+            const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+            const remaining = (45 * 60) - elapsed;
+            setTimeLeft(remaining > 0 ? remaining : 0);
+        };
+        calculateTime();
+        const interval = setInterval(calculateTime, 1000);
+        return () => clearInterval(interval);
+    }, [startedAt]);
+
+    return (
+        <span className="text-amber-600 font-semibold flex items-center gap-1">
+            Measuring ({Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')})
+        </span>
+    );
 }
 
 export function JobCard({ job, isSelected, onSelect, onAction, variant = "assignment" }: JobCardProps) {
@@ -172,9 +193,22 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                                         <div>
                                             <p className="text-sm font-semibold text-slate-800 group-hover/fitter:text-slate-900 transition-colors">
                                                 {rec.name}
-                                                {rec.role && <span className="ml-2 text-[10px] uppercase font-bold text-slate-400">{rec.role}</span>}
                                             </p>
-                                            {/* <p className="text-[10px] text-slate-500 group-hover/fitter:text-amber-600/80">{typeof rec.dist === "number" ? `${rec.dist.toFixed(1)} km from site` : "Available fitter"}</p> */}
+                                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 group-hover/fitter:text-amber-600/80 transition-colors">
+                                                {rec.isFree ? (
+                                                    <span className="text-emerald-600 font-semibold flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div> Available Now</span>
+                                                ) : rec.timerStartedAt ? (
+                                                    <LiveCountdown startedAt={rec.timerStartedAt} />
+                                                ) : (
+                                                    <span className="text-slate-400">Busy</span>
+                                                )}
+                                                {typeof rec.dist === "number" && (
+                                                    <>
+                                                        <span className="text-slate-300">•</span>
+                                                        <span>{rec.dist < 1 ? "< 1" : rec.dist.toFixed(1)} km away</span>
+                                                    </>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="h-8 w-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-300 group-hover/fitter:text-amber-500 group-hover/fitter:border-amber-200 transition-all">

@@ -296,10 +296,16 @@ function SalesmanPageContent() {
     }
 
     try {
-      await updateJob(id, { 
+      const updatePayload: any = {
         status: toApiStatus(displayStatus),
         ...(appendedNotes ? { notes: appendedNotes } : {})
-      });
+      };
+      
+      if (displayStatus === "In Progress") {
+        updatePayload.timerStartedAt = new Date().toISOString();
+      }
+
+      await updateJob(id, updatePayload);
       if (user?._id) {
         let userStatus: any = "Available";
         if (displayStatus === "On the way") {

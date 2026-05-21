@@ -184,8 +184,11 @@ function createCustomIcon(
   clusterTotal = 1,
 ) {
   const activeStatus = late ? "Late" : status;
-  const config = statusConfig[activeStatus];
+  const statusConf = statusConfig[activeStatus];
   const isPulsing = status !== "Offline" || late;
+  const roleColor = role === "Salesman" ? "#16a34a" : "#2563eb";
+  const roleRingColor = role === "Salesman" ? "rgba(22, 163, 74, 0.4)" : "rgba(37, 99, 235, 0.4)";
+  
   const initials = name
     ?.split(" ")
     .map((part) => part[0])
@@ -223,7 +226,7 @@ function createCustomIcon(
             width: "100%",
             height: "100%",
             borderRadius: "50%",
-            backgroundColor: config.ringColor,
+            backgroundColor: roleRingColor,
             animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
             opacity: 0.75,
           }}
@@ -235,7 +238,7 @@ function createCustomIcon(
           position: "relative",
           width: "48px",
           height: "48px",
-          borderRadius: role === "Salesman" ? "12px" : "50%",
+          borderRadius: "50%",
           backgroundColor: "white",
           padding: "2px",
           boxShadow:
@@ -249,8 +252,8 @@ function createCustomIcon(
           style={{
             width: "100%",
             height: "100%",
-            borderRadius: role === "Salesman" ? "10px" : "50%",
-            border: `2px solid ${config.color}`,
+            borderRadius: "50%",
+            border: `2px solid ${roleColor}`,
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
@@ -259,11 +262,6 @@ function createCustomIcon(
             position: "relative",
           }}
         >
-          {role === "Salesman" && (
-            <div style={{ position: "absolute", top: 0, right: 0, background: config.color, color: "white", fontSize: "8px", fontWeight: "bold", padding: "1px 3px", borderBottomLeftRadius: "4px" }}>
-              SM
-            </div>
-          )}
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -286,7 +284,7 @@ function createCustomIcon(
           right: "6px",
           width: "12px",
           height: "12px",
-          backgroundColor: config.color,
+          backgroundColor: statusConf.color,
           border: "2px solid white",
           borderRadius: "50%",
           zIndex: 20,
