@@ -68,33 +68,102 @@ type AddressSuggestion = {
 
 const KERALA_VIEWBOX = "74.8,12.9,77.5,8.0";
 const UAE_VIEWBOX = "51.4,26.5,56.6,22.4";
+const MALAPPURAM_VIEWBOX = "75.75,11.62,76.58,10.68";
+const DUBAI_VIEWBOX = "54.88,25.36,55.58,24.78";
+
+const MALAPPURAM_LOCAL_TERMS = [
+  "malappuram", "manjeri", "nilambur", "tirur", "perinthalmanna", "kottakkal", "kondotty", "ponnani", "tanur", "vengara", "edappal", "valanchery", "areekode", "chemmad", "parappanangadi", "edakkara", "edavanna", "karuvarakundu", "changaramkulam", "ramanattukara", "calicut airport", "karipur", "down hill", "up hill",
+];
+
+const DUBAI_LOCAL_TERMS = [
+  "dubai", "deira", "bur dubai", "karama", "satwa", "al quoz", "al nahda", "al rigga", "jbr", "marina", "jlt", "jvc", "business bay", "downtown", "mirdif", "international city", "silicon oasis", "dso", "barsha", "tecom", "barsha heights", "discovery gardens", "dubai hills", "palm jumeirah", "meydan", "difc", "nad al sheba", "al warqa", "arabian ranches", "damac hills",
+];
 
 const ADDRESS_QUERY_ALIASES: Record<string, string> = {
   jbr: "Jumeirah Beach Residence Dubai",
-  manjri: "Manjeri Kerala",
-  nilamb: "Nilambur Kerala",
+  jlt: "Jumeirah Lakes Towers Dubai",
+  jvc: "Jumeirah Village Circle Dubai",
+  dso: "Dubai Silicon Oasis Dubai",
+  tecom: "Barsha Heights Tecom Dubai",
   marina: "Dubai Marina",
   barsha: "Al Barsha Dubai",
-  lulu: "Lulu Mall Kerala UAE",
+  karama: "Al Karama Dubai",
+  satwa: "Al Satwa Dubai",
+  rigga: "Al Rigga Deira Dubai",
+  quoz: "Al Quoz Dubai",
+  nahda: "Al Nahda Dubai",
+  mirdif: "Mirdif Dubai",
+  difc: "Dubai International Financial Centre",
+  lulu: "Lulu Mall Malappuram Dubai",
   sobha: "Sobha Hartland Dubai",
-  aster: "Aster Clinic Dubai Kerala",
+  aster: "Aster Clinic Dubai Malappuram",
+  manjri: "Manjeri Malappuram Kerala",
+  manjeri: "Manjeri Malappuram Kerala",
+  nilamb: "Nilambur Malappuram Kerala",
+  nilambur: "Nilambur Malappuram Kerala",
+  mlp: "Malappuram Kerala",
+  tirur: "Tirur Malappuram Kerala",
+  kottakkal: "Kottakkal Malappuram Kerala",
+  perinthalmanna: "Perinthalmanna Malappuram Kerala",
+  kondotty: "Kondotty Malappuram Kerala",
+  karipur: "Calicut International Airport Karipur Malappuram Kerala",
+  edappal: "Edappal Malappuram Kerala",
+  ponnani: "Ponnani Malappuram Kerala",
+  valanchery: "Valanchery Malappuram Kerala",
+  areekode: "Areekode Malappuram Kerala",
+  chemmad: "Chemmad Tirurangadi Malappuram Kerala",
+  vengara: "Vengara Malappuram Kerala",
+  tanur: "Tanur Malappuram Kerala",
+  downhill: "Down Hill Malappuram Kerala",
+  "down hill": "Down Hill Malappuram Kerala",
+  uphill: "Up Hill Malappuram Kerala",
+  "up hill": "Up Hill Malappuram Kerala",
+  "calicut airport": "Calicut International Airport Karipur Malappuram Kerala",
+  calicutairport: "Calicut International Airport Karipur Malappuram Kerala",
 };
 
 const CURATED_ADDRESS_SUGGESTIONS: AddressSuggestion[] = [
-  { id: "curated-dubai-marina", display_name: "Dubai Marina, Dubai, United Arab Emirates", lat: "25.0800", lon: "55.1400", primary: "Dubai Marina", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-jbr", display_name: "Jumeirah Beach Residence (JBR), Dubai, United Arab Emirates", lat: "25.0781", lon: "55.1335", primary: "Jumeirah Beach Residence (JBR)", secondary: "Dubai, UAE", category: "Community", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-business-bay", display_name: "Business Bay, Dubai, United Arab Emirates", lat: "25.1840", lon: "55.2640", primary: "Business Bay", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-burj-khalifa", display_name: "Burj Khalifa, Downtown Dubai, United Arab Emirates", lat: "25.1972", lon: "55.2744", primary: "Burj Khalifa", secondary: "Downtown Dubai, UAE", category: "Landmark", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-al-barsha", display_name: "Al Barsha, Dubai, United Arab Emirates", lat: "25.1107", lon: "55.2000", primary: "Al Barsha", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-jumeirah", display_name: "Jumeirah, Dubai, United Arab Emirates", lat: "25.2048", lon: "55.2532", primary: "Jumeirah", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-sobha", display_name: "Sobha Hartland, Mohammed Bin Rashid City, Dubai, United Arab Emirates", lat: "25.1764", lon: "55.3098", primary: "Sobha Hartland", secondary: "Dubai, UAE", category: "Community", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-sharjah", display_name: "Sharjah, United Arab Emirates", lat: "25.3463", lon: "55.4209", primary: "Sharjah", secondary: "UAE", category: "City", regionScore: 145, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-abu-dhabi", display_name: "Abu Dhabi, United Arab Emirates", lat: "24.4539", lon: "54.3773", primary: "Abu Dhabi", secondary: "UAE", category: "City", regionScore: 140, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-nilambur", display_name: "Nilambur, Malappuram, Kerala, India", lat: "11.2794", lon: "76.2389", primary: "Nilambur", secondary: "Malappuram, Kerala", category: "Town", regionScore: 155, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-manjeri", display_name: "Manjeri, Malappuram, Kerala, India", lat: "11.1202", lon: "76.1197", primary: "Manjeri", secondary: "Malappuram, Kerala", category: "Town", regionScore: 155, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-edakkara", display_name: "Edakkara, Malappuram, Kerala, India", lat: "11.3577", lon: "76.3076", primary: "Edakkara", secondary: "Malappuram, Kerala", category: "Town", regionScore: 155, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-mg-road-kochi", display_name: "Mahatma Gandhi Road (MG Road), Kochi, Kerala, India", lat: "9.9698", lon: "76.2867", primary: "MG Road", secondary: "Kochi, Kerala", category: "Street", regionScore: 150, matchScore: 0, importance: 1, source: "curated" },
-  { id: "curated-lulu-kochi", display_name: "Lulu Mall, Edappally, Kochi, Kerala, India", lat: "10.0276", lon: "76.3071", primary: "Lulu Mall", secondary: "Edappally, Kochi, Kerala", category: "Landmark", regionScore: 150, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-malappuram-town", display_name: "Malappuram Town, Malappuram, Kerala, India", lat: "11.0510", lon: "76.0711", primary: "Malappuram Town", secondary: "Kottappadi / Civil Station area, Malappuram", category: "Town Centre", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-down-hill", display_name: "Down Hill, Malappuram, Kerala, India", lat: "11.0448", lon: "76.0708", primary: "Down Hill", secondary: "Malappuram local area", category: "Area", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-up-hill", display_name: "Up Hill, Malappuram, Kerala, India", lat: "11.0581", lon: "76.0740", primary: "Up Hill", secondary: "Malappuram local area", category: "Area", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-manjeri", display_name: "Manjeri, Malappuram, Kerala, India", lat: "11.1202", lon: "76.1197", primary: "Manjeri", secondary: "Town / hospital and retail hub, Malappuram", category: "Town", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-nilambur", display_name: "Nilambur, Malappuram, Kerala, India", lat: "11.2794", lon: "76.2389", primary: "Nilambur", secondary: "Eastern Malappuram / Gudalur route", category: "Town", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-tirur", display_name: "Tirur, Malappuram, Kerala, India", lat: "10.9146", lon: "75.9221", primary: "Tirur", secondary: "Railway and coastal-side town, Malappuram", category: "Town", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-perinthalmanna", display_name: "Perinthalmanna, Malappuram, Kerala, India", lat: "10.9765", lon: "76.2260", primary: "Perinthalmanna", secondary: "Hospital and residential hub, Malappuram", category: "Town", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-kottakkal", display_name: "Kottakkal, Malappuram, Kerala, India", lat: "10.9996", lon: "76.0058", primary: "Kottakkal", secondary: "Ayurveda / NH 66 side, Malappuram", category: "Town", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-kondotty", display_name: "Kondotty, Malappuram, Kerala, India", lat: "11.1444", lon: "75.9656", primary: "Kondotty", secondary: "Karipur airport side, Malappuram", category: "Town", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-karipur-airport", display_name: "Calicut International Airport, Karipur, Malappuram, Kerala, India", lat: "11.1368", lon: "75.9553", primary: "Calicut International Airport", secondary: "Karipur / Kondotty, Malappuram", category: "Landmark", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-edappal", display_name: "Edappal, Malappuram, Kerala, India", lat: "10.7847", lon: "76.0106", primary: "Edappal", secondary: "Ponnani / Kuttippuram side, Malappuram", category: "Town", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-valanchery", display_name: "Valanchery, Malappuram, Kerala, India", lat: "10.8892", lon: "76.0730", primary: "Valanchery", secondary: "Kuttippuram / Kottakkal route, Malappuram", category: "Town", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-ponnani", display_name: "Ponnani, Malappuram, Kerala, India", lat: "10.7677", lon: "75.9259", primary: "Ponnani", secondary: "Coastal Malappuram", category: "Town", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-vengara", display_name: "Vengara, Malappuram, Kerala, India", lat: "11.0516", lon: "75.9894", primary: "Vengara", secondary: "Malappuram local route", category: "Town", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-chemmad", display_name: "Chemmad, Tirurangadi, Malappuram, Kerala, India", lat: "11.0437", lon: "75.9367", primary: "Chemmad", secondary: "Tirurangadi / NH side, Malappuram", category: "Town", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-areekode", display_name: "Areekode, Malappuram, Kerala, India", lat: "11.2302", lon: "76.0504", primary: "Areekode", secondary: "Mukkam / Manjeri route, Malappuram", category: "Town", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-edakkara", display_name: "Edakkara, Malappuram, Kerala, India", lat: "11.3577", lon: "76.3076", primary: "Edakkara", secondary: "Nilambur side, Malappuram", category: "Town", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-dubai-marina", display_name: "Dubai Marina, Dubai, United Arab Emirates", lat: "25.0800", lon: "55.1400", primary: "Dubai Marina", secondary: "Marina / JBR / tram-side community, Dubai", category: "Area", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-jbr", display_name: "Jumeirah Beach Residence (JBR), Dubai, United Arab Emirates", lat: "25.0781", lon: "55.1335", primary: "Jumeirah Beach Residence (JBR)", secondary: "The Walk / beach-side towers, Dubai", category: "Community", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-jlt", display_name: "Jumeirah Lakes Towers (JLT), Dubai, United Arab Emirates", lat: "25.0693", lon: "55.1413", primary: "Jumeirah Lakes Towers (JLT)", secondary: "Cluster towers near Dubai Marina", category: "Community", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-jvc", display_name: "Jumeirah Village Circle (JVC), Dubai, United Arab Emirates", lat: "25.0600", lon: "55.2042", primary: "Jumeirah Village Circle (JVC)", secondary: "Villa and apartment community, Dubai", category: "Community", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-business-bay", display_name: "Business Bay, Dubai, United Arab Emirates", lat: "25.1840", lon: "55.2640", primary: "Business Bay", secondary: "Canal-side towers near Downtown Dubai", category: "Area", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-downtown-dubai", display_name: "Downtown Dubai, Dubai, United Arab Emirates", lat: "25.1950", lon: "55.2744", primary: "Downtown Dubai", secondary: "Burj Khalifa / Dubai Mall area", category: "Area", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-burj-khalifa", display_name: "Burj Khalifa, Downtown Dubai, United Arab Emirates", lat: "25.1972", lon: "55.2744", primary: "Burj Khalifa", secondary: "Downtown Dubai landmark", category: "Landmark", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-deira", display_name: "Deira, Dubai, United Arab Emirates", lat: "25.2697", lon: "55.3095", primary: "Deira", secondary: "Old Dubai / creek-side market area", category: "Area", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-bur-dubai", display_name: "Bur Dubai, Dubai, United Arab Emirates", lat: "25.2522", lon: "55.2966", primary: "Bur Dubai", secondary: "Old Dubai / Meena Bazaar side", category: "Area", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-karama", display_name: "Al Karama, Dubai, United Arab Emirates", lat: "25.2462", lon: "55.3062", primary: "Al Karama", secondary: "Central Dubai residential and shop area", category: "Area", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-satwa", display_name: "Al Satwa, Dubai, United Arab Emirates", lat: "25.2248", lon: "55.2765", primary: "Al Satwa", secondary: "Jumeirah / Sheikh Zayed Road side", category: "Area", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-al-quoz", display_name: "Al Quoz, Dubai, United Arab Emirates", lat: "25.1412", lon: "55.2265", primary: "Al Quoz", secondary: "Industrial and warehouse district, Dubai", category: "Area", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-al-barsha", display_name: "Al Barsha, Dubai, United Arab Emirates", lat: "25.1107", lon: "55.2000", primary: "Al Barsha", secondary: "Mall of the Emirates side, Dubai", category: "Area", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-barsha-heights", display_name: "Barsha Heights (Tecom), Dubai, United Arab Emirates", lat: "25.0964", lon: "55.1758", primary: "Barsha Heights (Tecom)", secondary: "Hotel and tower district, Dubai", category: "Community", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-dubai-silicon-oasis", display_name: "Dubai Silicon Oasis (DSO), Dubai, United Arab Emirates", lat: "25.1254", lon: "55.3813", primary: "Dubai Silicon Oasis (DSO)", secondary: "Tech and villa community, Dubai", category: "Community", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-international-city", display_name: "International City, Dubai, United Arab Emirates", lat: "25.1662", lon: "55.4087", primary: "International City", secondary: "Cluster-based residential district, Dubai", category: "Community", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-mirdif", display_name: "Mirdif, Dubai, United Arab Emirates", lat: "25.2247", lon: "55.4244", primary: "Mirdif", secondary: "Villa and family residential area, Dubai", category: "Area", regionScore: 188, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-discovery-gardens", display_name: "Discovery Gardens, Dubai, United Arab Emirates", lat: "25.0417", lon: "55.1326", primary: "Discovery Gardens", secondary: "Gardens / Ibn Battuta side, Dubai", category: "Community", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-dubai-hills", display_name: "Dubai Hills Estate, Dubai, United Arab Emirates", lat: "25.1137", lon: "55.2534", primary: "Dubai Hills Estate", secondary: "Villa and apartment community, Dubai", category: "Community", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-sobha", display_name: "Sobha Hartland, Mohammed Bin Rashid City, Dubai, United Arab Emirates", lat: "25.1764", lon: "55.3098", primary: "Sobha Hartland", secondary: "MBR City community, Dubai", category: "Community", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-palm-jumeirah", display_name: "Palm Jumeirah, Dubai, United Arab Emirates", lat: "25.1124", lon: "55.1390", primary: "Palm Jumeirah", secondary: "Trunk, fronds, and crescent, Dubai", category: "Community", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-meydan", display_name: "Meydan, Dubai, United Arab Emirates", lat: "25.1605", lon: "55.3006", primary: "Meydan", secondary: "Nad Al Sheba / MBR City side", category: "Area", regionScore: 186, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-sharjah", display_name: "Sharjah, United Arab Emirates", lat: "25.3463", lon: "55.4209", primary: "Sharjah", secondary: "Nearby UAE emirate", category: "City", regionScore: 135, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-abu-dhabi", display_name: "Abu Dhabi, United Arab Emirates", lat: "24.4539", lon: "54.3773", primary: "Abu Dhabi", secondary: "UAE capital", category: "City", regionScore: 125, matchScore: 0, importance: 1, source: "curated" },
 ];
 
 const normalizeAddressText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -154,14 +223,17 @@ const getRegionScore = (place: Pick<AddressSuggestion, "display_name" | "lat" | 
   const lon = Number(place.lon);
   const isUae = name.includes("united arab emirates") || name.includes(" uae") || address?.country_code === "ae";
   const isKerala = name.includes("kerala") || address?.state?.toLowerCase() === "kerala";
+  const inDubaiBounds = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 24.78 && lat <= 25.36 && lon >= 54.88 && lon <= 55.58;
+  const inMalappuramBounds = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 10.68 && lat <= 11.62 && lon >= 75.75 && lon <= 76.58;
   const inUaeBounds = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 22.4 && lat <= 26.5 && lon >= 51.4 && lon <= 56.6;
   const inKeralaBounds = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 8.0 && lat <= 12.9 && lon >= 74.8 && lon <= 77.5;
-  const isPriorityUaeCity = ["dubai", "sharjah", "abu dhabi"].some((city) => name.includes(city));
-  if (isPriorityUaeCity) return 160;
-  if (isKerala) return 155;
-  if (isUae || inUaeBounds) return 145;
-  if (inKeralaBounds) return 140;
-  if (name.includes("india") || address?.country_code === "in") return 40;
+  const isDubaiLocal = DUBAI_LOCAL_TERMS.some((term) => name.includes(term));
+  const isMalappuramLocal = MALAPPURAM_LOCAL_TERMS.some((term) => name.includes(term));
+  if (isDubaiLocal || isMalappuramLocal || inDubaiBounds || inMalappuramBounds) return 190;
+  if (isKerala) return 145;
+  if (isUae || inUaeBounds) return 140;
+  if (inKeralaBounds) return 132;
+  if (name.includes("india") || address?.country_code === "in") return 20;
   return -80;
 };
 
@@ -169,12 +241,16 @@ const getMatchScore = (suggestion: Pick<AddressSuggestion, "primary" | "display_
   const normalizedQuery = normalizeAddressText(query);
   const normalizedPrimary = normalizeAddressText(suggestion.primary);
   const normalizedDisplay = normalizeAddressText(suggestion.display_name);
+  const queryTokens = normalizedQuery.split(" ").filter((token) => token.length >= 2);
   if (!normalizedQuery) return 0;
   let score = 0;
-  if (normalizedPrimary === normalizedQuery) score += 120;
-  if (normalizedPrimary.startsWith(normalizedQuery)) score += 85;
-  if (normalizedDisplay.includes(normalizedQuery)) score += 55;
-  if (["building", "landmark", "street", "community", "area", "shop"].includes(suggestion.category.toLowerCase())) score += 16;
+  if (normalizedPrimary === normalizedQuery) score += 140;
+  if (normalizedPrimary.startsWith(normalizedQuery)) score += 100;
+  if (normalizedDisplay.includes(normalizedQuery)) score += 65;
+  if (queryTokens.length > 0 && queryTokens.every((token) => normalizedDisplay.includes(token))) score += 45;
+  if (MALAPPURAM_LOCAL_TERMS.some((term) => normalizedDisplay.includes(term))) score += 28;
+  if (DUBAI_LOCAL_TERMS.some((term) => normalizedDisplay.includes(term))) score += 28;
+  if (["building", "landmark", "street", "community", "area", "shop", "town", "town centre"].includes(suggestion.category.toLowerCase())) score += 18;
   return score;
 };
 
@@ -322,6 +398,8 @@ export default function NewJobPage() {
         });
 
         const requests = [
+          new URLSearchParams({ ...Object.fromEntries(baseParams), viewbox: DUBAI_VIEWBOX, bounded: "1" }),
+          new URLSearchParams({ ...Object.fromEntries(baseParams), viewbox: MALAPPURAM_VIEWBOX, bounded: "1" }),
           new URLSearchParams({ ...Object.fromEntries(baseParams), viewbox: UAE_VIEWBOX, bounded: "1" }),
           new URLSearchParams({ ...Object.fromEntries(baseParams), viewbox: KERALA_VIEWBOX, bounded: "1" }),
           baseParams,
@@ -658,7 +736,7 @@ export default function NewJobPage() {
                   id="address"
                   name="address"
                   required
-                  placeholder="Search Area or click on the map below..."
+                  placeholder="Search Malappuram or Dubai area, building, landmark..."
                   value={addressValue}
                   onChange={(e) => {
                     const val = e.target.value;
@@ -674,7 +752,7 @@ export default function NewJobPage() {
                 {showSuggestions && (addressValue.trim().length >= 2) && (
                   <div className="absolute z-50 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70 ring-1 ring-slate-900/5 transition-all dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30">
                     <div className="border-b border-slate-100 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:border-slate-800 dark:text-slate-500">
-                      Kerala and UAE location search
+                      Malappuram and Dubai local search
                     </div>
                     {isLoadingSuggestions && (
                       <div className="space-y-2 p-3">
@@ -691,7 +769,7 @@ export default function NewJobPage() {
                     )}
                     {!isLoadingSuggestions && suggestions.length === 0 && (
                       <div className="px-4 py-5 text-sm text-slate-500 dark:text-slate-400">
-                        No strong Kerala or UAE matches found. Try an area, building, street, landmark, or community name.
+                        No strong Malappuram or Dubai match found. Try a local area, route name, building, landmark, community, or nearby town such as Manjeri, Kottakkal, Deira, JVC, or Marina.
                       </div>
                     )}
                     {!isLoadingSuggestions && suggestions.map((item) => (
