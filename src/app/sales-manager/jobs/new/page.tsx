@@ -4,11 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeft, Check, ChevronsUpDown, Mail, MapPin, Phone, User, Calendar, Clock, Building, AlertCircle } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, Mail, MapPin, Phone, User, Calendar, Clock, Building } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +36,208 @@ const COUNTRIES = [
   { name: "Philippines", code: "+63", flag: "🇵🇭" },
 ];
 
+
+type NominatimAddress = Record<string, string | undefined>;
+
+type NominatimPlace = {
+  place_id?: number;
+  osm_id?: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  class?: string;
+  type?: string;
+  importance?: number;
+  address?: NominatimAddress;
+  namedetails?: Record<string, string | undefined>;
+};
+
+type AddressSuggestion = {
+  id: string;
+  display_name: string;
+  lat: string;
+  lon: string;
+  primary: string;
+  secondary: string;
+  category: string;
+  regionScore: number;
+  matchScore: number;
+  importance: number;
+  source: "curated" | "nominatim";
+};
+
+const KERALA_VIEWBOX = "74.8,12.9,77.5,8.0";
+const UAE_VIEWBOX = "51.4,26.5,56.6,22.4";
+
+const ADDRESS_QUERY_ALIASES: Record<string, string> = {
+  jbr: "Jumeirah Beach Residence Dubai",
+  manjri: "Manjeri Kerala",
+  nilamb: "Nilambur Kerala",
+  marina: "Dubai Marina",
+  barsha: "Al Barsha Dubai",
+  lulu: "Lulu Mall Kerala UAE",
+  sobha: "Sobha Hartland Dubai",
+  aster: "Aster Clinic Dubai Kerala",
+};
+
+const CURATED_ADDRESS_SUGGESTIONS: AddressSuggestion[] = [
+  { id: "curated-dubai-marina", display_name: "Dubai Marina, Dubai, United Arab Emirates", lat: "25.0800", lon: "55.1400", primary: "Dubai Marina", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-jbr", display_name: "Jumeirah Beach Residence (JBR), Dubai, United Arab Emirates", lat: "25.0781", lon: "55.1335", primary: "Jumeirah Beach Residence (JBR)", secondary: "Dubai, UAE", category: "Community", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-business-bay", display_name: "Business Bay, Dubai, United Arab Emirates", lat: "25.1840", lon: "55.2640", primary: "Business Bay", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-burj-khalifa", display_name: "Burj Khalifa, Downtown Dubai, United Arab Emirates", lat: "25.1972", lon: "55.2744", primary: "Burj Khalifa", secondary: "Downtown Dubai, UAE", category: "Landmark", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-al-barsha", display_name: "Al Barsha, Dubai, United Arab Emirates", lat: "25.1107", lon: "55.2000", primary: "Al Barsha", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-jumeirah", display_name: "Jumeirah, Dubai, United Arab Emirates", lat: "25.2048", lon: "55.2532", primary: "Jumeirah", secondary: "Dubai, UAE", category: "Area", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-sobha", display_name: "Sobha Hartland, Mohammed Bin Rashid City, Dubai, United Arab Emirates", lat: "25.1764", lon: "55.3098", primary: "Sobha Hartland", secondary: "Dubai, UAE", category: "Community", regionScore: 160, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-sharjah", display_name: "Sharjah, United Arab Emirates", lat: "25.3463", lon: "55.4209", primary: "Sharjah", secondary: "UAE", category: "City", regionScore: 145, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-abu-dhabi", display_name: "Abu Dhabi, United Arab Emirates", lat: "24.4539", lon: "54.3773", primary: "Abu Dhabi", secondary: "UAE", category: "City", regionScore: 140, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-nilambur", display_name: "Nilambur, Malappuram, Kerala, India", lat: "11.2794", lon: "76.2389", primary: "Nilambur", secondary: "Malappuram, Kerala", category: "Town", regionScore: 155, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-manjeri", display_name: "Manjeri, Malappuram, Kerala, India", lat: "11.1202", lon: "76.1197", primary: "Manjeri", secondary: "Malappuram, Kerala", category: "Town", regionScore: 155, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-edakkara", display_name: "Edakkara, Malappuram, Kerala, India", lat: "11.3577", lon: "76.3076", primary: "Edakkara", secondary: "Malappuram, Kerala", category: "Town", regionScore: 155, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-mg-road-kochi", display_name: "Mahatma Gandhi Road (MG Road), Kochi, Kerala, India", lat: "9.9698", lon: "76.2867", primary: "MG Road", secondary: "Kochi, Kerala", category: "Street", regionScore: 150, matchScore: 0, importance: 1, source: "curated" },
+  { id: "curated-lulu-kochi", display_name: "Lulu Mall, Edappally, Kochi, Kerala, India", lat: "10.0276", lon: "76.3071", primary: "Lulu Mall", secondary: "Edappally, Kochi, Kerala", category: "Landmark", regionScore: 150, matchScore: 0, importance: 1, source: "curated" },
+];
+
+const normalizeAddressText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+const stripUnitFragments = (value: string) => value.replace(/\b(flat|apt|apartment|villa|house|room|unit|door|no)\s*\w*/gi, " ").replace(/\s+/g, " ").trim();
+
+const getNominatimSearchQuery = (query: string) => {
+  const normalized = normalizeAddressText(query);
+  return ADDRESS_QUERY_ALIASES[normalized] || stripUnitFragments(query) || query;
+};
+
+const getAddressPrimary = (place: NominatimPlace) => {
+  const address = place.address || {};
+  return (
+    place.namedetails?.name ||
+    address.building ||
+    address.house_name ||
+    address.amenity ||
+    address.shop ||
+    address.tourism ||
+    address.road ||
+    address.neighbourhood ||
+    address.suburb ||
+    address.city ||
+    address.town ||
+    address.village ||
+    place.display_name.split(",")[0]
+  );
+};
+
+const getAddressSecondary = (place: NominatimPlace) => {
+  const address = place.address || {};
+  const parts = [
+    address.neighbourhood || address.suburb || address.city_district,
+    address.city || address.town || address.village || address.county,
+    address.state,
+    address.country_code === "ae" ? "UAE" : address.country,
+  ].filter(Boolean);
+  return Array.from(new Set(parts)).slice(0, 3).join(", ");
+};
+
+const getAddressCategory = (place: NominatimPlace) => {
+  const address = place.address || {};
+  const value = `${place.class || ""} ${place.type || ""}`.toLowerCase();
+  if (address.building || address.house_name || value.includes("building") || value.includes("apartments")) return "Building";
+  if (address.road || value.includes("street") || value.includes("residential")) return "Street";
+  if (address.shop) return "Shop";
+  if (address.amenity || address.tourism || value.includes("attraction")) return "Landmark";
+  if (address.neighbourhood || address.suburb || value.includes("neighbourhood")) return "Area";
+  if (address.city || address.town || address.village) return "Locality";
+  return "Place";
+};
+
+const getRegionScore = (place: Pick<AddressSuggestion, "display_name" | "lat" | "lon">, address?: NominatimAddress) => {
+  const name = normalizeAddressText(place.display_name);
+  const lat = Number(place.lat);
+  const lon = Number(place.lon);
+  const isUae = name.includes("united arab emirates") || name.includes(" uae") || address?.country_code === "ae";
+  const isKerala = name.includes("kerala") || address?.state?.toLowerCase() === "kerala";
+  const inUaeBounds = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 22.4 && lat <= 26.5 && lon >= 51.4 && lon <= 56.6;
+  const inKeralaBounds = Number.isFinite(lat) && Number.isFinite(lon) && lat >= 8.0 && lat <= 12.9 && lon >= 74.8 && lon <= 77.5;
+  const isPriorityUaeCity = ["dubai", "sharjah", "abu dhabi"].some((city) => name.includes(city));
+  if (isPriorityUaeCity) return 160;
+  if (isKerala) return 155;
+  if (isUae || inUaeBounds) return 145;
+  if (inKeralaBounds) return 140;
+  if (name.includes("india") || address?.country_code === "in") return 40;
+  return -80;
+};
+
+const getMatchScore = (suggestion: Pick<AddressSuggestion, "primary" | "display_name" | "category">, query: string) => {
+  const normalizedQuery = normalizeAddressText(query);
+  const normalizedPrimary = normalizeAddressText(suggestion.primary);
+  const normalizedDisplay = normalizeAddressText(suggestion.display_name);
+  if (!normalizedQuery) return 0;
+  let score = 0;
+  if (normalizedPrimary === normalizedQuery) score += 120;
+  if (normalizedPrimary.startsWith(normalizedQuery)) score += 85;
+  if (normalizedDisplay.includes(normalizedQuery)) score += 55;
+  if (["building", "landmark", "street", "community", "area", "shop"].includes(suggestion.category.toLowerCase())) score += 16;
+  return score;
+};
+
+const toAddressSuggestion = (place: NominatimPlace, query: string): AddressSuggestion => {
+  const primary = getAddressPrimary(place);
+  const secondary = getAddressSecondary(place);
+  const category = getAddressCategory(place);
+  const base = {
+    id: String(place.place_id || place.osm_id || `${place.lat}-${place.lon}-${place.display_name}`),
+    display_name: place.display_name,
+    lat: place.lat,
+    lon: place.lon,
+    primary,
+    secondary,
+    category,
+    regionScore: getRegionScore(place, place.address),
+    matchScore: 0,
+    importance: Number(place.importance || 0),
+    source: "nominatim" as const,
+  };
+  return { ...base, matchScore: getMatchScore(base, query) };
+};
+
+const getCuratedMatches = (query: string) => {
+  const normalizedQuery = normalizeAddressText(query);
+  const expandedQuery = normalizeAddressText(ADDRESS_QUERY_ALIASES[normalizedQuery] || query);
+  if (!normalizedQuery) return [];
+  return CURATED_ADDRESS_SUGGESTIONS
+    .filter((item) => {
+      const haystack = normalizeAddressText(`${item.primary} ${item.display_name}`);
+      const primary = normalizeAddressText(item.primary);
+      return haystack.includes(normalizedQuery) || haystack.includes(expandedQuery) || expandedQuery.includes(primary) || primary.startsWith(normalizedQuery);
+    })
+    .map((item) => ({ ...item, matchScore: getMatchScore(item, query) + 30 }));
+};
+
+const rankAndDedupeSuggestions = (items: AddressSuggestion[]) => {
+  const seen = new Set<string>();
+  return items
+    .filter((item) => {
+      const key = `${normalizeAddressText(item.primary)}-${Number(item.lat).toFixed(4)}-${Number(item.lon).toFixed(4)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return item.regionScore >= 140 || item.matchScore >= 130;
+    })
+    .sort((a, b) => (b.regionScore + b.matchScore + b.importance * 20) - (a.regionScore + a.matchScore + a.importance * 20))
+    .slice(0, 8);
+};
+
+const highlightSuggestionMatch = (text: string, query: string) => {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return text;
+  const index = text.toLowerCase().indexOf(normalizedQuery.toLowerCase());
+  if (index === -1) return text;
+  return (
+    <>
+      {text.slice(0, index)}
+      <mark className="rounded bg-yellow-100 px-0.5 font-semibold text-slate-950 dark:bg-yellow-400/25 dark:text-yellow-100">{text.slice(index, index + normalizedQuery.length)}</mark>
+      {text.slice(index + normalizedQuery.length)}
+    </>
+  );
+};
+
 export default function NewJobPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -51,10 +253,12 @@ export default function NewJobPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const suggestionCacheRef = useRef<Map<string, AddressSuggestion[]>>(new Map());
+  const suggestionAbortRef = useRef<AbortController | null>(null);
 
   const handleAddressSelect = (address: string) => {
     setAddressValue(address);
@@ -74,31 +278,84 @@ export default function NewJobPage() {
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
-  // Fetch suggestions as user types (debounced)
+  // Fetch professional address suggestions as user types with regional bias, debouncing, cancellation, and cache reuse.
   useEffect(() => {
-    if (!addressValue || addressValue.length < 3) {
-      setSuggestions([]);
-      return;
+    const rawQuery = addressValue.trim();
+    const normalizedQuery = normalizeAddressText(rawQuery);
+
+    if (!rawQuery || rawQuery.length < 2) {
+      suggestionAbortRef.current?.abort();
+      const resetTimer = window.setTimeout(() => {
+        setSuggestions([]);
+        setIsLoadingSuggestions(false);
+      }, 0);
+      return () => clearTimeout(resetTimer);
+    }
+
+    const cachedSuggestions = suggestionCacheRef.current.get(normalizedQuery);
+    if (cachedSuggestions) {
+      const cacheTimer = window.setTimeout(() => {
+        setSuggestions(cachedSuggestions);
+        setIsLoadingSuggestions(false);
+      }, 0);
+      return () => clearTimeout(cacheTimer);
     }
 
     const delayDebounce = setTimeout(async () => {
+      suggestionAbortRef.current?.abort();
+      const controller = new AbortController();
+      suggestionAbortRef.current = controller;
       setIsLoadingSuggestions(true);
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressValue)}&limit=5&countrycodes=ae,in`
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setSuggestions(data || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch suggestions", err);
-      } finally {
-        setIsLoadingSuggestions(false);
-      }
-    }, 400);
 
-    return () => clearTimeout(delayDebounce);
+      try {
+        const searchQuery = getNominatimSearchQuery(rawQuery);
+        const baseParams = new URLSearchParams({
+          format: "jsonv2",
+          q: searchQuery,
+          limit: "10",
+          countrycodes: "ae,in",
+          addressdetails: "1",
+          namedetails: "1",
+          extratags: "1",
+          dedupe: "1",
+          polygon_geojson: "0",
+        });
+
+        const requests = [
+          new URLSearchParams({ ...Object.fromEntries(baseParams), viewbox: UAE_VIEWBOX, bounded: "1" }),
+          new URLSearchParams({ ...Object.fromEntries(baseParams), viewbox: KERALA_VIEWBOX, bounded: "1" }),
+          baseParams,
+        ].map((params) => fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, { signal: controller.signal }));
+
+        const responses = await Promise.allSettled(requests);
+        const apiResults = await Promise.all(
+          responses
+            .filter((result): result is PromiseFulfilledResult<Response> => result.status === "fulfilled" && result.value.ok)
+            .map((result) => result.value.json() as Promise<NominatimPlace[]>),
+        );
+
+        const rankedSuggestions = rankAndDedupeSuggestions([
+          ...getCuratedMatches(rawQuery),
+          ...apiResults.flat().map((place) => toAddressSuggestion(place, rawQuery)),
+        ]);
+
+        suggestionCacheRef.current.set(normalizedQuery, rankedSuggestions);
+        setSuggestions(rankedSuggestions);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        console.error("Failed to fetch suggestions", err);
+        setSuggestions(rankAndDedupeSuggestions(getCuratedMatches(rawQuery)));
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingSuggestions(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      clearTimeout(delayDebounce);
+      suggestionAbortRef.current?.abort();
+    };
   }, [addressValue]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -414,22 +671,34 @@ export default function NewJobPage() {
                   className={cn("bg-white dark:bg-slate-900", errors.address && "border-red-500 focus-visible:ring-red-500")}
                 />
                 
-                {showSuggestions && (addressValue.length >= 3) && (
-                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                {showSuggestions && (addressValue.trim().length >= 2) && (
+                  <div className="absolute z-50 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70 ring-1 ring-slate-900/5 transition-all dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30">
+                    <div className="border-b border-slate-100 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:border-slate-800 dark:text-slate-500">
+                      Kerala and UAE location search
+                    </div>
                     {isLoadingSuggestions && (
-                      <div className="p-3 text-xs text-slate-400 dark:text-slate-500 italic">
-                        Searching places...
+                      <div className="space-y-2 p-3">
+                        {[0, 1, 2].map((item) => (
+                          <div key={item} className="flex animate-pulse items-center gap-3 rounded-xl p-2">
+                            <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800" />
+                            <div className="flex-1 space-y-2">
+                              <div className="h-3 w-2/3 rounded bg-slate-100 dark:bg-slate-800" />
+                              <div className="h-2.5 w-1/2 rounded bg-slate-100 dark:bg-slate-800" />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                     {!isLoadingSuggestions && suggestions.length === 0 && (
-                      <div className="p-3 text-xs text-slate-400 dark:text-slate-500">
-                        No matches found.
+                      <div className="px-4 py-5 text-sm text-slate-500 dark:text-slate-400">
+                        No strong Kerala or UAE matches found. Try an area, building, street, landmark, or community name.
                       </div>
                     )}
-                    {!isLoadingSuggestions && suggestions.map((item, idx) => (
+                    {!isLoadingSuggestions && suggestions.map((item) => (
                       <button
-                        key={idx}
+                        key={item.id}
                         type="button"
+                        onMouseDown={(event) => event.preventDefault()}
                         onClick={() => {
                           setAddressValue(item.display_name);
                           setMapCoords([parseFloat(item.lat), parseFloat(item.lon)]);
@@ -438,10 +707,20 @@ export default function NewJobPage() {
                             addressInputRef.current.value = item.display_name;
                           }
                         }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 flex items-start gap-2.5 transition-colors text-xs text-slate-700 dark:text-slate-300"
+                        className="group flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition-all last:border-b-0 hover:bg-emerald-50/70 focus:bg-emerald-50 focus:outline-none dark:border-slate-800 dark:hover:bg-emerald-950/20 dark:focus:bg-emerald-950/20"
                       >
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                        <span className="truncate">{item.display_name}</span>
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300">
+                          <MapPin className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{highlightSuggestionMatch(item.primary, addressValue)}</span>
+                            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400">{item.category}</span>
+                          </span>
+                          <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
+                            {item.secondary || item.display_name}
+                          </span>
+                        </span>
                       </button>
                     ))}
                   </div>
