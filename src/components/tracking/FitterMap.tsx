@@ -28,6 +28,23 @@ const OFFLINE_LOCATION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
 const KERALA_CENTER: [number, number] = [10.8505, 76.2711];
 const MARKER_ANIMATION_MS = 1200;
 
+type TooltipDirection = "top" | "bottom" | "left" | "right";
+type LabelPlacementName = "top" | "top-left" | "top-right" | "left" | "right" | "bottom";
+
+interface LabelPlacement {
+  name: LabelPlacementName;
+  direction: TooltipDirection;
+  offset: [number, number];
+  connectorOffset: [number, number];
+}
+
+interface ScreenRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 interface LiveMapMarker {
   id: string;
   name: string;
@@ -42,6 +59,7 @@ interface LiveMapMarker {
   isLiveLocation: boolean;
   clusterIndex?: number;
   clusterTotal?: number;
+  labelPlacement?: LabelPlacement;
   speed?: number;
   heading?: number;
   assignedJobCount: number;
@@ -95,6 +113,113 @@ function calculateBearing(start: [number, number], end: [number, number]): numbe
 
 function estimateEtaMinutes(distance: number): number {
   return Math.max(1, Math.round((distance / 32) * 60));
+}
+
+
+function rectanglesOverlap(left: ScreenRect, right: ScreenRect, padding = 6): boolean {
+  return !(
+    left.right + padding < right.left ||
+    left.left - padding > right.right ||
+    left.bottom + padding < right.top ||
+    left.top - padding > right.bottom
+  );
+}
+
+function createLabelRect(point: L.Point, offset: [number, number], width: number, height: number): ScreenRect {
+  const centerX = point.x + offset[0];
+  const centerY = point.y + offset[1];
+  return {
+    left: centerX - width / 2,
+    top: centerY - height / 2,
+    right: centerX + width / 2,
+    bottom: centerY + height / 2,
+  };
+}
+
+function getLabelCandidates(marker: LiveMapMarker, denseIndex: number): LabelPlacement[] {
+  const isMovingSalesman = marker.role === "Salesman" && marker.status === "On The Way";
+  const baseTopOffset = isMovingSalesman ? -42 : -48;
+  const lateralStep = Math.min(18, denseIndex * 4);
+
+  return [
+    { name: "top", direction: "top", offset: [0, baseTopOffset - lateralStep], connectorOffset: [0, Math.abs(baseTopOffset) - 14 + lateralStep] },
+    { name: "top-right", direction: "top", offset: [48 + lateralStep, baseTopOffset + 2], connectorOffset: [-30 - lateralStep, Math.abs(baseTopOffset) - 16] },
+    { name: "top-left", direction: "top", offset: [-48 - lateralStep, baseTopOffset + 2], connectorOffset: [30 + lateralStep, Math.abs(baseTopOffset) - 16] },
+    { name: "right", direction: "right", offset: [64 + lateralStep, -4], connectorOffset: [-38 - lateralStep, 4] },
+    { name: "left", direction: "left", offset: [-64 - lateralStep, -4], connectorOffset: [38 + lateralStep, 4] },
+    { name: "bottom", direction: "bottom", offset: [0, 44 + lateralStep], connectorOffset: [0, -30 - lateralStep] },
+  ];
+}
+
+function estimateLabelSize(marker: LiveMapMarker): { width: number; height: number } {
+  const nameLength = marker.name.trim().length || 8;
+  return {
+    width: Math.min(156, Math.max(72, Math.round(nameLength * 7.2 + 28))),
+    height: 30,
+  };
+}
+
+function scoreLabelCandidate(rect: ScreenRect, placedRects: ScreenRect[], mapSize: L.Point, candidateIndex: number): number {
+  const overlapPenalty = placedRects.reduce((score, placed) => score + (rectanglesOverlap(rect, placed) ? 1000 : 0), 0);
+  const overflowPenalty =
+    Math.max(0, -rect.left) +
+    Math.max(0, -rect.top) +
+    Math.max(0, rect.right - mapSize.x) +
+    Math.max(0, rect.bottom - mapSize.y);
+
+  return overlapPenalty + overflowPenalty * 12 + candidateIndex * 4;
+}
+
+function assignLabelPlacements(markers: LiveMapMarker[], map: L.Map): LiveMapMarker[] {
+  if (markers.length <= 1) {
+    return markers.map((marker) => ({
+      ...marker,
+      labelPlacement: getLabelCandidates(marker, 0)[0],
+    }));
+  }
+
+  const mapSize = map.getSize();
+  const placedRects: ScreenRect[] = [];
+  const orderedMarkers = [...markers].sort((left, right) => {
+    if (left.clusterTotal !== right.clusterTotal) return (right.clusterTotal ?? 1) - (left.clusterTotal ?? 1);
+    if (left.status === "On The Way" && right.status !== "On The Way") return -1;
+    if (right.status === "On The Way" && left.status !== "On The Way") return 1;
+    return left.name.localeCompare(right.name);
+  });
+  const placementById = new Map<string, LabelPlacement>();
+
+  orderedMarkers.forEach((marker) => {
+    const point = map.latLngToContainerPoint(L.latLng(marker.position[0], marker.position[1]));
+    const nearbyCount = markers.filter((candidate) => {
+      if (candidate.id === marker.id) return false;
+      const candidatePoint = map.latLngToContainerPoint(L.latLng(candidate.position[0], candidate.position[1]));
+      return point.distanceTo(candidatePoint) < 96;
+    }).length;
+    const labelSize = estimateLabelSize(marker);
+    const candidates = getLabelCandidates(marker, nearbyCount);
+
+    let bestCandidate = candidates[0];
+    let bestRect = createLabelRect(point, bestCandidate.offset, labelSize.width, labelSize.height);
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    candidates.forEach((candidate, index) => {
+      const rect = createLabelRect(point, candidate.offset, labelSize.width, labelSize.height);
+      const score = scoreLabelCandidate(rect, placedRects, mapSize, index);
+      if (score < bestScore) {
+        bestScore = score;
+        bestCandidate = candidate;
+        bestRect = rect;
+      }
+    });
+
+    placedRects.push(bestRect);
+    placementById.set(marker.id, bestCandidate);
+  });
+
+  return markers.map((marker) => ({
+    ...marker,
+    labelPlacement: placementById.get(marker.id) ?? getLabelCandidates(marker, 0)[0],
+  }));
 }
 
 function formatEta(minutes?: number | null): string {
@@ -379,6 +504,7 @@ function SmoothLiveMarker({
     [marker.avatar, marker.clusterIndex, marker.clusterTotal, marker.isLate, marker.name, marker.role, marker.status, movementBearing],
   );
 
+  const labelPlacement = marker.labelPlacement ?? getLabelCandidates(marker, 0)[0];
   const statusLabel = marker.isLate ? "Late" : MARKER_STATUS_CONFIG[marker.status].label;
 
   return (
@@ -393,13 +519,24 @@ function SmoothLiveMarker({
     >
       <Tooltip
         permanent
-        direction="top"
-        offset={[0, marker.role === "Salesman" && marker.status === "On The Way" ? -26 : -36]}
+        direction={labelPlacement.direction}
+        offset={labelPlacement.offset}
         opacity={1}
-        className="custom-tooltip bg-white/90 border border-slate-200 shadow-md rounded px-2 py-1 backdrop-blur-sm"
+        className="salesman-map-label custom-tooltip bg-white/90 border border-slate-200/80 shadow-lg rounded-lg px-2.5 py-1.5 backdrop-blur-md"
       >
-        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-900">
-          {marker.name}
+        <div className="relative">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute h-px w-7 origin-center rounded-full bg-slate-400/45"
+            style={{
+              left: "50%",
+              top: "50%",
+              transform: `translate(${labelPlacement.connectorOffset[0]}px, ${labelPlacement.connectorOffset[1]}px)`,
+            }}
+          />
+          <div className="relative text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-900">
+            {marker.name}
+          </div>
         </div>
       </Tooltip>
       <Popup closeButton={false} className="live-location-popup">
@@ -504,7 +641,7 @@ function LiveMarkersList({
       }
     }
 
-    return result;
+    return assignLabelPlacements(result, map);
   }, [markers, selectedFitterId, version, map]);
 
   return (
@@ -704,6 +841,22 @@ export default function FitterMap({
 
         .animated-route-line {
           animation: routeDash 1.2s linear infinite;
+        }
+
+        .salesman-map-label {
+          color: #0f172a !important;
+          line-height: 1.1 !important;
+          transition: transform 220ms ease-out, opacity 160ms ease-out, left 220ms ease-out, top 220ms ease-out !important;
+          will-change: transform;
+          white-space: nowrap;
+          overflow: visible !important;
+        }
+
+        .salesman-map-label::before {
+          border-top-color: rgba(255, 255, 255, 0.92) !important;
+          border-bottom-color: rgba(255, 255, 255, 0.92) !important;
+          border-left-color: rgba(255, 255, 255, 0.92) !important;
+          border-right-color: rgba(255, 255, 255, 0.92) !important;
         }
       `;
       document.head.appendChild(style);
