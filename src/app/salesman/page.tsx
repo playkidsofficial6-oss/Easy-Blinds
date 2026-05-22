@@ -678,9 +678,17 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
               <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-bold uppercase tracking-[0.15em] rounded border border-indigo-100">
                 Task {job.shortRef}
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                {job.time}
-              </span>
+              <div className="text-[9px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+                {job.formattedDate && (
+                  <>
+                    <Calendar className="w-3 h-3 text-stone-400" />
+                    <span>{job.formattedDate}</span>
+                    <span className="opacity-50">•</span>
+                  </>
+                )}
+                <Clock className="w-3 h-3 text-stone-400" />
+                <span>{job.time}</span>
+              </div>
             </div>
             <h2 className="text-2xl font-light text-stone-800 tracking-tight mb-2.5 capitalize">
               {job.client}
