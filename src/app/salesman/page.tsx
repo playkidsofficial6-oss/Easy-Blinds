@@ -17,9 +17,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, updateJob, getJob, type Job } from "@/lib/jobs";
-import { updateUser } from "@/lib/users";
+import { getJobs, getJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
+import { updateUser } from "@/lib/users";
 import { updateLiveLocation } from "@/services/api/live-location";
 import { useRef } from "react";
 
@@ -42,6 +42,12 @@ type SalesmanScheduleJob = {
   fabric: string;
   notes?: string;
   assignedBy?: string;
+  salesmanWorkflowStatus?: Job["salesmanWorkflowStatus"];
+  activeSalesmanId?: string;
+  activeSalesmanName?: string;
+  travelStartedAt?: string;
+  measurementStartedAt?: string;
+  measurementCompletedAt?: string;
   coordinates: [number, number];
   date?: string;
   formattedDate?: string;
@@ -56,17 +62,20 @@ const EMPTY_SALESMAN_SCHEDULE: SalesmanSchedule = {
   completed: [],
 };
 
-function toScheduleStatus(status: Job["status"]) {
-  if (status === "in_progress") return "In Progress";
-  if (status === "completed") return "Done";
-  if (status === "cancelled") return "Completed";
+function toScheduleStatus(job: Job) {
+  if (job.salesmanWorkflowStatus === "travelling") return "On the way";
+  if (job.salesmanWorkflowStatus === "measuring") return "In Progress";
+  if (job.salesmanWorkflowStatus === "completed") return "Done";
+  if (job.status === "in_progress") return "In Progress";
+  if (job.status === "completed") return "Done";
+  if (job.status === "cancelled") return "Completed";
   return "Pending";
 }
 
-function toApiStatus(status: string): Job["status"] {
-  if (status === "In progress" || status === "In Progress") return "in_progress";
-  if (status === "Completed" || status === "Done") return "completed";
-  return "scheduled";
+function toLiveUserStatus(displayStatus: string) {
+  if (displayStatus === "On the way") return "On the way";
+  if (displayStatus === "In Progress" || displayStatus === "In progress") return "In progress";
+  return "Available";
 }
 
 function toDisplayTime(value?: string) {
@@ -104,10 +113,16 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     client: job.customerName,
     address: job.address,
     customerPhone: job.customerPhone,
-    status: toScheduleStatus(job.status),
+    status: toScheduleStatus(job),
     fabric: job.productType || "Curtains",
     notes: job.notes,
     assignedBy: job.assignedBy,
+    salesmanWorkflowStatus: job.salesmanWorkflowStatus,
+    activeSalesmanId: job.activeSalesmanId,
+    activeSalesmanName: job.activeSalesmanName,
+    travelStartedAt: job.travelStartedAt,
+    measurementStartedAt: job.measurementStartedAt,
+    measurementCompletedAt: job.measurementCompletedAt,
     coordinates,
   };
 }
@@ -303,27 +318,56 @@ function SalesmanPageContent() {
     }
 
     try {
-      const updatePayload: any = {
-        status: toApiStatus(displayStatus),
-        ...(appendedNotes ? { notes: appendedNotes } : {})
+      const workflowPayload = {
+        salesmanId: user?._id,
+        salesmanName: user?.name,
+        ...(appendedNotes ? { notes: appendedNotes } : {}),
       };
-      
-      if (displayStatus === "In Progress") {
-        updatePayload.timerStartedAt = new Date().toISOString();
-      }
 
-      await updateJob(id, updatePayload);
-      if (user?._id) {
-        let userStatus: any = "Available";
-        if (displayStatus === "On the way") {
-          userStatus = "On the way";
-        } else if (displayStatus === "In Progress") {
-          userStatus = "In progress";
-        } else if (displayStatus === "Done") {
-          userStatus = "Available";
+      const savedJob = displayStatus === "On the way"
+        ? await startSalesmanTravel(id, workflowPayload)
+        : displayStatus === "In Progress"
+          ? await startSalesmanMeasuring(id, workflowPayload)
+          : await completeSalesmanWorkflow(id, workflowPayload);
+
+      const savedDisplayStatus = toScheduleStatus(savedJob);
+      const savedLiveStatus = toLiveUserStatus(savedDisplayStatus);
+      setSchedule(prev => {
+        const updated = { ...prev };
+        const tabs: Tab[] = ["today", "tomorrow", "upcoming", "completed"];
+        for (const tab of tabs) {
+          updated[tab] = updated[tab].map((j) => (
+            j.id === id
+              ? {
+                ...j,
+                status: savedDisplayStatus,
+                notes: savedJob.notes || j.notes,
+                salesmanWorkflowStatus: savedJob.salesmanWorkflowStatus,
+                activeSalesmanId: savedJob.activeSalesmanId,
+                activeSalesmanName: savedJob.activeSalesmanName,
+                travelStartedAt: savedJob.travelStartedAt,
+                measurementStartedAt: savedJob.measurementStartedAt,
+                measurementCompletedAt: savedJob.measurementCompletedAt,
+              }
+              : j
+          ));
         }
-        await updateUser(user._id, { liveStatus: userStatus });
+        return updated;
+      });
+      if (selectedJob && selectedJob.id === id) {
+        setSelectedJob((prev) => prev ? {
+          ...prev,
+          status: savedDisplayStatus,
+          notes: savedJob.notes || prev.notes,
+          salesmanWorkflowStatus: savedJob.salesmanWorkflowStatus,
+          activeSalesmanId: savedJob.activeSalesmanId,
+          activeSalesmanName: savedJob.activeSalesmanName,
+          travelStartedAt: savedJob.travelStartedAt,
+          measurementStartedAt: savedJob.measurementStartedAt,
+          measurementCompletedAt: savedJob.measurementCompletedAt,
+        } : prev);
       }
+      console.info(`Salesman workflow updated to ${savedLiveStatus}`);
     } catch (error) {
       console.error("Unable to update salesman job status", error);
     }
@@ -1163,7 +1207,8 @@ function SalesmanGpsControl() {
                         heading: typeof position.coords.heading === "number" ? position.coords.heading : undefined,
                         isOnline: true,
                     });
-                    if (user?._id && ((user as any).liveStatus === "Offline" || !(user as any).liveStatus)) {
+                    const currentLiveStatus = "liveStatus" in user ? String(user.liveStatus ?? "") : "";
+                    if (user?._id && (currentLiveStatus === "Offline" || !currentLiveStatus)) {
                         await updateUser(user._id, { liveStatus: "Available" });
                     }
 

@@ -19,7 +19,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
-import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
+import { useLiveFitters, type Fitter, type FitterJob, type FitterStatus } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { useLiveLocation } from "@/hooks";
 
@@ -99,11 +99,23 @@ function getRequestedDateDisplay(job: Job): string | undefined {
   return undefined;
 }
 
+function getSalesmanWorkflowDisplayStatus(job: Job): FitterJob["status"] {
+  if (job.salesmanWorkflowStatus === "travelling") return "On the way";
+  if (job.salesmanWorkflowStatus === "measuring") return "In Progress";
+  if (job.salesmanWorkflowStatus === "completed") return "Done";
+  if (job.status === "in_progress") return "In Progress";
+  if (job.status === "completed") return "Done";
+  return "Pending";
+}
+
+function getSalesmanMapStatus(job?: Job, fallback: FitterStatus = "Available"): FitterStatus {
+  if (job?.salesmanWorkflowStatus === "travelling") return "On the way";
+  if (job?.salesmanWorkflowStatus === "measuring") return "In progress";
+  return fallback;
+}
+
 function toUnifiedJob(job: Job): UnifiedJob {
-  const statusLabel = job.status
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  const statusLabel = getSalesmanWorkflowDisplayStatus(job);
 
   const priorityLabel = job.priority.charAt(0).toUpperCase() + job.priority.slice(1);
 
@@ -140,7 +152,7 @@ function toFitterJob(job: Job): FitterJob {
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
     endTime: "",
     timerStartedAt: job.timerStartedAt,
-    status: job.status === "in_progress" ? "In Progress" : job.status === "completed" ? "Done" : "Pending",
+    status: getSalesmanWorkflowDisplayStatus(job),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
     phone: job.customerPhone,
@@ -396,9 +408,12 @@ export default function SmartSalesmanAssignmentsPage() {
         return match?.[1]?.trim().toLowerCase() === salesmanName.toLowerCase();
       });
 
+      const activeWorkflowJob = assignedJobs.find((job) => job.salesmanWorkflowStatus === "travelling" || job.salesmanWorkflowStatus === "measuring");
       const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
       const tomorrow = assignedJobs.filter((job) => isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob);
-      const activeJob = today.find((j) => j.status === "In Progress") ?? today.find((j) => j.status === "Pending") ?? tomorrow.find((j) => j.status === "In Progress") ?? tomorrow.find((j) => j.status === "Pending");
+      const activeJob = activeWorkflowJob
+        ? toFitterJob(activeWorkflowJob)
+        : today.find((j) => j.status === "In Progress" || j.status === "On the way") ?? today.find((j) => j.status === "Pending") ?? tomorrow.find((j) => j.status === "In Progress" || j.status === "On the way") ?? tomorrow.find((j) => j.status === "Pending");
       const current = isToday ? today.length : isTomorrow ? tomorrow.length : 0;
       const maxCapacity = 999;
       const remaining = Math.max(0, maxCapacity - current);
@@ -410,7 +425,9 @@ export default function SmartSalesmanAssignmentsPage() {
         name: user.name,
         role: "Salesman",
         jobRef: activeJob?.id ?? "--",
-        status: remaining === 0 && maxCapacity !== 999 ? "Fully Booked" : user.liveStatus ?? "Available",
+        status: remaining === 0 && maxCapacity !== 999
+          ? "Fully Booked"
+          : getSalesmanMapStatus(activeWorkflowJob, user.liveStatus ?? "Available"),
         location: (() => { 
             const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
             if (liveLoc) {

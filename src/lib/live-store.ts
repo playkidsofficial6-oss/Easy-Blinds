@@ -39,7 +39,7 @@ export interface FitterJob {
   time: string;
   endTime: string;
   scheduledAt?: string;
-  status: "Pending" | "In Progress" | "Done";
+  status: "Pending" | "On the way" | "In Progress" | "Done";
   fabric?: string;
   rooms?: string[];
   coordinates?: [number, number];

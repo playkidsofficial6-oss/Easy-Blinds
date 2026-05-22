@@ -3,6 +3,7 @@ import { api } from "./api";
 
 export type JobStatus = "pending" | "scheduled" | "in_progress" | "completed" | "cancelled";
 export type JobPriority = "low" | "medium" | "high";
+export type SalesmanWorkflowStatus = "not_started" | "travelling" | "measuring" | "completed";
 
 export interface Job {
   _id: string;
@@ -22,6 +23,12 @@ export interface Job {
   notes?: string;
   scheduledAt?: string;
   timerStartedAt?: string;
+  salesmanWorkflowStatus?: SalesmanWorkflowStatus;
+  activeSalesmanId?: string;
+  activeSalesmanName?: string;
+  travelStartedAt?: string;
+  measurementStartedAt?: string;
+  measurementCompletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
   assignedTo?: string;
@@ -50,6 +57,12 @@ export interface CreateJobInput {
   notes?: string;
   scheduledAt?: string;
   timerStartedAt?: string;
+  salesmanWorkflowStatus?: SalesmanWorkflowStatus;
+  activeSalesmanId?: string;
+  activeSalesmanName?: string;
+  travelStartedAt?: string;
+  measurementStartedAt?: string;
+  measurementCompletedAt?: string;
   assignedTo?: string;
   assignedBy?: string;
   assignedSalesman?: string;
@@ -65,6 +78,12 @@ export function getJobDisplayId(job: Pick<Job, "_id" | "jobId">): string {
 
 export function getJobRecordId(job: Pick<Job, "_id">): string {
   return job._id;
+}
+
+export interface SalesmanWorkflowInput {
+  salesmanId?: string;
+  salesmanName?: string;
+  notes?: string;
 }
 
 export interface JobsQuery {
@@ -102,6 +121,21 @@ export async function getJob(id: string): Promise<Job> {
 
 export async function updateJob(id: string, input: UpdateJobInput): Promise<Job> {
   const { data } = await api.patch<Job>(`/jobs/${id}`, input);
+  return data;
+}
+
+export async function startSalesmanTravel(id: string, input: SalesmanWorkflowInput = {}): Promise<Job> {
+  const { data } = await api.patch<Job>(`/jobs/${id}/salesman-travel`, input);
+  return data;
+}
+
+export async function startSalesmanMeasuring(id: string, input: SalesmanWorkflowInput = {}): Promise<Job> {
+  const { data } = await api.patch<Job>(`/jobs/${id}/salesman-measuring`, input);
+  return data;
+}
+
+export async function completeSalesmanWorkflow(id: string, input: SalesmanWorkflowInput = {}): Promise<Job> {
+  const { data } = await api.patch<Job>(`/jobs/${id}/salesman-complete`, input);
   return data;
 }
 
