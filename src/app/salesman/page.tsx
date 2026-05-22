@@ -704,10 +704,32 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
   const parsedTimeLog = useMemo(() => {
     const match = job.notes?.match(/\[TIME_LOG\] Travel: (.*?) \| Measuring: (.*)/);
     if (match) {
-      return { travel: match[1], measuring: match[2] };
+      return { 
+        travel: match[1] === "N/A" ? "Not Tracked" : match[1], 
+        measuring: match[2] === "N/A" ? "Not Tracked" : match[2] 
+      };
     }
     return null;
   }, [job.notes]);
+
+  const travelVal = useMemo(() => {
+    if (parsedTimeLog?.travel) return parsedTimeLog.travel;
+    if (job.status === "On the way") return formatTimer(travelSeconds);
+    if (travelSeconds > 0) return formatTimer(travelSeconds);
+    if (job.status === "Pending") return "Not Started";
+    return "Not Tracked";
+  }, [parsedTimeLog, job.status, travelSeconds]);
+
+  const measVal = useMemo(() => {
+    if (parsedTimeLog?.measuring) return parsedTimeLog.measuring;
+    if (job.status === "In Progress" || job.status === "In progress") return formatTimer(seconds);
+    if (seconds > 0) return formatTimer(seconds);
+    if (job.status === "Pending" || job.status === "On the way") return "Not Started";
+    return "Not Tracked";
+  }, [parsedTimeLog, job.status, seconds]);
+
+  const isTravelMono = !!parsedTimeLog?.travel || job.status === "On the way" || travelSeconds > 0;
+  const isMeasMono = !!parsedTimeLog?.measuring || job.status === "In Progress" || job.status === "In progress" || seconds > 0;
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
@@ -777,17 +799,26 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
           {/* Stats Bar */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "Travel Time", val: parsedTimeLog?.travel || (job.status === "On the way" ? formatTimer(travelSeconds) : travelSeconds > 0 ? formatTimer(travelSeconds) : "N/A"), color: "bg-amber-500", mono: true },
-              { label: "Measuring Time", val: parsedTimeLog?.measuring || ((job.status === "In Progress" || job.status === "In progress") ? formatTimer(seconds) : seconds > 0 ? formatTimer(seconds) : "N/A"), color: "bg-purple-500", mono: true },
+              { label: "Travel Time", val: travelVal, color: "bg-amber-500", mono: isTravelMono && travelVal !== "Not Tracked" },
+              { label: "Measuring Time", val: measVal, color: "bg-purple-500", mono: isMeasMono && measVal !== "Not Tracked" },
               // { label: "Estimated", val: "1h 15m", color: "bg-neutral-300" },
               { label: "Status", val: job.status, color: "bg-emerald-500" }
-            ].map((node, i) => (
-              <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm relative overflow-hidden">
-                <div className={cn("absolute top-0 left-0 w-1 h-full", node.color)}></div>
-                <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-2">{node.label}</div>
-                <div className={cn("text-2xl font-light text-neutral-900", node.mono && "font-mono")}>{node.val}</div>
-              </div>
-            ))}
+            ].map((node, i) => {
+              const isMuted = node.val === "Not Started" || node.val === "Not Tracked";
+              return (
+                <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm relative overflow-hidden">
+                  <div className={cn("absolute top-0 left-0 w-1 h-full", node.color)}></div>
+                  <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-2">{node.label}</div>
+                  <div className={cn(
+                    "text-2xl font-light",
+                    node.mono ? "font-mono" : "",
+                    isMuted ? "text-neutral-400 text-lg font-normal" : "text-neutral-900"
+                  )}>
+                    {node.val}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {job.status === "Done" && (
