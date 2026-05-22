@@ -391,43 +391,61 @@ function buildMapMarkers(
 }
 
 function MapCameraController({
-  center,
-  markers,
   selectedJob,
   selectedMarker,
 }: {
-  center: [number, number];
-  markers: LiveMapMarker[];
   selectedJob?: FitterMapProps["selectedJob"] | null;
   selectedMarker?: LiveMapMarker;
 }) {
   const map = useMap();
+  const prevJobIdRef = useRef<string | undefined | null>(undefined);
+  const prevMarkerIdRef = useRef<string | undefined | null>(undefined);
+  const hasCenteredOnHqRef = useRef<boolean>(false);
 
   useEffect(() => {
-    if (selectedJob) {
-      const boundsPoints: [number, number][] = [[selectedJob.location.lat, selectedJob.location.lng]];
-      if (selectedMarker) {
-        boundsPoints.push(selectedMarker.position);
-      } else {
-        boundsPoints.push(...markers.map((marker) => marker.position));
-      }
-
-      if (boundsPoints.length > 1) {
-        map.flyToBounds(L.latLngBounds(boundsPoints), {
-          padding: [70, 70],
-          maxZoom: 14,
-          duration: 1.1,
-        });
-      } else {
-        map.flyTo(center, 13, { duration: 1.1 });
-      }
-    } else {
-      map.flyTo(center, 13, { duration: 1.1 });
+    // 1. First focus on Headquarters on mount
+    if (!hasCenteredOnHqRef.current) {
+      hasCenteredOnHqRef.current = true;
+      map.setView(EASYBLINDS_HQ.position, 11);
+      prevJobIdRef.current = selectedJob?.id;
+      prevMarkerIdRef.current = selectedMarker?.id;
+      return;
     }
 
+    const jobIdChanged = prevJobIdRef.current !== selectedJob?.id;
+    const markerIdChanged = prevMarkerIdRef.current !== selectedMarker?.id;
+
+    // Update references
+    prevJobIdRef.current = selectedJob?.id;
+    prevMarkerIdRef.current = selectedMarker?.id;
+
+    // 2. Only adjust camera if selection actually changed
+    if (jobIdChanged || markerIdChanged) {
+      if (selectedJob) {
+        const boundsPoints: [number, number][] = [[selectedJob.location.lat, selectedJob.location.lng]];
+        if (selectedMarker) {
+          boundsPoints.push(selectedMarker.position);
+        }
+
+        if (boundsPoints.length > 1) {
+          map.flyToBounds(L.latLngBounds(boundsPoints), {
+            padding: [70, 70],
+            maxZoom: 14,
+            duration: 1.1,
+          });
+        } else {
+          map.flyTo([selectedJob.location.lat, selectedJob.location.lng], 13, { duration: 1.1 });
+        }
+      } else if (selectedMarker) {
+        map.flyTo(selectedMarker.position, 13, { duration: 1.1 });
+      }
+    }
+  }, [map, selectedJob, selectedMarker]);
+
+  useEffect(() => {
     const timeoutId = window.setTimeout(() => map.invalidateSize(), 500);
     return () => window.clearTimeout(timeoutId);
-  }, [center, map, markers, selectedJob, selectedMarker]);
+  }, [map]);
 
   return null;
 }
@@ -846,15 +864,13 @@ export default function FitterMap({
     [fitters, liveLocations, filterRole],
   );
   const selectedMarker = markers.find((marker) => marker.id === selectedFitterId);
-  const center: [number, number] =
-    selectedJob?.location ? [selectedJob.location.lat, selectedJob.location.lng] : (selectedMarker?.position ?? KERALA_CENTER);
   const companyMarkerIcon = useMemo(() => createCompanyMarkerIcon(), []);
 
   return (
     <div className="relative h-full w-full">
       <MapContainer
-        center={center}
-        zoom={12}
+        center={EASYBLINDS_HQ.position}
+        zoom={11}
         style={{ height: "100%", width: "100%", background: "#f1f5f9" }}
         zoomControl={false}
         className="h-full w-full relative z-0"
@@ -867,7 +883,7 @@ export default function FitterMap({
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         />
 
-        <MapCameraController center={center} markers={markers} selectedJob={selectedJob} selectedMarker={selectedMarker} />
+        <MapCameraController selectedJob={selectedJob} selectedMarker={selectedMarker} />
 
         <Marker position={EASYBLINDS_HQ.position} icon={companyMarkerIcon} zIndexOffset={500}>
           <Tooltip permanent direction="top" offset={[0, -34]} opacity={1} className="bg-white/95 border border-orange-200 shadow-md rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-900">
