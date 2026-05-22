@@ -757,6 +757,7 @@ interface FitterMapProps {
   filterRole?: "Salesman" | "Fitter";
   selectedJob?: {
     id: string;
+    jobId?: string;
     location: { lat: number; lng: number };
     address: string;
     client: string;
@@ -895,8 +896,13 @@ export default function FitterMap({
                 Pending Job: {selectedJob.client}
               </Tooltip>
               <Popup>
-                <div className="text-xs">
+                <div className="space-y-1 text-xs">
                   <div className="font-bold">{selectedJob.client}</div>
+                  {selectedJob.jobId && (
+                    <div className="font-mono text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 inline-block">
+                      {selectedJob.jobId}
+                    </div>
+                  )}
                   <div className="text-slate-500">{selectedJob.address}</div>
                 </div>
               </Popup>

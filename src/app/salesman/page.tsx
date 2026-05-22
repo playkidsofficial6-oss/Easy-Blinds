@@ -32,6 +32,7 @@ type Tab = "today" | "tomorrow" | "upcoming" | "completed";
 
 type SalesmanScheduleJob = {
   id: string;
+  jobId?: string;
   shortRef: string;
   time: string;
   client: string;
@@ -91,7 +92,8 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
 
   return {
     id: job._id,
-    shortRef: `JOB-${job._id.slice(-6).toUpperCase()}`,
+    jobId: job.jobId,
+    shortRef: job.jobId ?? `JOB-${job._id.slice(-6).toUpperCase()}`,
     time: toDisplayTime(job.scheduledAt),
     date: dateStr,
     client: job.customerName,
@@ -504,9 +506,16 @@ function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSe
         </div>
       </div>
 
-      <h3 className={cn("text-lg font-medium transition-colors leading-tight mb-3", isSelected ? "text-white" : "text-neutral-700 group-hover:text-neutral-900")}>
-        {job.client}
-      </h3>
+      <div className="mb-3 space-y-1">
+        <h3 className={cn("text-lg font-medium transition-colors leading-tight", isSelected ? "text-white" : "text-neutral-700 group-hover:text-neutral-900")}>
+          {job.client}
+        </h3>
+        {job.jobId && (
+          <span className={cn("inline-flex font-mono text-[10px] font-bold tracking-wide rounded border px-1.5 py-0.5", isSelected ? "bg-white/10 text-white/70 border-white/15" : "bg-stone-50 text-stone-500 border-stone-200")}>
+            {job.jobId}
+          </span>
+        )}
+      </div>
 
       <div className={cn("flex items-start gap-1.5 text-[11px] font-medium transition-colors", isSelected ? "text-white/60" : "text-neutral-500 opacity-70")}>
         <MapPin className={cn("w-3.5 h-3.5 flex-shrink-0", isSelected ? "text-white/40" : "text-neutral-400")} />
@@ -662,7 +671,7 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-bold uppercase tracking-[0.15em] rounded border border-indigo-100">
-                Task {job.shortRef}
+                Task {job.jobId ?? job.shortRef}
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
                 {job.time}

@@ -6,6 +6,7 @@ export type JobPriority = "low" | "medium" | "high";
 
 export interface Job {
   _id: string;
+  jobId?: string;
   firstName: string;
   lastName: string;
   customerName: string;
@@ -57,6 +58,14 @@ export interface CreateJobInput {
 }
 
 export type UpdateJobInput = Partial<CreateJobInput>;
+
+export function getJobDisplayId(job: Pick<Job, "_id" | "jobId">): string {
+  return job.jobId || `JOB-${job._id.slice(-6).toUpperCase()}`;
+}
+
+export function getJobRecordId(job: Pick<Job, "_id">): string {
+  return job._id;
+}
 
 export interface JobsQuery {
   page?: number;

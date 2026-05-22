@@ -33,6 +33,7 @@ export interface FitterEvent {
 
 export interface FitterJob {
   id: string;
+  jobId?: string;
   client: string;
   address: string;
   time: string;
@@ -139,6 +140,7 @@ function toDisplayEndTime(value?: string) {
 function toFitterJob(job: Job): FitterJob {
   return {
     id: job._id,
+    jobId: job.jobId,
     client: job.customerName,
     address: job.address,
     time: toDisplayTime(job.scheduledAt),
