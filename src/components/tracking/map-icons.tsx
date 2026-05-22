@@ -52,50 +52,81 @@ export function createLiveMarkerIcon({
     .slice(0, 2)
     .toUpperCase() || (role === "Salesman" ? "SM" : "FT");
 
+  const displayName = (name || (role === "Salesman" ? "Salesman" : "Fitter")).toUpperCase();
+
   const carIcon = (
     <div
       style={{
         position: "relative",
-        width: "54px",
-        height: "30px",
-        display: "flex",
+        display: "inline-flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
-        transform: `rotate(${bearing}deg)`,
-        transformOrigin: "center",
-        transition: "transform 280ms ease-out, filter 280ms ease-out",
-        filter: "drop-shadow(0 10px 12px rgba(15, 23, 42, 0.28)) drop-shadow(0 0 9px rgba(250, 204, 21, 0.32))",
+        gap: "4px",
       }}
     >
-      <style>
-        {`@keyframes salesmanCarMarkerGlow { 0%, 100% { filter: drop-shadow(0 10px 12px rgba(15, 23, 42, 0.28)) drop-shadow(0 0 7px rgba(250, 204, 21, 0.22)); } 50% { filter: drop-shadow(0 12px 14px rgba(15, 23, 42, 0.32)) drop-shadow(0 0 13px rgba(250, 204, 21, 0.5)); } }`}
-      </style>
+      {/* Name label above car */}
       <div
         style={{
-          position: "absolute",
-          bottom: "-5px",
-          width: "44px",
-          height: "8px",
-          borderRadius: "999px",
-          background: "rgba(15,23,42,0.22)",
-          filter: "blur(4px)",
-          transform: "rotate(0deg)",
+          background: "white",
+          color: "#1e293b",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          padding: "3px 8px",
+          borderRadius: "6px",
+          boxShadow: "0 2px 8px rgba(15,23,42,0.18)",
+          whiteSpace: "nowrap",
+          border: "1px solid rgba(15,23,42,0.06)",
+          lineHeight: "1.4",
         }}
-      />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/salesman-car-marker.png"
-        alt="Moving salesman"
+      >
+        {displayName}
+      </div>
+      {/* Car image */}
+      <div
         style={{
           position: "relative",
-          width: "52px",
-          height: "auto",
-          display: "block",
-          objectFit: "contain",
-          animation: "salesmanCarMarkerGlow 1.8s ease-in-out infinite",
+          width: "54px",
+          height: "30px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          transform: `rotate(${bearing}deg)`,
+          transformOrigin: "center",
           transition: "transform 280ms ease-out, filter 280ms ease-out",
+          filter: "drop-shadow(0 10px 12px rgba(15, 23, 42, 0.28)) drop-shadow(0 0 9px rgba(250, 204, 21, 0.32))",
         }}
-      />
+      >
+        <style>
+          {`@keyframes salesmanCarMarkerGlow { 0%, 100% { filter: drop-shadow(0 10px 12px rgba(15, 23, 42, 0.28)) drop-shadow(0 0 7px rgba(250, 204, 21, 0.22)); } 50% { filter: drop-shadow(0 12px 14px rgba(15, 23, 42, 0.32)) drop-shadow(0 0 13px rgba(250, 204, 21, 0.5)); } }`}
+        </style>
+        <div
+          style={{
+            position: "absolute",
+            bottom: "-5px",
+            width: "44px",
+            height: "8px",
+            borderRadius: "999px",
+            background: "rgba(15,23,42,0.22)",
+            filter: "blur(4px)",
+            transform: "rotate(0deg)",
+          }}
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/salesman-car-marker.png"
+          alt="Moving salesman"
+          style={{
+            position: "relative",
+            width: "52px",
+            height: "auto",
+            display: "block",
+            objectFit: "contain",
+            animation: "salesmanCarMarkerGlow 1.8s ease-in-out infinite",
+            transition: "transform 280ms ease-out, filter 280ms ease-out",
+          }}
+        />
+      </div>
     </div>
   );
 
@@ -103,40 +134,84 @@ export function createLiveMarkerIcon({
     <div
       style={{
         position: "relative",
-        width: "48px",
-        height: "48px",
-        borderRadius: "50%",
-        backgroundColor: "white",
-        padding: "2px",
-        boxShadow: "0 10px 22px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08)",
-        display: "flex",
+        display: "inline-flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "center",
+        gap: "4px",
       }}
     >
+      {/* Name label above icon */}
       <div
         style={{
-          width: "100%",
-          height: "100%",
+          background: "white",
+          color: "#1e293b",
+          fontSize: "10px",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          padding: "3px 8px",
+          borderRadius: "6px",
+          boxShadow: "0 2px 8px rgba(15,23,42,0.18)",
+          whiteSpace: "nowrap",
+          border: "1px solid rgba(15,23,42,0.06)",
+          lineHeight: "1.4",
+        }}
+      >
+        {displayName}
+      </div>
+      {/* Circle avatar icon */}
+      <div
+        style={{
+          position: "relative",
+          width: "48px",
+          height: "48px",
           borderRadius: "50%",
-          border: `3px solid ${accentColor}`,
-          overflow: "hidden",
+          backgroundColor: "white",
+          padding: "2px",
+          boxShadow: "0 10px 22px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "#f8fafc",
-          color: accentColor,
-          fontSize: "12px",
-          fontWeight: 800,
-          letterSpacing: "0.02em",
         }}
       >
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={name || "User"} />
-        ) : (
-          <span>{initials}</span>
-        )}
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            border: `3px solid ${accentColor}`,
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#f8fafc",
+            color: accentColor,
+            fontSize: "12px",
+            fontWeight: 800,
+            letterSpacing: "0.02em",
+          }}
+        >
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} style={{ width: "100%", height: "100%", objectFit: "cover" }} alt={name || "User"} />
+          ) : (
+            <span>{initials}</span>
+          )}
+        </div>
+        {/* Status dot — positioned inside the circle, bottom-right */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "1px",
+            right: "1px",
+            width: "13px",
+            height: "13px",
+            backgroundColor: statusConf.color,
+            border: "2px solid white",
+            borderRadius: "50%",
+            zIndex: 20,
+            boxShadow: "0 2px 5px rgba(15,23,42,0.25)",
+          }}
+        />
       </div>
     </div>
   );
@@ -148,8 +223,8 @@ export function createLiveMarkerIcon({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: isMovingSalesman ? "64px" : "72px",
-        height: isMovingSalesman ? "64px" : "72px",
+        width: isMovingSalesman ? "120px" : "120px",
+        height: isMovingSalesman ? "86px" : "86px",
         zIndex: clusterIndex,
       }}
     >
@@ -157,6 +232,7 @@ export function createLiveMarkerIcon({
         <div
           style={{
             position: "absolute",
+            bottom: 0,
             width: isMovingSalesman ? "60px" : "58px",
             height: isMovingSalesman ? "60px" : "58px",
             borderRadius: "50%",
@@ -166,26 +242,10 @@ export function createLiveMarkerIcon({
           }}
         />
       )}
-      <div style={{ position: "relative" }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center" }}>
         {isMovingSalesman ? carIcon : avatarMarker}
       </div>
-      {/* Status dot — only shown on avatar markers, not on the car */}
-      {!isMovingSalesman && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "10px",
-            right: "10px",
-            width: "13px",
-            height: "13px",
-            backgroundColor: statusConf.color,
-            border: "2px solid white",
-            borderRadius: "50%",
-            zIndex: 20,
-            boxShadow: "0 2px 5px rgba(15,23,42,0.25)",
-          }}
-        />
-      )}
+
     </div>,
   );
 
@@ -198,22 +258,25 @@ export function createLiveMarkerIcon({
   }
 
   if (isMovingSalesman) {
-    // 64×64 wrapper; car image (54×54 ish) is centered — anchor at center of wrapper
+    // 120×86: label (~22px) + gap (4px) + car (~30px) + padding = 86
+    // Anchor at center of the car image
     return L.divIcon({
       html,
       className: "custom-map-marker",
-      iconSize: [64, 64],
-      iconAnchor: [32 - offsetX, 32 - offsetY],
-      popupAnchor: [offsetX, -36 + offsetY],
+      iconSize: [120, 86],
+      iconAnchor: [60 - offsetX, 62 - offsetY],
+      popupAnchor: [offsetX, -62 + offsetY],
     });
   }
 
+  // 120×86: name label (~22px) + gap (4px) + avatar (48px) + padding (12px) = 86
+  // Anchor at center of the avatar circle (bottom portion)
   return L.divIcon({
     html,
     className: "custom-map-marker",
-    iconSize: [72, 72],
-    iconAnchor: [36 - offsetX, 36 - offsetY],
-    popupAnchor: [offsetX, -34 + offsetY],
+    iconSize: [120, 86],
+    iconAnchor: [60 - offsetX, 74 - offsetY],
+    popupAnchor: [offsetX, -74 + offsetY],
   });
 }
 

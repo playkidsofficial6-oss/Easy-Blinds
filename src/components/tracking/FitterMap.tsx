@@ -504,7 +504,6 @@ function SmoothLiveMarker({
     [marker.avatar, marker.clusterIndex, marker.clusterTotal, marker.isLate, marker.name, marker.role, marker.status, movementBearing],
   );
 
-  const labelPlacement = marker.labelPlacement ?? getLabelCandidates(marker, 0)[0];
   const statusLabel = marker.isLate ? "Late" : MARKER_STATUS_CONFIG[marker.status].label;
 
   return (
@@ -517,28 +516,6 @@ function SmoothLiveMarker({
         click: () => onSelectFitter(marker.id),
       }}
     >
-      <Tooltip
-        permanent
-        direction={labelPlacement.direction}
-        offset={labelPlacement.offset}
-        opacity={1}
-        className="salesman-map-label custom-tooltip bg-white/90 border border-slate-200/80 shadow-lg rounded-lg px-2.5 py-1.5 backdrop-blur-md"
-      >
-        <div className="relative">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute h-px w-7 origin-center rounded-full bg-slate-400/45"
-            style={{
-              left: "50%",
-              top: "50%",
-              transform: `translate(${labelPlacement.connectorOffset[0]}px, ${labelPlacement.connectorOffset[1]}px)`,
-            }}
-          />
-          <div className="relative text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-900">
-            {marker.name}
-          </div>
-        </div>
-      </Tooltip>
       <Popup closeButton={false} className="live-location-popup">
         <div className="min-w-56 space-y-2 text-xs text-slate-600">
           <div>

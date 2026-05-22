@@ -562,7 +562,7 @@ export default function NewJobPage() {
           <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
         </Link>
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Create New Job</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 dark:text-white">Work Order</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Fill out the form below to manually schedule an installation job.</p>
         </div>
       </div>
@@ -922,7 +922,7 @@ export default function NewJobPage() {
             disabled={isLoading} 
             className="w-full sm:w-auto min-w-[160px] bg-blue-600 hover:bg-blue-700 text-white font-medium"
           >
-            {isLoading ? "Saving Details..." : "Create New Job"}
+            {isLoading ? "Saving Details..." : "Work Order"}
           </Button>
         </div>
       </form>
