@@ -85,6 +85,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
 
   return {
     id: job._id,
+    jobId: job.jobId,
     client: job.customerName,
     email: job.customerEmail,
     phone: job.customerPhone,
@@ -108,6 +109,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
 function toFitterJob(job: Job): FitterJob {
   return {
     id: job._id,
+    jobId: job.jobId,
     client: job.customerName,
     address: job.address,
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
@@ -697,7 +699,7 @@ export default function SmartAssignmentsPage() {
                                   {isBusy ? (
                                     <div className="cursor-pointer" onClick={() => initiateEdit(fitter.id, time, job.client, job.id)}>
                                       <div className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors flex items-center justify-between pr-2">
-                                        <div className="flex flex-col"><span>{job.client || "Assigned Job"}</span><span className="text-xs text-slate-500 font-normal">{job.address || "On-site"}</span></div>
+                                        <div className="flex flex-col"><span>{job.client || "Assigned Job"}</span>{job.jobId && <span className="font-mono text-[10px] text-amber-700 font-semibold">{job.jobId}</span>}<span className="text-xs text-slate-500 font-normal">{job.address || "On-site"}</span></div>
                                         <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-slate-600"><Pencil className="w-3 h-3" /></Button>
                                       </div>
                                     </div>

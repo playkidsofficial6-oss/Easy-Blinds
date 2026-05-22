@@ -28,6 +28,7 @@ function formatDuration(secs: number) {
 // Unified Job Interface compatible with both pages
 export interface UnifiedJob {
     id: string;
+    jobId?: string;
     client: string;
     value?: number;
     email?: string;
@@ -106,8 +107,13 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                 {/* Header: Client & Value */}
                 <div className="flex justify-between items-start mb-3">
                     <div>
-                        <h4 className="font-semibold text-slate-900 text-base flex items-center gap-2">
-                            {job.client}
+                        <h4 className="font-semibold text-slate-900 text-base flex flex-wrap items-center gap-2">
+                            <span>{job.client}</span>
+                            {job.jobId && (
+                                <span className="font-mono text-[10px] font-bold tracking-wide text-slate-500 bg-slate-100 border border-slate-200 rounded-md px-1.5 py-0.5">
+                                    {job.jobId}
+                                </span>
+                            )}
                             {isHighPriority && <span className="flex h-2 w-2 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>}
                         </h4>
                         <div className="flex items-center gap-2 mt-0.5">
