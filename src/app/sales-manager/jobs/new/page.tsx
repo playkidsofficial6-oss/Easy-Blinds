@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { ArrowLeft, Check, ChevronsUpDown, Mail, MapPin, Phone, User, Calendar, Clock, Building } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, Mail, MapPin, Phone, User, Calendar as CalendarIcon, Clock, Building } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Calendar } from "@/components/ui/calendar";
 import { createJob, getJobErrorMessage, type JobPriority } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 
@@ -314,6 +316,50 @@ const highlightSuggestionMatch = (text: string, query: string) => {
   );
 };
 
+const isValidLocalPhoneNumber = (phone: string, countryCode: string): boolean => {
+  let digits = phone.replace(/\D/g, "");
+  
+  if (!digits || digits.length < 7 || digits.length > 15) {
+    return false;
+  }
+
+  const cleanCountryCode = countryCode.trim();
+  const codeDigits = cleanCountryCode.replace(/\D/g, "");
+  if (codeDigits && digits.startsWith(codeDigits)) {
+    digits = digits.slice(codeDigits.length);
+  }
+  if (digits.startsWith("0")) {
+    digits = digits.slice(1);
+  }
+  
+  switch (cleanCountryCode) {
+    case "+971": // UAE: 9 digits
+      return digits.length === 9;
+    case "+966": // Saudi Arabia: 9 digits
+      return digits.length === 9;
+    case "+974": // Qatar: 8 digits
+      return digits.length === 8;
+    case "+973": // Bahrain: 8 digits
+      return digits.length === 8;
+    case "+965": // Kuwait: 8 digits
+      return digits.length === 8;
+    case "+968": // Oman: 8 digits
+      return digits.length === 8;
+    case "+91": // India: 10 digits
+      return digits.length === 10;
+    case "+92": // Pakistan: 10 digits
+      return digits.length === 10;
+    case "+63": // Philippines: 10 digits
+      return digits.length === 10;
+    case "+1": // US: 10 digits
+      return digits.length === 10;
+    case "+44": // UK: 10 digits
+      return digits.length === 10;
+    default:
+      return digits.length >= 7 && digits.length <= 15;
+  }
+};
+
 export default function NewJobPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -321,6 +367,7 @@ export default function NewJobPage() {
 
   const [addressValue, setAddressValue] = useState("");
   const [mapCoords, setMapCoords] = useState<[number, number] | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
 
   const [openCountry, setOpenCountry] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
@@ -450,8 +497,8 @@ export default function NewJobPage() {
     }
 
     const lastName = String(formData.get("lastName") || "").trim();
-    if (!lastName || lastName.length < 2) {
-      newErrors.lastName = "Last name must be at least 2 characters.";
+    if (!lastName || lastName.length < 1) {
+      newErrors.lastName = "Last name must be at least 1 character.";
     }
 
     const customerEmail = String(formData.get("customerEmail") || "").trim() || undefined;
@@ -462,6 +509,11 @@ export default function NewJobPage() {
     const phoneNumber = String(formData.get("phoneNumber") || "").trim();
     if (!phoneNumber) {
       newErrors.phoneNumber = "Phone number is required.";
+    } else {
+      const countryCode = isCustom ? customCountryCode : selectedCountry.code;
+      if (!isValidLocalPhoneNumber(phoneNumber, countryCode)) {
+        newErrors.phoneNumber = "Customer number is not correct.";
+      }
     }
 
     const address = String(formData.get("address") || "").trim();
@@ -496,8 +548,21 @@ export default function NewJobPage() {
       return;
     }
 
-    const countryCode = isCustom ? customCountryCode : selectedCountry.code;
-    const customerPhone = phoneNumber ? `${countryCode} ${phoneNumber}`.trim() : "";
+    let countryCode = (isCustom ? customCountryCode : selectedCountry.code).trim();
+    if (countryCode && !countryCode.startsWith("+")) {
+      countryCode = `+${countryCode}`;
+    }
+    const codeDigits = countryCode.replace(/\D/g, "");
+    
+    let cleanPhone = phoneNumber.replace(/\D/g, "");
+    if (codeDigits && cleanPhone.startsWith(codeDigits)) {
+      cleanPhone = cleanPhone.slice(codeDigits.length);
+    }
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = cleanPhone.slice(1);
+    }
+    
+    const customerPhone = phoneNumber ? `${countryCode}${cleanPhone}` : "";
 
     let scheduledAt: string | undefined = undefined;
     let appendedNotes = "";
@@ -530,7 +595,17 @@ export default function NewJobPage() {
       router.push("/sales-manager/salesman-assignments");
       router.refresh();
     } catch (error) {
-      toast.error(getJobErrorMessage(error, "Unable to create job."));
+      const errMsg = getJobErrorMessage(error, "Unable to create job.");
+      if (
+        errMsg.toLowerCase().includes("customerphone") ||
+        errMsg.toLowerCase().includes("phone number") ||
+        errMsg.toLowerCase().includes("phone")
+      ) {
+        setErrors((prev) => ({ ...prev, phoneNumber: "Customer number is not correct." }));
+        toast.error("Customer number is not correct.");
+      } else {
+        toast.error(errMsg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -871,7 +946,7 @@ export default function NewJobPage() {
           {/* Scheduling */}
           <div className="bg-slate-50 dark:bg-slate-900/50 p-4 border-y border-slate-100 dark:border-slate-800">
             <h2 className="text-lg font-medium flex items-center gap-2 text-slate-800 dark:text-slate-100">
-              <Calendar className="w-5 h-5 text-amber-500" />
+              <CalendarIcon className="w-5 h-5 text-amber-500" />
               Scheduling Preference
             </h2>
           </div>
@@ -879,14 +954,45 @@ export default function NewJobPage() {
             <div className="space-y-2">
               <Label htmlFor="scheduledDate" className="text-slate-600 dark:text-slate-300">Requested Date</Label>
               <div className="relative">
-                <Calendar className={cn("w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none", errors.scheduledDate && "text-red-500")} />
-                <Input 
-                  id="scheduledDate" 
+                <CalendarIcon className={cn("w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none z-10", errors.scheduledDate && "text-red-500")} />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="scheduledDate"
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal pl-9 bg-white dark:bg-slate-900 h-10 border-slate-200 dark:border-slate-800",
+                        !selectedDate && "text-slate-400 dark:text-slate-500",
+                        errors.scheduledDate && "border-red-500 focus-visible:ring-red-500"
+                      )}
+                    >
+                      {selectedDate ? format(selectedDate, "MM/dd/yyyy") : "MM/DD/YYYY"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date);
+                        if (errors.scheduledDate) {
+                          setErrors((prev) => ({ ...prev, scheduledDate: "" }));
+                        }
+                      }}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        return date < today;
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <input 
+                  type="hidden" 
                   name="scheduledDate" 
-                  type="date" 
-                  min={todayStr}
-                  onChange={handleInputChange}
-                  className={cn("pl-9 bg-white dark:bg-slate-900", errors.scheduledDate && "border-red-500 focus-visible:ring-red-500")}
+                  value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""} 
                 />
               </div>
               {errors.scheduledDate && <p className="text-sm text-red-500 mt-1">{errors.scheduledDate}</p>}

@@ -44,6 +44,7 @@ type SalesmanScheduleJob = {
   assignedBy?: string;
   coordinates: [number, number];
   date?: string;
+  formattedDate?: string;
 };
 
 type SalesmanSchedule = Record<Tab, SalesmanScheduleJob[]>;
@@ -84,9 +85,12 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
   }
 
   let dateStr: string | undefined;
+  let formattedDate: string | undefined;
   if (job.scheduledAt) {
     try {
-      dateStr = format(new Date(job.scheduledAt), "yyyy-MM-dd");
+      const parsedDate = new Date(job.scheduledAt);
+      dateStr = format(parsedDate, "yyyy-MM-dd");
+      formattedDate = format(parsedDate, "dd MMM yyyy");
     } catch {}
   }
 
@@ -96,6 +100,7 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     shortRef: job.jobId ?? `JOB-${job._id.slice(-6).toUpperCase()}`,
     time: toDisplayTime(job.scheduledAt),
     date: dateStr,
+    formattedDate,
     client: job.customerName,
     address: job.address,
     customerPhone: job.customerPhone,
@@ -472,7 +477,7 @@ function WorkspaceOverview({
 }
 
 function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSelect: () => void; isSelected: boolean }) {
-  const isLate = calculateIsLate(job.time, job.status);
+  const isLate = calculateIsLate(job.date, job.time, job.status);
 
   return (
     <div
@@ -498,11 +503,20 @@ function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSe
         </span>
 
         <div className={cn(
-          "font-bold text-[10px] flex items-center gap-1.5 uppercase tracking-wider",
+          "font-bold text-[9px] flex flex-wrap items-center gap-1.5 uppercase tracking-wider justify-end max-w-[70%]",
           isSelected ? "text-white/40" : isLate ? "text-rose-600" : "text-neutral-400"
         )}>
-          <Clock className="w-3.5 h-3.5" />
-          {job.time}
+          {job.formattedDate && (
+            <div className="flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              <span>{job.formattedDate}</span>
+            </div>
+          )}
+          {job.formattedDate && <span className="opacity-40">•</span>}
+          <div className="flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            <span>{job.time}</span>
+          </div>
         </div>
       </div>
 
@@ -673,9 +687,17 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
               <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-bold uppercase tracking-[0.15em] rounded border border-indigo-100">
                 Task {job.jobId ?? job.shortRef}
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
-                {job.time}
-              </span>
+              <div className="text-[9px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+                {job.formattedDate && (
+                  <>
+                    <Calendar className="w-3 h-3 text-stone-400" />
+                    <span>{job.formattedDate}</span>
+                    <span className="opacity-50">•</span>
+                  </>
+                )}
+                <Clock className="w-3 h-3 text-stone-400" />
+                <span>{job.time}</span>
+              </div>
             </div>
             <h2 className="text-2xl font-light text-stone-800 tracking-tight mb-2.5 capitalize">
               {job.client}
@@ -994,11 +1016,11 @@ function ActionButton({ icon: Icon, label, activeLabel, isActive, disabled, vari
   );
 }
 
-function calculateIsLate(jobTime: string, status: string) {
+function calculateIsLate(jobDateStr: string | undefined, jobTime: string, status: string) {
   if (status === "Done" || status === "In Progress" || status === "Completed" || status === "In progress") return false;
   try {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const jobDate = parse(`${todayStr} ${jobTime}`, "yyyy-MM-dd hh:mm aa", new Date());
+    const datePart = jobDateStr || format(new Date(), "yyyy-MM-dd");
+    const jobDate = parse(`${datePart} ${jobTime}`, "yyyy-MM-dd hh:mm aa", new Date());
     const fifteenMinsAfter = new Date(jobDate.getTime() + 15 * 60000);
     return isPast(fifteenMinsAfter);
   } catch {
