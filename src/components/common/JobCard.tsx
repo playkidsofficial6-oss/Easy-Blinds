@@ -111,7 +111,7 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                             {isHighPriority && <span className="flex h-2 w-2 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>}
                         </h4>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{job.brand || "Standard Account"}</div>
+                            {/* <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{job.brand || "Standard Account"}</div> */}
                             {job.requestedDate ? (
                                 <div className="text-[9px] uppercase tracking-wider text-amber-600 font-bold bg-amber-50/80 border border-amber-200/50 flex items-center gap-1 px-1.5 py-0.5 rounded-sm">
                                     <CalendarClock className="w-3 h-3" />
@@ -174,11 +174,11 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
 
                 {/* Footer: Location & Meta */}
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                    {variant !== "schedule" && job.property && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.property}</Badge>}
-                    {variant !== "schedule" && job.productType && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.productType}</Badge>}
-                    {job.status && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.status}</Badge>}
+                    {/* {variant !== "schedule" && job.property && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.property}</Badge>} */}
+                    {/* {variant !== "schedule" && job.productType && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.productType}</Badge>}
+                    {job.status && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.status}</Badge>} */}
 
-                    {(variant !== "schedule" || job.status) && <div className="h-4 w-px bg-slate-200 mx-1"></div>}
+                    {/* {(variant !== "schedule" || job.status) && <div className="h-4 w-px bg-slate-200 mx-1"></div>} */}
 
                     <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 truncate max-w-[180px]" title={job.address || job.area}>
                         <MapPin className="w-3 h-3 text-slate-300 flex-shrink-0" />

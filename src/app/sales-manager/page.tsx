@@ -121,13 +121,13 @@ export default function SalesManagerDashboard() {
             </Card>
           );
 
-          if (stat.title === "Unassigned Jobs") {
-            return (
-              <Link key={stat.title} href="/sales-manager/assignments" className="contents">
-                {content}
-              </Link>
-            );
-          }
+          // if (stat.title === "Unassigned Jobs") {
+          //   return (
+          //     <Link key={stat.title} href="/sales-manager/assignments" className="contents">
+          //        {content}
+          //     </Link>
+          //   );
+          // }
 
           return (
             <div key={`${stat.title}-${index}`} className="contents">
