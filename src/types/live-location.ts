@@ -90,6 +90,7 @@ export interface LiveLocationSocketListeners {
   onLocationUpdated?: (location: LiveLocationRecord) => void;
   onUserOnline?: (event: LiveLocationPresenceEvent) => void;
   onUserOffline?: (event: LiveLocationPresenceEvent) => void;
+  onSalesmanStatusChanged?: (event: { userId: string; status: string; role: string; jobId?: string }) => void;
   onConnect?: () => void;
   onDisconnect?: (reason: string) => void;
   onError?: (error: Error) => void;

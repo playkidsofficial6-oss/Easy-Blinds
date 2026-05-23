@@ -1,13 +1,15 @@
 import { io, type Socket } from "socket.io-client";
 
-import { getStoredAuthToken } from "@/services/api";
+import { getStoredAuthToken, updateLiveLocation } from "@/services/api";
 import { normalizeLiveLocationRecord } from "@/services/api/live-location";
+import { logDiagnostic } from "./diagnostics";
 import type {
   BackendLiveLocationRecord,
   LiveLocationPresenceEvent,
   LiveLocationRecord,
   LiveLocationSocketListeners,
   LiveLocationUpdatedEvent,
+  UpdateLiveLocationPayload,
 } from "@/types/live-location";
 import {
   LIVE_LOCATION_SOCKET_URL,
@@ -20,12 +22,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+// The backend gateway broadcasts this exact shape on location:updated:
+// { userId, role, location: { type: "Point", coordinates: [lng, lat] },
+//   latitude, longitude, accuracy, speed, heading, isOnline, lastUpdatedAt }
 function resolveLocationPayload(
   payload: BackendLiveLocationRecord | LiveLocationUpdatedEvent,
 ): LiveLocationRecord | null {
-  if (isRecord(payload) && "location" in payload) {
-    const nestedLocation = payload.location;
+  if (!isRecord(payload)) return null;
 
+  // Shape 1: Direct gateway broadcast — has top-level userId + location GeoJSON
+  // This is the most common case from broadcastLocationUpdated()
+  if ("userId" in payload && "location" in payload) {
+    return normalizeLiveLocationRecord(payload as unknown as BackendLiveLocationRecord);
+  }
+
+  // Shape 2: Wrapped in { location: <record> } where location has userId
+  if ("location" in payload) {
+    const nestedLocation = payload.location;
     if (isRecord(nestedLocation) && "userId" in nestedLocation) {
       return normalizeLiveLocationRecord(
         nestedLocation as unknown as BackendLiveLocationRecord,
@@ -33,10 +46,12 @@ function resolveLocationPayload(
     }
   }
 
-  if (isRecord(payload) && "data" in payload) {
+  // Shape 3: Wrapped in { data: <record> }
+  if ("data" in payload) {
     return normalizeLiveLocationRecord(payload.data as BackendLiveLocationRecord);
   }
 
+  // Shape 4: Plain record
   return normalizeLiveLocationRecord(payload as BackendLiveLocationRecord);
 }
 
@@ -63,13 +78,18 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     return null;
   }
 
-  if (liveLocationSocket?.connected) {
-    return liveLocationSocket;
-  }
-
   if (liveLocationSocket) {
-    liveLocationSocket.auth = { token };
-    liveLocationSocket.connect();
+    const currentAuth = liveLocationSocket.auth as { token?: string } | undefined;
+    if (currentAuth?.token !== token) {
+      // Token changed, update auth and reconnect
+      liveLocationSocket.auth = { token };
+      if (liveLocationSocket.connected) {
+        liveLocationSocket.disconnect();
+      }
+      liveLocationSocket.connect();
+    } else if (!liveLocationSocket.connected) {
+      liveLocationSocket.connect();
+    }
     return liveLocationSocket;
   }
 
@@ -77,7 +97,10 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     ...SOCKET_RECONNECTION_CONFIG,
     auth: { token },
     autoConnect: true,
-    transports: ["polling", "websocket"],
+    // WebSocket first — polling is fallback only. This is the #1 cause of
+    // delayed real-time updates when left as ["polling", "websocket"].
+    transports: ["websocket", "polling"],
+    forceNew: false,
   });
 
   return liveLocationSocket;
@@ -120,6 +143,10 @@ export function listenToLocationUpdates(
     listeners.onUserOffline?.(normalizePresencePayload(payload));
   };
 
+  const handleSalesmanStatusChanged = (payload: { userId: string; status: string; role: string; jobId?: string }) => {
+    listeners.onSalesmanStatusChanged?.(payload);
+  };
+
   const handleConnect = () => {
     listeners.onConnect?.();
   };
@@ -135,6 +162,7 @@ export function listenToLocationUpdates(
   socket.on("location:updated", handleLocationUpdated);
   socket.on("user:online", handleUserOnline);
   socket.on("user:offline", handleUserOffline);
+  socket.on("salesman:status-changed", handleSalesmanStatusChanged);
   socket.on("connect", handleConnect);
   socket.on("disconnect", handleDisconnect);
   socket.on("connect_error", handleError);
@@ -144,9 +172,82 @@ export function listenToLocationUpdates(
     socket.off("location:updated", handleLocationUpdated);
     socket.off("user:online", handleUserOnline);
     socket.off("user:offline", handleUserOffline);
+    socket.off("salesman:status-changed", handleSalesmanStatusChanged);
     socket.off("connect", handleConnect);
     socket.off("disconnect", handleDisconnect);
     socket.off("connect_error", handleError);
     socket.off("exception", handleError);
   };
+}
+
+export async function emitLocationUpdate(
+  payload: UpdateLiveLocationPayload,
+): Promise<LiveLocationRecord> {
+  const socket = connectSocket();
+
+  if (!socket || !socket.connected) {
+    throw new Error("Socket not connected");
+  }
+
+  const backendPayload = {
+    location: {
+      type: "Point",
+      coordinates: [payload.lng, payload.lat],
+    },
+    accuracy: payload.accuracy,
+    speed: payload.speed,
+    heading: payload.heading,
+    isOnline: payload.isOnline,
+  };
+
+  return new Promise<LiveLocationRecord>((resolve, reject) => {
+    socket.emit("location:update", backendPayload, (ack: any) => {
+      if (ack && (ack.success === false || ack.error)) {
+        reject(new Error(ack.message || ack.error || "Failed to update location via socket"));
+      } else {
+        const responseData = ack?.data || ack;
+        const normalized = responseData ? normalizeLiveLocationRecord(responseData) : null;
+        if (normalized) {
+          resolve(normalized);
+        } else {
+          resolve({
+            userId: "unknown",
+            role: "salesman",
+            lat: payload.lat,
+            lng: payload.lng,
+            accuracy: payload.accuracy,
+            speed: payload.speed,
+            heading: payload.heading,
+            isOnline: payload.isOnline ?? true,
+            updatedAt: new Date().toISOString(),
+            lastUpdatedAt: new Date().toISOString(),
+          } as LiveLocationRecord);
+        }
+      }
+    });
+  });
+}
+
+export async function sendLiveLocationUpdate(
+  payload: UpdateLiveLocationPayload,
+): Promise<LiveLocationRecord> {
+  const socket = getLiveLocationSocket();
+  if (socket?.connected) {
+    try {
+      const record = await emitLocationUpdate(payload);
+      logDiagnostic("SOCKET", `Location update emitted successfully via Socket.IO`, payload);
+      return record;
+    } catch (error) {
+      logDiagnostic("ERROR", `Socket.IO emit failed, falling back to HTTP: ${(error as any).message}`, error);
+    }
+  }
+
+  try {
+    const record = await updateLiveLocation(payload);
+    logDiagnostic("API", `Location update sent via HTTP POST`, payload);
+    return record;
+  } catch (error) {
+    logDiagnostic("ERROR", `Location update failed entirely: ${(error as any).message}`, error);
+    throw error;
+  }
 }

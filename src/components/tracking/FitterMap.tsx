@@ -14,7 +14,9 @@ import { Fitter } from "@/lib/live-store";
 import L from "leaflet";
 import { format, isPast, parse, parseISO } from "date-fns";
 import { useLiveLocation } from "@/hooks";
+import DiagnosticsPanel from "./DiagnosticsPanel";
 import type { LiveLocationRecord } from "@/types/live-location";
+import { snapToRoad } from "@/utils/road-snapping";
 import {
   createCompanyMarkerIcon,
   createLiveMarkerIcon,
@@ -284,6 +286,7 @@ function normalizeStatus(status?: string, isOnline = true): LiveMarkerStatus {
     normalizedStatus.includes("ongoing") ||
     normalizedStatus.includes("moving")
   ) return "On The Way";
+  if (normalizedStatus.includes("measuring") || normalizedStatus.includes("measure")) return "Measuring";
   if (normalizedStatus.includes("progress") || normalizedStatus.includes("working")) return "Working";
   if (normalizedStatus.includes("booked")) return "Working";
 
@@ -460,53 +463,76 @@ function SmoothLiveMarker({
   onSelectFitter: (id: string) => void;
 }) {
   const markerRef = useRef<L.Marker | null>(null);
-  const previousPositionRef = useRef<[number, number]>(marker.position);
+  const currentPositionRef = useRef<[number, number]>(marker.position);
   const animationFrameRef = useRef<number | null>(null);
   const [displayPosition, setDisplayPosition] = useState<[number, number]>(marker.position);
   const [movementBearing, setMovementBearing] = useState(marker.heading ?? 0);
   const routePreview = getRoutePreview(marker, selectedJob);
 
   useEffect(() => {
-    const start = previousPositionRef.current;
-    const end = marker.position;
-    if (start[0] === end[0] && start[1] === end[1]) {
-      setDisplayPosition(end);
-      return undefined;
-    }
+    let active = true;
 
-    const bearing = typeof marker.heading === "number" ? marker.heading : calculateBearing(start, end);
-    setMovementBearing(bearing);
-    const startedAt = performance.now();
-    const leafletMarker = markerRef.current;
-
-    const animate = (timestamp: number) => {
-      const progress = Math.min(1, (timestamp - startedAt) / MARKER_ANIMATION_MS);
-      const easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - ((-2 * progress + 2) ** 2) / 2;
-      const next: [number, number] = [
-        start[0] + (end[0] - start[0]) * easedProgress,
-        start[1] + (end[1] - start[1]) * easedProgress,
-      ];
-      leafletMarker?.setLatLng(next);
-
-      if (progress < 1) {
-        animationFrameRef.current = requestAnimationFrame(animate);
-      } else {
-        previousPositionRef.current = end;
-        setDisplayPosition(end);
+    async function runSnappingAndAnimate() {
+      let targetPosition = marker.position;
+      if (marker.role === "Salesman" && marker.status === "On The Way") {
+        targetPosition = await snapToRoad(marker.position[0], marker.position[1]);
       }
-    };
 
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+      if (!active) return;
+
+      const start = currentPositionRef.current;
+      const end = targetPosition;
+      if (start[0] === end[0] && start[1] === end[1]) {
+        setDisplayPosition(end);
+        return;
+      }
+
+      const dist = distanceKm(start, end) * 1000; // meters
+      const bearing = dist > 1.5
+        ? (typeof marker.heading === "number" ? marker.heading : calculateBearing(start, end))
+        : movementBearing;
+
+      setMovementBearing(bearing);
+      const startedAt = performance.now();
+      const leafletMarker = markerRef.current;
+
+      const animate = (timestamp: number) => {
+        const progress = Math.min(1, (timestamp - startedAt) / MARKER_ANIMATION_MS);
+        const easedProgress = progress < 0.5 ? 2 * progress * progress : 1 - ((-2 * progress + 2) ** 2) / 2;
+        const next: [number, number] = [
+          start[0] + (end[0] - start[0]) * easedProgress,
+          start[1] + (end[1] - start[1]) * easedProgress,
+        ];
+        currentPositionRef.current = next;
+
+        if (leafletMarker) {
+          leafletMarker.setLatLng(next);
+        } else {
+          setDisplayPosition(next);
+        }
+
+        if (progress < 1) {
+          animationFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          setDisplayPosition(end);
+        }
+      };
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      animationFrameRef.current = requestAnimationFrame(animate);
     }
-    animationFrameRef.current = requestAnimationFrame(animate);
+
+    runSnappingAndAnimate();
 
     return () => {
+      active = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [marker.heading, marker.position]);
+  }, [marker.heading, marker.position, marker.status, marker.role]);
 
   const icon = useMemo(
     () => createLiveMarkerIcon({
@@ -792,17 +818,16 @@ export default function FitterMap({
   const {
     locations: liveLocations,
     isLoaded: liveLocationsLoaded,
+    isConnected: socketConnected,
     error: liveLocationError,
     reload: reloadLiveLocations,
   } = useLiveLocation();
 
-  // Poll every 30 s so the map refreshes without a page reload; Socket.IO updates continue between polls.
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      void reloadLiveLocations().catch(() => undefined);
-    }, 30_000);
-    return () => clearInterval(intervalId);
-  }, [reloadLiveLocations]);
+  // Socket.IO pushes are the real-time source of truth.
+  // The 30s poll has been removed — it was resetting isLoaded on every
+  // interval, causing full marker re-renders that interrupted animations.
+  // Reconnect-triggered reloads in useLiveLocation handle missed updates.
+
 
   useEffect(() => {
     delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
@@ -946,6 +971,12 @@ export default function FitterMap({
           {liveLocationError}
         </div>
       )}
+
+      <DiagnosticsPanel
+        socketConnected={socketConnected}
+        activeMarkersCount={markers.length}
+        markers={markers}
+      />
     </div>
   );
 }

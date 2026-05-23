@@ -454,6 +454,26 @@ export function useLiveFitters() {
           applyPresenceToFitters(currentFitters, event, false),
         );
       },
+      onSalesmanStatusChanged: (event) => {
+        setFitters((currentFitters) =>
+          currentFitters.map((f) => {
+            if (f.id !== event.userId) return f;
+
+            let status: FitterStatus = "Available";
+            if (event.status === "On the way") status = "On the way";
+            else if (event.status === "In progress" || event.status === "In Progress" || event.status === "Measuring") status = "In progress";
+            else if (event.status === "Offline") status = "Offline";
+
+            return {
+              ...f,
+              status,
+              jobRef: event.jobId ?? f.jobRef,
+            };
+          })
+        );
+        // Background reload to sync the schedule and details
+        void loadFitters();
+      },
       onError: (socketError) => {
         console.warn("[useLiveFitters] Live-location socket error:", socketError);
       },
@@ -463,7 +483,7 @@ export function useLiveFitters() {
       cleanupListeners();
       disconnectSocket();
     };
-  }, []);
+  }, [loadFitters]);
 
   const updateFitterStatus = useCallback(
     async (fitterId: string, status: FitterStatus) => {

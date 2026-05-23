@@ -7,7 +7,7 @@ import { useLiveFitters, FitterJob, FitterStatus } from "@/lib/live-store";
 import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
-import { updateLiveLocation } from "@/services/api/live-location";
+import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
 import { useRouter } from "next/navigation";
 
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
@@ -163,6 +163,21 @@ interface GpsSnapshot {
     syncedAt?: string;
 }
 
+function getDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371e3; // meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
 function FitterGpsControl() {
     const { user, logout } = useAuth();
     const router = useRouter();
@@ -180,6 +195,7 @@ function FitterGpsControl() {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
             }
+            disconnectSocket();
             if (status === "tracking" || status === "requesting") {
                 setStatus("idle");
                 router.replace("/login");
@@ -195,6 +211,7 @@ function FitterGpsControl() {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
             }
+            disconnectSocket();
         };
     }, []);
 
@@ -205,6 +222,7 @@ function FitterGpsControl() {
         }
 
         setStatus("idle");
+        disconnectSocket();
 
         const lastKnownFix = lastFixRef.current;
         if (!lastKnownFix) return;
@@ -217,7 +235,7 @@ function FitterGpsControl() {
         }
 
         try {
-            await updateLiveLocation({
+            await sendLiveLocationUpdate({
                 lat: lastKnownFix.lat,
                 lng: lastKnownFix.lng,
                 accuracy: lastKnownFix.accuracy,
@@ -251,6 +269,7 @@ function FitterGpsControl() {
 
         setStatus("requesting");
         setErrorMessage(null);
+        connectSocket();
 
         watchIdRef.current = navigator.geolocation.watchPosition(
             async (position) => {
@@ -260,6 +279,7 @@ function FitterGpsControl() {
                         navigator.geolocation.clearWatch(watchIdRef.current);
                         watchIdRef.current = null;
                     }
+                    disconnectSocket();
                     setStatus("error");
                     setErrorMessage("Session changed. GPS tracking stopped.");
                     logout("/login");
@@ -273,11 +293,29 @@ function FitterGpsControl() {
                     syncedAt: new Date().toISOString(),
                 };
 
+                // Noise filtering — relaxed thresholds for urban GPS
+                if (nextFix.accuracy !== undefined && nextFix.accuracy > 120) {
+                    logDiagnostic("GPS", `⚠️ Discarded GPS fix: poor accuracy (${nextFix.accuracy.toFixed(1)}m > 120m limit)`, nextFix);
+                    return;
+                }
+
+                const lastFixVal = lastFixRef.current;
+                if (lastFixVal) {
+                    const distanceMoved = getDistanceMeters(lastFixVal.lat, lastFixVal.lng, nextFix.lat, nextFix.lng);
+                    if (distanceMoved < 0.5) {
+                        logDiagnostic("GPS", `⚠️ Discarded GPS update: pure jitter (${distanceMoved.toFixed(2)}m < 0.5m)`, nextFix);
+                        return;
+                    }
+                    logDiagnostic("GPS", `✅ GPS update accepted: moved ${distanceMoved.toFixed(1)}m, accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
+                } else {
+                    logDiagnostic("GPS", `✅ Initial GPS fix: accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
+                }
+
                 lastFixRef.current = nextFix;
                 setLastFix(nextFix);
 
                 try {
-                    await updateLiveLocation({
+                    await sendLiveLocationUpdate({
                         lat: nextFix.lat,
                         lng: nextFix.lng,
                         accuracy: nextFix.accuracy,
@@ -295,6 +333,7 @@ function FitterGpsControl() {
                         navigator.geolocation.clearWatch(watchIdRef.current);
                         watchIdRef.current = null;
                     }
+                    disconnectSocket();
 
                     const message = error instanceof Error ? error.message : "Unable to save your GPS location.";
                     setStatus("error");
@@ -310,14 +349,15 @@ function FitterGpsControl() {
                     navigator.geolocation.clearWatch(watchIdRef.current);
                     watchIdRef.current = null;
                 }
+                disconnectSocket();
 
                 setStatus("error");
                 setErrorMessage(message);
             },
             {
                 enableHighAccuracy: true,
-                maximumAge: 10000,
-                timeout: 20000,
+                maximumAge: 0,
+                timeout: 10000,
             },
         );
     };
