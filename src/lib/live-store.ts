@@ -39,6 +39,7 @@ export interface FitterJob {
   time: string;
   endTime: string;
   scheduledAt?: string;
+  date?: string;
   status: "Pending" | "On the way" | "In Progress" | "Done";
   fabric?: string;
   rooms?: string[];
@@ -52,6 +53,11 @@ export interface FitterJob {
   property?: string;
   productType?: "Curtains" | "Blinds" | "Shutters" | "Awning";
   priority?: "High" | "Medium" | "Low";
+  estimatedDuration?: string;
+  width?: number;
+  drop?: number;
+  mountType?: string;
+  controlType?: string;
 }
 
 export interface Fitter {
@@ -72,6 +78,7 @@ export interface Fitter {
     yesterday: FitterJob[];
     tomorrow: FitterJob[];
     upcoming: FitterJob[];
+    completed?: FitterJob[];
   };
   currentJobStartTime?: number | null;
   capacity: {
@@ -138,6 +145,7 @@ function toDisplayEndTime(value?: string) {
 }
 
 function toFitterJob(job: Job): FitterJob {
+  const ll = extractLatLng(job.location as any);
   return {
     id: job._id,
     jobId: job.jobId,
@@ -146,6 +154,7 @@ function toFitterJob(job: Job): FitterJob {
     time: toDisplayTime(job.scheduledAt),
     endTime: toDisplayEndTime(job.scheduledAt),
     scheduledAt: job.scheduledAt,
+    date: job.scheduledAt ? format(parseISO(job.scheduledAt), "yyyy-MM-dd") : undefined,
     timerStartedAt: job.timerStartedAt,
     status: job.status === "completed" ? "Done" : job.status === "in_progress" ? "In Progress" : "Pending",
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
@@ -156,6 +165,12 @@ function toFitterJob(job: Job): FitterJob {
     property: `Qty ${job.quantity ?? 1}`,
     productType: normalizeProductType(job.productType),
     priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
+    coordinates: ll ? [ll.lat, ll.lng] as [number, number] : undefined,
+    estimatedDuration: (job as any).estimatedDuration,
+    width: (job as any).width,
+    drop: (job as any).drop,
+    mountType: (job as any).mountType,
+    controlType: (job as any).controlType,
   };
 }
 
@@ -273,6 +288,7 @@ function buildFitter(
       today: todayJobs,
       tomorrow: tomorrowJobs,
       upcoming: upcomingJobs,
+      completed: assignedJobs.filter((job) => job.status === "completed").map(toFitterJob),
     },
     currentJobStartTime: getCurrentJobStartTime(assignedJobs),
     capacity: {
@@ -342,7 +358,7 @@ function applyLiveLocationToFitters(
     return {
       ...fitter,
       location: [liveLocation.lat, liveLocation.lng],
-      status: liveLocation.isOnline ? fitter.status : "Offline",
+      status: liveLocation.isOnline ? (liveLocation.liveStatus as any || (fitter.status === "Offline" ? "Available" : fitter.status)) : "Offline",
       lastUpdated: toReadableLastUpdated(liveLocation.lastUpdatedAt ?? liveLocation.updatedAt),
       history: updatedHistory,
     };
@@ -454,6 +470,26 @@ export function useLiveFitters() {
           applyPresenceToFitters(currentFitters, event, false),
         );
       },
+      onSalesmanStatusChanged: (event) => {
+        setFitters((currentFitters) =>
+          currentFitters.map((f) => {
+            if (f.id !== event.userId) return f;
+
+            let status: FitterStatus = "Available";
+            if (event.status === "On the way") status = "On the way";
+            else if (event.status === "In progress" || event.status === "In Progress" || event.status === "Measuring") status = "In progress";
+            else if (event.status === "Offline") status = "Offline";
+
+            return {
+              ...f,
+              status,
+              jobRef: event.jobId ?? f.jobRef,
+            };
+          })
+        );
+        // Background reload to sync the schedule and details
+        void loadFitters();
+      },
       onError: (socketError) => {
         console.warn("[useLiveFitters] Live-location socket error:", socketError);
       },
@@ -461,9 +497,8 @@ export function useLiveFitters() {
 
     return () => {
       cleanupListeners();
-      disconnectSocket();
     };
-  }, []);
+  }, [loadFitters]);
 
   const updateFitterStatus = useCallback(
     async (fitterId: string, status: FitterStatus) => {

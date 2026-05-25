@@ -26,6 +26,7 @@ export interface UpdateLiveLocationPayload extends LiveLocationCoordinates {
   speed?: number;
   heading?: number;
   isOnline?: boolean;
+  liveStatus?: string;
 }
 
 export type BackendUpdateLiveLocationPayload = BackendGeoJsonLiveLocationCoordinates &
@@ -37,6 +38,8 @@ export interface LiveLocationRecord extends LiveLocationCoordinates {
   userId: string;
   user?: AuthUser;
   role: LiveLocationRole;
+  liveStatus?: string;
+  status?: string;
   accuracy?: number;
   speed?: number;
   heading?: number;
@@ -90,6 +93,9 @@ export interface LiveLocationSocketListeners {
   onLocationUpdated?: (location: LiveLocationRecord) => void;
   onUserOnline?: (event: LiveLocationPresenceEvent) => void;
   onUserOffline?: (event: LiveLocationPresenceEvent) => void;
+  onSalesmanStatusChanged?: (event: { userId: string; status: string; role: string; jobId?: string }) => void;
+  onJobUpdated?: (job: any) => void;
+  onJobDeleted?: (payload: { id: string; jobId?: string }) => void;
   onConnect?: () => void;
   onDisconnect?: (reason: string) => void;
   onError?: (error: Error) => void;

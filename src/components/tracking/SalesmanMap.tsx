@@ -254,7 +254,7 @@ function formatSpeed(speed?: number): string {
   return `${Math.max(0, kmh).toFixed(0)} km/h`;
 }
 
-function getRoutePreview(marker: LiveMapMarker, selectedJob?: FitterMapProps["selectedJob"] | null) {
+function getRoutePreview(marker: LiveMapMarker, selectedJob?: SalesmanMapProps["selectedJob"] | null) {
   const destCoords = marker.destinationCoordinates ?? 
                      (selectedJob ? [selectedJob.location.lat, selectedJob.location.lng] as [number, number] : null);
   if (!destCoords) return { distance: null, eta: null, status: "No active route" };
@@ -464,7 +464,7 @@ function MapCameraController({
   selectedJob,
   selectedMarker,
 }: {
-  selectedJob?: FitterMapProps["selectedJob"] | null;
+  selectedJob?: SalesmanMapProps["selectedJob"] | null;
   selectedMarker?: LiveMapMarker;
 }) {
   const map = useMap();
@@ -538,7 +538,7 @@ function SmoothLiveMarker({
   zoomLevel,
 }: {
   marker: LiveMapMarker;
-  selectedJob?: FitterMapProps["selectedJob"] | null;
+  selectedJob?: SalesmanMapProps["selectedJob"] | null;
   onSelectFitter: (id: string) => void;
   zoomLevel: number;
 }) {
@@ -680,7 +680,7 @@ function SmoothLiveMarker({
 
 interface LiveMarkersListProps {
   markers: LiveMapMarker[];
-  selectedJob?: FitterMapProps["selectedJob"] | null;
+  selectedJob?: SalesmanMapProps["selectedJob"] | null;
   selectedFitterId: string | null;
   onSelectFitter: (id: string) => void;
   zoomLevel: number;
@@ -953,7 +953,7 @@ function MapZoomTracker({ onChange }: { onChange: (zoom: number) => void }) {
   return null;
 }
 
-interface FitterMapProps {
+interface SalesmanMapProps {
   fitters: Fitter[];
   selectedFitterId: string | null;
   onSelectFitter: (id: string | null) => void;
@@ -985,7 +985,7 @@ interface FitterMapProps {
   hideStatusPanel?: boolean;
 }
 
-export default function FitterMap({
+export default function SalesmanMap({
   fitters,
   selectedFitterId,
   onSelectFitter,
@@ -995,8 +995,8 @@ export default function FitterMap({
   unassignedJobs = [],
   scheduledJobs = [],
   hideStatusPanel = false,
-}: FitterMapProps) {
-  const filterRole = "Fitter";
+}: SalesmanMapProps) {
+  const filterRole = "Salesman";
   const {
     locations: liveLocations,
     isLoaded: liveLocationsLoaded,
@@ -1135,7 +1135,7 @@ export default function FitterMap({
   const companyMarkerIcon = useMemo(() => createCompanyMarkerIcon(), []);
 
   const salesmenMarkers = useMemo(() => {
-    const allSalesmen = buildMapMarkers(fitters, liveLocations, "Fitter");
+    const allSalesmen = buildMapMarkers(fitters, liveLocations, "Salesman");
     const statusPriority: Record<string, number> = {
       "On The Way": 1,
       "Measuring": 2,
@@ -1401,7 +1401,7 @@ export default function FitterMap({
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search fitters..."
+                placeholder="Search salesmen..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200/80 rounded-xl py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-300 focus:bg-white transition-all"
@@ -1416,11 +1416,11 @@ export default function FitterMap({
               )}
             </div>
 
-            {/* Fitters List */}
+            {/* Salesmen List */}
             <div className="overflow-y-auto pr-1 space-y-2 max-h-[250px] status-panel-scrollbar">
               {filteredSalesmen.length === 0 ? (
                 <div className="text-center py-6 text-slate-400 text-xs italic">
-                  {searchQuery ? "No matching fitters found." : "No fitters currently active."}
+                  {searchQuery ? "No matching salesmen found." : "No salesmen currently active."}
                 </div>
               ) : (
                 filteredSalesmen.map((salesman) => {

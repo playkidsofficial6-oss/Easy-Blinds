@@ -3,7 +3,10 @@ import { API_BASE_URL } from "@/services/api";
 export const LIVE_LOCATION_NAMESPACE = "/live-location";
 
 function normalizeSocketBaseUrl(url: string): string {
-  return url.replace(/\/+$/, "").replace(/\/api\/v\d+$/, "");
+  return url
+    .replace(/\/+$/, "")              // remove trailing slashes
+    .replace(/\/api\/v\d+\/?$/, "")   // strip /api/v1, /api/v10 etc.
+    .replace(/\/api\/?$/, "");         // strip trailing /api if no version
 }
 
 export const SOCKET_BASE_URL = normalizeSocketBaseUrl(

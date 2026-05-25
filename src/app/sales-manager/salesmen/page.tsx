@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Dynamically import map with no SSR
-const FitterMap = dynamic(() => import("@/components/tracking/FitterMap"), {
+const SalesmanMap = dynamic(() => import("@/components/tracking/SalesmanMap"), {
     ssr: false,
     loading: () => <div className="h-[500px] w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-[0.2em]">LOADING LIVE MAP...</div>
 });
@@ -408,7 +408,7 @@ export default function SalesmenPage() {
 
                 {/* Map View */}
                 <div className="flex-1 min-w-0 h-full relative bg-slate-100 overflow-hidden">
-                    <FitterMap
+                    <SalesmanMap
                         fitters={mappedSalesmen}
                         selectedFitterId={selectedSalesmanId}
                         onSelectFitter={setSelectedSalesmanId}

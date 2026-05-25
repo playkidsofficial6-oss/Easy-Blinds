@@ -20,7 +20,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { getJobs, getJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import { updateUser } from "@/lib/users";
-import { updateLiveLocation } from "@/services/api/live-location";
+import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
 import { useRef } from "react";
 
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
@@ -163,28 +163,41 @@ function SalesmanPageContent() {
   const [selectedJob, setSelectedJob] = useState<SalesmanScheduleJob | null>(null);
   const [schedule, setSchedule] = useState<SalesmanSchedule>(EMPTY_SALESMAN_SCHEDULE);
 
+  const didAutoSelectJobRef = useRef(false);
+  const lastKnownPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+
   useEffect(() => {
-    if (activeJobId && schedule) {
-      const allJobs = [
-        ...(schedule.today || []),
-        ...(schedule.tomorrow || []),
-        ...(schedule.upcoming || []),
-        ...(schedule.completed || [])
-      ];
-      const foundJob = allJobs.find((j) => j.id === activeJobId);
-      if (foundJob) {
-        if ((schedule.completed || []).some((j) => j.id === activeJobId)) {
-          setActiveTab("completed");
-        } else if ((schedule.today || []).some((j) => j.id === activeJobId)) {
-          setActiveTab("today");
-        } else if ((schedule.tomorrow || []).some((j) => j.id === activeJobId)) {
-          setActiveTab("tomorrow");
-        } else if ((schedule.upcoming || []).some((j) => j.id === activeJobId)) {
-          setActiveTab("upcoming");
-        }
-        setSelectedJob(foundJob);
-      }
+    return () => {
+      // Full page unmount — safe to disconnect
+      disconnectSocket();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeJobId) return;
+    if (didAutoSelectJobRef.current) return; // only run once
+
+    const allJobs = [
+      ...(schedule.today || []),
+      ...(schedule.tomorrow || []),
+      ...(schedule.upcoming || []),
+      ...(schedule.completed || [])
+    ];
+    const foundJob = allJobs.find((j) => j.id === activeJobId);
+    if (!foundJob) return; // not loaded yet, wait
+
+    didAutoSelectJobRef.current = true; // mark done
+
+    if ((schedule.completed || []).some((j) => j.id === activeJobId)) {
+      setActiveTab("completed");
+    } else if ((schedule.today || []).some((j) => j.id === activeJobId)) {
+      setActiveTab("today");
+    } else if ((schedule.tomorrow || []).some((j) => j.id === activeJobId)) {
+      setActiveTab("tomorrow");
+    } else {
+      setActiveTab("upcoming");
     }
+    setSelectedJob(foundJob);
   }, [activeJobId, schedule]);
 
   const getJobsForTab = (tab: Tab | "custom") => {
@@ -232,17 +245,91 @@ function SalesmanPageContent() {
   };
 
   useEffect(() => {
+    if (!user?._id) return;
+
     const loadAssignedJobs = async () => {
-      if (!user?._id) return;
-      const response = await getJobs({ limit: 100 });
-      const assignedJobs = response.items.filter((job) =>
-        job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email
-      );
-      setSchedule(groupJobsBySchedule(assignedJobs));
+      try {
+        const response = await getJobs({ limit: 100 });
+        const assignedJobs = response.items.filter((job) =>
+          job.assignedTo === user._id ||
+          job.assignedTo === user.name ||
+          job.assignedTo === user.email
+        );
+        setSchedule(groupJobsBySchedule(assignedJobs));
+      } catch (err) {
+        console.error("Failed to load assigned jobs initially:", err);
+      }
     };
 
     void loadAssignedJobs();
-  }, [user?._id, user?.email, user?.name]);
+  }, [user?._id]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const socket = connectSocket();
+    if (!socket) return;
+
+    const handleJobAssigned = (job: any) => {
+      console.info("[Socket] job:assigned event received:", job);
+      const isStillAssigned = job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email;
+
+      if (!isStillAssigned) {
+        setSchedule((prev) => {
+          const updated = { ...prev };
+          const tabs: Tab[] = ["today", "tomorrow", "upcoming", "completed"];
+          for (const tab of tabs) {
+            updated[tab] = updated[tab].filter((j) => j.id !== job._id);
+          }
+          return updated;
+        });
+        setSelectedJob((prev) => prev?.id === job._id ? null : prev);
+        return;
+      }
+
+      const scheduleJob = toScheduleJob(job);
+      setSchedule((prev) => {
+        const updated = { ...prev };
+        let found = false;
+        const tabs: Tab[] = ["today", "tomorrow", "upcoming", "completed"];
+
+        for (const tab of tabs) {
+          if (updated[tab].some((j) => j.id === scheduleJob.id)) {
+            updated[tab] = updated[tab].map((j) => j.id === scheduleJob.id ? scheduleJob : j);
+            found = true;
+          } else {
+            updated[tab] = updated[tab].filter((j) => j.id !== scheduleJob.id);
+          }
+        }
+
+        if (!found) {
+          if (job.status === "completed" || job.status === "cancelled") {
+            updated.completed = [scheduleJob, ...updated.completed];
+          } else if (job.scheduledAt) {
+            const date = new Date(job.scheduledAt);
+            if (isToday(date)) {
+              updated.today = [scheduleJob, ...updated.today];
+            } else if (isTomorrow(date)) {
+              updated.tomorrow = [scheduleJob, ...updated.tomorrow];
+            } else {
+              updated.upcoming = [scheduleJob, ...updated.upcoming];
+            }
+          } else {
+            updated.upcoming = [scheduleJob, ...updated.upcoming];
+          }
+        }
+        return updated;
+      });
+
+      setSelectedJob((prev) => prev?.id === job._id ? scheduleJob : prev);
+    };
+
+    socket.on("job:assigned", handleJobAssigned);
+
+    return () => {
+      socket.off("job:assigned", handleJobAssigned);
+    };
+  }, [user?._id]);
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const displayStatus = newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus;
@@ -324,11 +411,21 @@ function SalesmanPageContent() {
         ...(appendedNotes ? { notes: appendedNotes } : {}),
       };
 
-      const savedJob = displayStatus === "On the way"
-        ? await startSalesmanTravel(id, workflowPayload)
-        : displayStatus === "In Progress"
-          ? await startSalesmanMeasuring(id, workflowPayload)
-          : await completeSalesmanWorkflow(id, workflowPayload);
+      const savedJobPromise = (() => {
+        if (displayStatus === "On the way") {
+          return startSalesmanTravel(id, workflowPayload);
+        }
+        if (displayStatus === "In Progress" || displayStatus === "In progress") {
+          return startSalesmanMeasuring(id, workflowPayload);
+        }
+        if (displayStatus === "Done" || displayStatus === "Completed") {
+          return completeSalesmanWorkflow(id, workflowPayload);
+        }
+        console.warn("handleUpdateStatus: unknown status", displayStatus);
+        return Promise.reject(new Error(`Unknown status: ${displayStatus}`));
+      })();
+
+      const savedJob = await savedJobPromise;
 
       const savedDisplayStatus = toScheduleStatus(savedJob);
       const savedLiveStatus = toLiveUserStatus(savedDisplayStatus);
@@ -368,6 +465,25 @@ function SalesmanPageContent() {
         } : prev);
       }
       console.info(`Salesman workflow updated to ${savedLiveStatus}`);
+
+      // After successful workflow API call, sync liveStatus
+      // This ensures the LiveLocation document is updated even
+      // if GPS tracking hasn't started yet
+      try {
+        const currentLat = lastKnownPositionRef.current?.lat;
+        const currentLng = lastKnownPositionRef.current?.lng;
+
+        if (currentLat && currentLng) {
+          await sendLiveLocationUpdate({
+            lat: currentLat,
+            lng: currentLng,
+            isOnline: true,
+            liveStatus: savedLiveStatus, // "On the way" / "In progress" / "Available"
+          });
+        }
+      } catch {
+        // Non-critical — GPS tracking handles this continuously anyway
+      }
     } catch (error) {
       console.error("Unable to update salesman job status", error);
     }
@@ -382,7 +498,9 @@ function SalesmanPageContent() {
           "w-full md:w-80 bg-white/80 backdrop-blur-xl border-r border-stone-200 flex flex-col z-40 transition-transform duration-500 absolute md:relative h-full",
           selectedJob ? "-translate-x-full md:translate-x-0" : "translate-x-0"
         )}>
-          <SalesmanGpsControl />
+          <SalesmanGpsControl onPosition={(lat, lng) => {
+            lastKnownPositionRef.current = { lat, lng };
+          }} />
           {/* Tabs */}
           <div className="flex border-b border-stone-200 bg-white p-2 gap-1">
             {(["today", "tomorrow", "upcoming", "completed"] as Tab[]).map((tab) => (
@@ -1118,7 +1236,26 @@ function isSalesmanRole(role?: string) {
     return r === "salesman" || r === "sales_man" || r === "field";
 }
 
-function SalesmanGpsControl() {
+function getDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371e3; // meters
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+interface SalesmanGpsControlProps {
+  onPosition?: (lat: number, lng: number) => void;
+}
+
+function SalesmanGpsControl({ onPosition }: SalesmanGpsControlProps) {
     const { user, logout } = useAuth();
     const router = useRouter();
     const [status, setStatus] = useState<GpsTrackingStatus>("idle");
@@ -1127,6 +1264,12 @@ function SalesmanGpsControl() {
     const watchIdRef = useRef<number | null>(null);
     const lastFixRef = useRef<GpsSnapshot | null>(null);
     const mountedRef = useRef(true);
+    const consecutiveErrorsRef = useRef(0);
+
+    const userRef = useRef(user);
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
 
     useEffect(() => {
         if (!user || !isSalesmanRole(user.role)) {
@@ -1134,6 +1277,7 @@ function SalesmanGpsControl() {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
             }
+            disconnectSocket();
             if (status === "tracking" || status === "requesting") {
                 setStatus("idle");
                 router.replace("/login");
@@ -1148,8 +1292,21 @@ function SalesmanGpsControl() {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
             }
+            // Do NOT call disconnectSocket() here
         };
     }, []);
+
+    useEffect(() => {
+        if (
+            user &&
+            isSalesmanRole(user.role) &&
+            status === "idle" &&
+            "geolocation" in navigator
+        ) {
+            startTracking();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.role]);
 
     const stopTracking = async () => {
         if (watchIdRef.current !== null && "geolocation" in navigator) {
@@ -1158,25 +1315,27 @@ function SalesmanGpsControl() {
         }
 
         setStatus("idle");
+        disconnectSocket();
 
         const lastKnownFix = lastFixRef.current;
         if (!lastKnownFix) return;
 
-        if (!user || !isSalesmanRole(user.role)) {
+        const currentUser = userRef.current;
+        if (!currentUser || !isSalesmanRole(currentUser.role)) {
             setErrorMessage("Session expired. Please sign in again.");
             logout("/login");
             return;
         }
 
         try {
-            await updateLiveLocation({
+            await sendLiveLocationUpdate({
                 lat: lastKnownFix.lat,
                 lng: lastKnownFix.lng,
                 accuracy: lastKnownFix.accuracy,
                 isOnline: false,
             });
-            if (user?._id) {
-                await updateUser(user._id, { liveStatus: "Offline" });
+            if (currentUser?._id) {
+                await updateUser(currentUser._id, { liveStatus: "Offline" });
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
@@ -1185,7 +1344,8 @@ function SalesmanGpsControl() {
     };
 
     const startTracking = () => {
-        if (!user || !isSalesmanRole(user.role)) {
+        const currentUser = userRef.current;
+        if (!currentUser || !isSalesmanRole(currentUser.role)) {
             setStatus("error");
             setErrorMessage("You must be signed in as a salesman to share your location.");
             logout("/login");
@@ -1205,14 +1365,17 @@ function SalesmanGpsControl() {
 
         setStatus("requesting");
         setErrorMessage(null);
+        connectSocket();
 
         watchIdRef.current = navigator.geolocation.watchPosition(
             async (position) => {
-                if (!user || !isSalesmanRole(user.role)) {
+                const innerUser = userRef.current;
+                if (!innerUser || !isSalesmanRole(innerUser.role)) {
                     if (watchIdRef.current !== null) {
                         navigator.geolocation.clearWatch(watchIdRef.current);
                         watchIdRef.current = null;
                     }
+                    disconnectSocket();
                     setStatus("error");
                     setErrorMessage("Session changed. GPS tracking stopped.");
                     logout("/login");
@@ -1226,11 +1389,32 @@ function SalesmanGpsControl() {
                     syncedAt: new Date().toISOString(),
                 };
 
+                // Noise filtering — relaxed thresholds for urban GPS:
+                // 120m accuracy limit (urban GPS is typically 10-40m, but can spike on tunnel exits)
+                // 0.5m minimum movement (avoids pure stationary jitter but allows slow walking)
+                if (nextFix.accuracy !== undefined && nextFix.accuracy > 120) {
+                    logDiagnostic("GPS", `⚠️ Discarded GPS fix: poor accuracy (${nextFix.accuracy.toFixed(1)}m > 120m limit)`, nextFix);
+                    return;
+                }
+
+                const lastFixVal = lastFixRef.current;
+                if (lastFixVal) {
+                    const distanceMoved = getDistanceMeters(lastFixVal.lat, lastFixVal.lng, nextFix.lat, nextFix.lng);
+                    if (distanceMoved < 0.5) {
+                        logDiagnostic("GPS", `⚠️ Discarded GPS update: pure jitter (${distanceMoved.toFixed(2)}m < 0.5m)`, nextFix);
+                        return;
+                    }
+                    logDiagnostic("GPS", `✅ GPS update accepted: moved ${distanceMoved.toFixed(1)}m, accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
+                } else {
+                    logDiagnostic("GPS", `✅ Initial GPS fix: accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
+                }
+
                 lastFixRef.current = nextFix;
                 setLastFix(nextFix);
+                onPosition?.(nextFix.lat, nextFix.lng);
 
                 try {
-                    await updateLiveLocation({
+                    await sendLiveLocationUpdate({
                         lat: nextFix.lat,
                         lng: nextFix.lng,
                         accuracy: nextFix.accuracy,
@@ -1238,24 +1422,32 @@ function SalesmanGpsControl() {
                         heading: typeof position.coords.heading === "number" ? position.coords.heading : undefined,
                         isOnline: true,
                     });
-                    const currentLiveStatus = "liveStatus" in user ? String(user.liveStatus ?? "") : "";
-                    if (user?._id && (currentLiveStatus === "Offline" || !currentLiveStatus)) {
-                        await updateUser(user._id, { liveStatus: "Available" });
+                    const currentLiveStatus = innerUser && "liveStatus" in innerUser ? String(innerUser.liveStatus ?? "") : "";
+                    if (innerUser?._id && (currentLiveStatus === "Offline" || !currentLiveStatus)) {
+                        await updateUser(innerUser._id, { liveStatus: "Available" });
                     }
 
                     if (!mountedRef.current) return;
+                    consecutiveErrorsRef.current = 0;
                     setStatus("tracking");
                     setErrorMessage(null);
                 } catch (error) {
                     if (!mountedRef.current) return;
-                    if (watchIdRef.current !== null) {
-                        navigator.geolocation.clearWatch(watchIdRef.current);
-                        watchIdRef.current = null;
-                    }
-
+                    consecutiveErrorsRef.current += 1;
                     const message = error instanceof Error ? error.message : "Unable to save your GPS location.";
-                    setStatus("error");
-                    setErrorMessage(message);
+                    logDiagnostic("ERROR", `GPS send failed (${consecutiveErrorsRef.current}/3): ${message}`, error);
+
+                    if (consecutiveErrorsRef.current >= 3) {
+                        if (watchIdRef.current !== null) {
+                            navigator.geolocation.clearWatch(watchIdRef.current);
+                            watchIdRef.current = null;
+                        }
+                        disconnectSocket();
+                        setStatus("error");
+                        setErrorMessage(`GPS stopped after repeated failures: ${message}`);
+                    } else {
+                        setErrorMessage(`Send failed, retrying... (${message})`);
+                    }
                 }
             },
             (error) => {
@@ -1267,14 +1459,15 @@ function SalesmanGpsControl() {
                     navigator.geolocation.clearWatch(watchIdRef.current);
                     watchIdRef.current = null;
                 }
+                disconnectSocket();
 
                 setStatus("error");
                 setErrorMessage(message);
             },
             {
                 enableHighAccuracy: true,
-                maximumAge: 10000,
-                timeout: 20000,
+                maximumAge: 0,
+                timeout: 10000,
             },
         );
     };

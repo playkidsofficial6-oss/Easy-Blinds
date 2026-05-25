@@ -68,6 +68,10 @@ export interface CreateJobInput {
   assignedSalesman?: string;
   assignedFitter?: string;
   quotation?: any;
+  location?: {
+    type: string;
+    coordinates: number[];
+  };
 }
 
 export type UpdateJobInput = Partial<CreateJobInput>;
@@ -121,6 +125,11 @@ export async function getJob(id: string): Promise<Job> {
 
 export async function updateJob(id: string, input: UpdateJobInput): Promise<Job> {
   const { data } = await api.patch<Job>(`/jobs/${id}`, input);
+  return data;
+}
+
+export async function deleteJob(id: string): Promise<{ deleted: boolean; id: string; jobId?: string }> {
+  const { data } = await api.delete<{ deleted: boolean; id: string; jobId?: string }>(`/jobs/${id}`);
   return data;
 }
 

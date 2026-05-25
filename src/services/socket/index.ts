@@ -9,4 +9,12 @@ export {
   disconnectSocket,
   getLiveLocationSocket,
   listenToLocationUpdates,
+  emitLocationUpdate,
+  sendLiveLocationUpdate,
 } from "./live-location-socket";
+export {
+  logDiagnostic,
+  getDiagnosticLogs,
+} from "./diagnostics";
+
+

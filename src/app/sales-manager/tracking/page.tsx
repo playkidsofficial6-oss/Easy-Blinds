@@ -17,7 +17,7 @@ export default function TrackingPage() {
     const { fitters, reload } = useLiveFitters();
     const [selectedFitterId, setSelectedFitterId] = useState<string | null>(null);
 
-    const handleSelectFitter = (id: string) => {
+    const handleSelectFitter = (id: string | null) => {
         setSelectedFitterId(id);
     };
 
