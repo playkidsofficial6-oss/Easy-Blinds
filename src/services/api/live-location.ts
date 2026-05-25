@@ -69,6 +69,8 @@ export function normalizeLiveLocationRecord(
     ...payload,
     userId: actualUserId,
     role: payload.role,
+    liveStatus: payload.liveStatus ?? payload.status,
+    status: payload.liveStatus ?? payload.status,
     lat,
     lng,
     isOnline: payload.isOnline ?? true,
@@ -135,6 +137,7 @@ function toBackendUpdatePayload(
     speed: payload.speed,
     heading: payload.heading,
     isOnline: payload.isOnline,
+    liveStatus: payload.liveStatus,
   };
 }
 

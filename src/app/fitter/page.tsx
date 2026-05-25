@@ -23,17 +23,40 @@ export default function FitterPage() {
     const [activeTab, setActiveTab] = useState<Tab>("today");
     const [selectedJob, setSelectedJob] = useState<FitterJob | null>(null);
 
-    const currentFitter = user?.role === "fitter" ? fitters.find(f => f.id === user._id) : null;
+    const isFitterRole = ["fitter", "field"].includes(
+      user?.role?.toLowerCase() ?? ""
+    );
+    const currentFitter = isFitterRole
+      ? fitters.find(f => f.id === user?._id)
+      : null;
 
-    if (!currentFitter) return <div className="p-8 text-center text-slate-500 font-light">Loading Fitter Data...</div>;
+    useEffect(() => {
+        return () => {
+            disconnectSocket();
+        };
+    }, []);
+
+    if (!currentFitter) {
+      return (
+        <div className="p-8 text-center text-slate-500 font-light">
+          {!user
+            ? "Not signed in."
+            : !isFitterRole
+            ? "Access denied. Fitter role required."
+            : fitters.length === 0
+            ? "Loading fitter data..."
+            : "Fitter profile not found."}
+        </div>
+      );
+    }
 
     const getJobsForTab = (tab: Tab): FitterJob[] => {
         switch (tab) {
-            case "today": return currentFitter.schedule.today;
-            case "tomorrow": return currentFitter.schedule.tomorrow;
-            case "upcoming": return currentFitter.schedule.upcoming;
-            case "completed": return currentFitter.schedule.yesterday;
-            default: return [];
+            case "today":     return currentFitter.schedule.today     ?? [];
+            case "tomorrow":  return currentFitter.schedule.tomorrow  ?? [];
+            case "upcoming":  return currentFitter.schedule.upcoming  ?? [];
+            case "completed": return currentFitter.schedule.completed ?? [];
+            default:          return [];
         }
     };
 
@@ -42,7 +65,12 @@ export default function FitterPage() {
     const handleUpdateStatus = (status: "On the way" | "In progress" | "Completed") => {
         if (!selectedJob) return;
         updateFitterStatus(currentFitter.id, status as FitterStatus);
-        setSelectedJob(prev => prev ? { ...prev, status: status === "Completed" ? "Done" : status === "In progress" ? "In Progress" : "Pending" } : null);
+        const displayStatus =
+            status === "Completed"   ? "Done"        :
+            status === "In progress" ? "In Progress" :
+            status === "On the way"  ? "On the way"  :
+            "Pending";
+        setSelectedJob(prev => prev ? { ...prev, status: displayStatus } : null);
     };
 
     return (
@@ -187,10 +215,18 @@ function FitterGpsControl() {
     const watchIdRef = useRef<number | null>(null);
     const lastFixRef = useRef<GpsSnapshot | null>(null);
     const mountedRef = useRef(true);
+    const consecutiveErrorsRef = useRef(0);
+
+    const userRef = useRef(user);
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
 
     // Stop tracking and redirect to login if session is lost while tracking
     useEffect(() => {
-        if (!user || user.role !== "fitter") {
+        const currentUser = userRef.current;
+        const isFitter = currentUser && ["fitter", "field"].includes(currentUser.role?.toLowerCase() ?? "");
+        if (!currentUser || !isFitter) {
             if (watchIdRef.current !== null && "geolocation" in navigator) {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
@@ -211,9 +247,21 @@ function FitterGpsControl() {
                 navigator.geolocation.clearWatch(watchIdRef.current);
                 watchIdRef.current = null;
             }
-            disconnectSocket();
+            // DO NOT call disconnectSocket() here
         };
     }, []);
+
+    useEffect(() => {
+        if (
+            user &&
+            ["fitter", "field"].includes(user.role?.toLowerCase() ?? "") &&
+            status === "idle" &&
+            "geolocation" in navigator
+        ) {
+            startTracking();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.role]);
 
     const stopTracking = async () => {
         if (watchIdRef.current !== null && "geolocation" in navigator) {
@@ -227,8 +275,9 @@ function FitterGpsControl() {
         const lastKnownFix = lastFixRef.current;
         if (!lastKnownFix) return;
 
-        // Guard: only send if we still have a valid fitter session
-        if (!user || user.role !== "fitter") {
+        const currentUser = userRef.current;
+        const isFitter = currentUser && ["fitter", "field"].includes(currentUser.role?.toLowerCase() ?? "");
+        if (!currentUser || !isFitter) {
             setErrorMessage("Session expired. Please sign in again.");
             logout("/login");
             return;
@@ -248,8 +297,9 @@ function FitterGpsControl() {
     };
 
     const startTracking = () => {
-        // Hard block: do not start GPS if not logged in as a fitter
-        if (!user || user.role !== "fitter") {
+        const currentUser = userRef.current;
+        const isFitter = currentUser && ["fitter", "field"].includes(currentUser.role?.toLowerCase() ?? "");
+        if (!currentUser || !isFitter) {
             setStatus("error");
             setErrorMessage("You must be signed in as a fitter to share your location.");
             logout("/login");
@@ -273,8 +323,9 @@ function FitterGpsControl() {
 
         watchIdRef.current = navigator.geolocation.watchPosition(
             async (position) => {
-                // Re-check session on every GPS ping
-                if (!user || user.role !== "fitter") {
+                const innerUser = userRef.current;
+                const isInnerFitter = innerUser && ["fitter", "field"].includes(innerUser.role?.toLowerCase() ?? "");
+                if (!innerUser || !isInnerFitter) {
                     if (watchIdRef.current !== null) {
                         navigator.geolocation.clearWatch(watchIdRef.current);
                         watchIdRef.current = null;
@@ -325,19 +376,26 @@ function FitterGpsControl() {
                     });
 
                     if (!mountedRef.current) return;
+                    consecutiveErrorsRef.current = 0;
                     setStatus("tracking");
                     setErrorMessage(null);
                 } catch (error) {
                     if (!mountedRef.current) return;
-                    if (watchIdRef.current !== null) {
-                        navigator.geolocation.clearWatch(watchIdRef.current);
-                        watchIdRef.current = null;
-                    }
-                    disconnectSocket();
-
+                    consecutiveErrorsRef.current += 1;
                     const message = error instanceof Error ? error.message : "Unable to save your GPS location.";
-                    setStatus("error");
-                    setErrorMessage(message);
+                    logDiagnostic("ERROR", `GPS send failed (${consecutiveErrorsRef.current}/3): ${message}`, error);
+
+                    if (consecutiveErrorsRef.current >= 3) {
+                        if (watchIdRef.current !== null) {
+                            navigator.geolocation.clearWatch(watchIdRef.current);
+                            watchIdRef.current = null;
+                        }
+                        disconnectSocket();
+                        setStatus("error");
+                        setErrorMessage(`GPS stopped after repeated failures: ${message}`);
+                    } else {
+                        setErrorMessage(`Send failed, retrying... (${message})`);
+                    }
                 }
             },
             (error) => {
@@ -393,24 +451,24 @@ function FitterGpsControl() {
     );
 }
 
-function calculateIsLate(jobTime: string, status: string) {
-    if (status === "Done" || status === "In Progress" || status === "Completed") return false;
+function calculateIsLate(jobTime: string, status: string, jobDate?: string): boolean {
+    if (["Done", "In Progress", "Completed", "On the way"].includes(status)) return false;
 
-    // Simple parsing for demo purposes. Assumes "HH:MM AM/PM" format
     try {
-        const todayStr = format(new Date(), "yyyy-MM-dd");
-        const jobDate = parse(`${todayStr} ${jobTime}`, "yyyy-MM-dd hh:mm aa", new Date());
-
-        // If current time > job time + 15 mins buffer, it's late
-        const fifteenMinsAfter = new Date(jobDate.getTime() + 15 * 60000);
-        return isPast(fifteenMinsAfter);
+        const datePart = jobDate ?? format(new Date(), "yyyy-MM-dd");
+        const parsed = parse(
+            `${datePart} ${jobTime}`,
+            "yyyy-MM-dd hh:mm aa",
+            new Date()
+        );
+        return isPast(new Date(parsed.getTime() + 15 * 60000));
     } catch {
         return false;
     }
 }
 
 function JobCard({ job, onSelect, isSelected }: { job: FitterJob; onSelect: () => void; isSelected: boolean }) {
-    const isLate = calculateIsLate(job.time, job.status);
+    const isLate = calculateIsLate(job.time, job.status, job.date);
 
     return (
         <div
@@ -470,33 +528,28 @@ interface JobDetailViewProps {
 function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobStartTime }: JobDetailViewProps) {
     const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
     const [elapsedTime, setElapsedTime] = useState("00:00:00");
-    const isLate = calculateIsLate(job.time, job.status);
+    const isLate = calculateIsLate(job.time, job.status, job.date);
 
     useEffect(() => {
-        let interval: NodeJS.Timeout;
-        const timeout = setTimeout(() => {
-            if (job.status === "In Progress" && jobStartTime) {
-                const updateTimer = () => {
-                    const now = Date.now();
-                    const diff = Math.max(0, now - jobStartTime);
-                    const hrs = Math.floor(diff / 3600000);
-                    const mins = Math.floor((diff % 3600000) / 60000);
-                    const secs = Math.floor((diff % 60000) / 1000);
-                    setElapsedTime(
-                        `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-                    );
-                };
-                updateTimer();
-                interval = setInterval(updateTimer, 1000);
-            } else {
-                setElapsedTime("00:00:00");
-            }
-        }, 0);
+        if (job.status !== "In Progress" || !jobStartTime) {
+            setElapsedTime("00:00:00");
+            return;
+        }
 
-        return () => {
-            clearTimeout(timeout);
-            clearInterval(interval);
+        const updateTimer = () => {
+            const now = Date.now();
+            const diff = Math.max(0, now - jobStartTime);
+            const hrs = Math.floor(diff / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+            setElapsedTime(
+                `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+            );
         };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
     }, [job.status, jobStartTime]);
 
     const coordinates = job.coordinates || [25.1972, 55.2744];
@@ -555,7 +608,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mb-2 flex items-center gap-2">
                             <Timer className="w-3 h-3 text-purple-500" /> Est. Duration
                         </div>
-                        <div className="text-xl font-light text-slate-900">2h 30m</div>
+                        <div className="text-xl font-light text-slate-900">{job.estimatedDuration ?? "2h 30m"}</div>
                     </div>
                     <div className="bg-white p-6 border-t-4 border-slate-500 shadow-sm">
                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mb-2 flex items-center gap-2">
@@ -588,9 +641,16 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                                 <h4 className="text-sm font-bold uppercase tracking-wider text-slate-900 mb-2">Measurements & Fabric</h4>
                                 <p className="text-slate-700 font-light mb-4 text-lg">{job.fabric || "Standard Blackout Series"}</p>
                                 <ul className="space-y-2 text-sm text-slate-500 font-light border-l-2 border-purple-200 pl-4">
-                                    <li>Width: 240cm x Drop: 220cm</li>
-                                    <li>Mount: Ceiling Fix</li>
-                                    <li>Control: Motorized Right</li>
+                                    {job.width && job.drop && (
+                                        <li>Width: {job.width}cm × Drop: {job.drop}cm</li>
+                                    )}
+                                    {job.mountType && <li>Mount: {job.mountType}</li>}
+                                    {job.controlType && <li>Control: {job.controlType}</li>}
+                                    {!job.width && !job.mountType && !job.controlType && (
+                                        <li className="italic text-slate-400">
+                                            No specifications provided
+                                        </li>
+                                    )}
                                 </ul>
                             </div>
                         </div>
@@ -702,6 +762,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
 }
 
 function CompletionModal({ isOpen, onClose, onConfirm }: { isOpen: boolean; onClose: () => void; onConfirm: () => void }) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [step, setStep] = useState<"checklist" | "photos">("checklist");
     const [checks, setChecks] = useState({
         fitting: false,
@@ -709,6 +770,14 @@ function CompletionModal({ isOpen, onClose, onConfirm }: { isOpen: boolean; onCl
         approval: false
     });
     const [hasPhoto, setHasPhoto] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setStep("checklist");
+            setChecks({ fitting: false, alignment: false, approval: false });
+            setHasPhoto(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -764,7 +833,7 @@ function CompletionModal({ isOpen, onClose, onConfirm }: { isOpen: boolean; onCl
                     ) : (
                         <div className="space-y-8">
                             <div
-                                onClick={() => setTimeout(() => setHasPhoto(true), 600)}
+                                onClick={() => fileInputRef.current?.click()}
                                 className={cn(
                                     "border-2 border-dashed h-64 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative overflow-hidden group rounded-xl",
                                     hasPhoto ? "border-emerald-500 bg-emerald-50/30" : "border-slate-300 hover:border-blue-400 hover:bg-blue-50/30"
@@ -784,6 +853,18 @@ function CompletionModal({ isOpen, onClose, onConfirm }: { isOpen: boolean; onCl
                                     </>
                                 )}
                             </div>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) => {
+                                    if (e.target.files && e.target.files.length > 0) {
+                                        setHasPhoto(true);
+                                    }
+                                }}
+                            />
 
                             <div className="grid grid-cols-2 gap-4">
                                 <button

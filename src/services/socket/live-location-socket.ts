@@ -87,7 +87,7 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
         liveLocationSocket.disconnect();
       }
       liveLocationSocket.connect();
-    } else if (!liveLocationSocket.connected) {
+    } else if (!liveLocationSocket.connected && !(liveLocationSocket as any).active) {
       liveLocationSocket.connect();
     }
     return liveLocationSocket;
@@ -147,6 +147,14 @@ export function listenToLocationUpdates(
     listeners.onSalesmanStatusChanged?.(payload);
   };
 
+  const handleJobUpdated = (payload: any) => {
+    listeners.onJobUpdated?.(payload);
+  };
+
+  const handleJobDeleted = (payload: { id: string; jobId?: string }) => {
+    listeners.onJobDeleted?.(payload);
+  };
+
   const handleConnect = () => {
     listeners.onConnect?.();
   };
@@ -163,6 +171,8 @@ export function listenToLocationUpdates(
   socket.on("user:online", handleUserOnline);
   socket.on("user:offline", handleUserOffline);
   socket.on("salesman:status-changed", handleSalesmanStatusChanged);
+  socket.on("job:updated", handleJobUpdated);
+  socket.on("job:deleted", handleJobDeleted);
   socket.on("connect", handleConnect);
   socket.on("disconnect", handleDisconnect);
   socket.on("connect_error", handleError);
@@ -173,6 +183,8 @@ export function listenToLocationUpdates(
     socket.off("user:online", handleUserOnline);
     socket.off("user:offline", handleUserOffline);
     socket.off("salesman:status-changed", handleSalesmanStatusChanged);
+    socket.off("job:updated", handleJobUpdated);
+    socket.off("job:deleted", handleJobDeleted);
     socket.off("connect", handleConnect);
     socket.off("disconnect", handleDisconnect);
     socket.off("connect_error", handleError);
@@ -198,31 +210,45 @@ export async function emitLocationUpdate(
     speed: payload.speed,
     heading: payload.heading,
     isOnline: payload.isOnline,
+    liveStatus: payload.liveStatus,
   };
 
   return new Promise<LiveLocationRecord>((resolve, reject) => {
     socket.emit("location:update", backendPayload, (ack: any) => {
-      if (ack && (ack.success === false || ack.error)) {
-        reject(new Error(ack.message || ack.error || "Failed to update location via socket"));
+      const isError =
+        ack?.success === false ||
+        ack?.error ||
+        ack?.status === "error" ||
+        ack?.status === "ERROR";
+
+      if (isError) {
+        reject(new Error(
+          ack?.message || ack?.error || "Failed to update location via socket"
+        ));
+        return;
+      }
+
+      const responseData = ack?.data || ack;
+      const normalized = responseData
+        ? normalizeLiveLocationRecord(responseData)
+        : null;
+
+      if (normalized) {
+        resolve(normalized);
       } else {
-        const responseData = ack?.data || ack;
-        const normalized = responseData ? normalizeLiveLocationRecord(responseData) : null;
-        if (normalized) {
-          resolve(normalized);
-        } else {
-          resolve({
-            userId: "unknown",
-            role: "salesman",
-            lat: payload.lat,
-            lng: payload.lng,
-            accuracy: payload.accuracy,
-            speed: payload.speed,
-            heading: payload.heading,
-            isOnline: payload.isOnline ?? true,
-            updatedAt: new Date().toISOString(),
-            lastUpdatedAt: new Date().toISOString(),
-          } as LiveLocationRecord);
-        }
+        resolve({
+          userId: "unknown",
+          role: "salesman",
+          liveStatus: "Available",
+          lat: payload.lat,
+          lng: payload.lng,
+          accuracy: payload.accuracy,
+          speed: payload.speed,
+          heading: payload.heading,
+          isOnline: payload.isOnline ?? true,
+          updatedAt: new Date().toISOString(),
+          lastUpdatedAt: new Date().toISOString(),
+        } as LiveLocationRecord);
       }
     });
   });

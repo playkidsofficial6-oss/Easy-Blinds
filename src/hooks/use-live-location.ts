@@ -54,7 +54,12 @@ function applyPresenceEvent(
   );
 }
 
-export function useLiveLocation() {
+export interface UseLiveLocationOptions {
+  onJobUpdated?: (job: any) => void;
+  onJobDeleted?: (payload: { id: string; jobId?: string }) => void;
+}
+
+export function useLiveLocation(options?: UseLiveLocationOptions) {
   const { token } = useAuth();
   const [locations, setLocations] = useState<LiveLocationRecord[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -88,6 +93,12 @@ export function useLiveLocation() {
     void reload().catch(() => undefined);
   }, [reload]);
 
+  // Keep options in a ref so we don't restart socket listeners when callbacks change
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
+
   // Socket connection and event listeners
   useEffect(() => {
     if (!token) {
@@ -105,7 +116,35 @@ export function useLiveLocation() {
           `📍 location:updated ${location.userId} → [${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}]`,
           { lat: location.lat, lng: location.lng, accuracy: location.accuracy, speed: location.speed },
         );
+        console.log(
+          `📍 Map location update:`,
+          location.userId,
+          location.lat,
+          location.lng,
+          `liveStatus: ${location.liveStatus}`,
+        );
         setLocations((prev) => upsertLocation(prev, location));
+      },
+      onSalesmanStatusChanged: (payload) => {
+        console.log(
+          `🚗 Map status change:`,
+          payload.userId,
+          payload.status,
+        );
+        setLocations((prev) => {
+          const exists = prev.some((l) => l.userId === payload.userId);
+          if (!exists) return prev;
+
+          return prev.map((l) =>
+            l.userId === payload.userId
+              ? {
+                  ...l,
+                  liveStatus: payload.status,
+                  status: payload.status,
+                }
+              : l
+          );
+        });
       },
       onUserOnline: (event) => {
         logDiagnostic("SOCKET", `🟢 user:online ${event.userId}`, event);
@@ -114,6 +153,12 @@ export function useLiveLocation() {
       onUserOffline: (event) => {
         logDiagnostic("SOCKET", `🔴 user:offline ${event.userId}`, event);
         setLocations((prev) => applyPresenceEvent(prev, event, false));
+      },
+      onJobUpdated: (job) => {
+        optionsRef.current?.onJobUpdated?.(job);
+      },
+      onJobDeleted: (payload) => {
+        optionsRef.current?.onJobDeleted?.(payload);
       },
       onConnect: () => {
         logDiagnostic("SOCKET", "✅ Manager socket CONNECTED");

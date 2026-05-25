@@ -1,9 +1,15 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { User, Phone, MapPin, ChevronRight, Briefcase, AlertCircle, ArrowRight, CalendarClock } from "lucide-react";
+import { User, Phone, MapPin, ChevronRight, Briefcase, AlertCircle, ArrowRight, CalendarClock, MoreVertical, Edit2, Trash2 } from "lucide-react";
 import { InstallationJob } from "@/lib/data/jobs";
 import React from "react";
 import { format, parseISO } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 function safeFormatDate(dateStr: string) {
     try {
@@ -58,6 +64,7 @@ interface JobCardProps {
     onSelect: () => void;
     onAction?: (actionType: string, payload?: any) => void; // Generic action handler
     variant?: "assignment" | "schedule";
+    showEditDelete?: boolean;
 }
 
 function LiveCountdown({ startedAt }: { startedAt: string }) {
@@ -81,7 +88,7 @@ function LiveCountdown({ startedAt }: { startedAt: string }) {
     );
 }
 
-export function JobCard({ job, isSelected, onSelect, onAction, variant = "assignment" }: JobCardProps) {
+export function JobCard({ job, isSelected, onSelect, onAction, variant = "assignment", showEditDelete = false }: JobCardProps) {
 
     // Determine priority styling
     const isHighPriority = job.priority === "High";
@@ -110,14 +117,18 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                         <h4 className="font-semibold text-slate-900 text-base flex flex-wrap items-center gap-2">
                             <span>{job.client}</span>
                             {job.jobId && (
-                                <span className="font-mono text-[10px] font-bold tracking-wide text-slate-500 bg-slate-100 border border-slate-200 rounded-md px-1.5 py-0.5">
+                                <span className="font-mono text-[10px] font-bold tracking-wide text-blue-700 bg-blue-50 border border-blue-200 rounded-md px-1.5 py-0.5">
                                     {job.jobId}
                                 </span>
                             )}
                             {isHighPriority && <span className="flex h-2 w-2 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>}
                         </h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            {/* <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{job.brand || "Standard Account"}</div> */}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            {job.brand && (
+                                <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded-sm">
+                                    {job.brand}
+                                </span>
+                            )}
                             {job.requestedDate ? (
                                 <div className="text-[9px] uppercase tracking-wider text-amber-600 font-bold bg-amber-50/80 border border-amber-200/50 flex items-center gap-1 px-1.5 py-0.5 rounded-sm">
                                     <CalendarClock className="w-3 h-3" />
@@ -133,8 +144,44 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                     </div>
                     <div className="flex flex-col items-end">
                         {job.value && <div className="font-mono font-medium text-emerald-700 text-sm">AED {job.value.toLocaleString()}</div>}
-                        <div className="flex items-center gap-1 mt-1">
+                        <div className="flex items-center gap-1.5 mt-1.5">
                             {isHighPriority && <Badge variant="destructive" className="text-[9px] h-4 px-1 rounded-[4px]">HIGH PRIORITY</Badge>}
+                            {showEditDelete && (
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button 
+                                            className="h-6 w-6 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors focus:outline-none"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                            }}
+                                        >
+                                            <MoreVertical className="w-4 h-4" />
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-28" onClick={(e) => e.stopPropagation()}>
+                                        <DropdownMenuItem
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onAction && onAction("edit", job.id);
+                                            }}
+                                            className="text-xs flex items-center gap-2 cursor-pointer"
+                                        >
+                                            <Edit2 className="w-3.5 h-3.5 text-slate-400" />
+                                            <span>Edit</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onAction && onAction("delete", job.id);
+                                            }}
+                                            className="text-xs flex items-center gap-2 text-red-600 focus:text-red-700 cursor-pointer"
+                                        >
+                                            <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                            <span>Delete</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            )}
                             <ChevronRight className={cn("w-4 h-4 text-slate-300 transition-transform duration-300", isSelected && "rotate-90 text-amber-500")} />
                         </div>
                     </div>
@@ -178,19 +225,67 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                     </a>
                 </div>
 
-                {/* Footer: Location & Meta */}
-                <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-                    {/* {variant !== "schedule" && job.property && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.property}</Badge>} */}
-                    {/* {variant !== "schedule" && job.productType && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.productType}</Badge>}
-                    {job.status && <Badge variant="outline" className="text-[10px] font-normal text-slate-600 bg-slate-50 border-slate-200">{job.status}</Badge>} */}
-
-                    {/* {(variant !== "schedule" || job.status) && <div className="h-4 w-px bg-slate-200 mx-1"></div>} */}
-
-                    <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 truncate max-w-[180px]" title={job.address || job.area}>
-                        <MapPin className="w-3 h-3 text-slate-300 flex-shrink-0" />
-                        <span className="truncate">{job.address || job.area}</span>
+                {/* Footer: Location, Building Type & Email */}
+                <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-100">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="text-[10px] text-slate-400 font-medium flex items-center gap-1.5 truncate" title={job.address || job.area}>
+                            <MapPin className="w-3 h-3 text-slate-300 flex-shrink-0" />
+                            <span className="truncate max-w-[170px]">{job.address || job.area}</span>
+                        </div>
+                        {job.property && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 border border-slate-200/70 px-1.5 py-0.5 rounded-sm flex-shrink-0">
+                                {job.property}
+                            </span>
+                        )}
                     </div>
+                    {job.email && (
+                        <a
+                            href={`mailto:${job.email}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-1.5 truncate transition-colors"
+                            title={job.email}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+                            <span className="truncate">{job.email}</span>
+                        </a>
+                    )}
                 </div>
+
+                {/* Additional workflow fields for unassigned leads in assignments view */}
+                {(!job.assignedFitterName && !job.assignedSalesmanName && variant === "assignment") && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                        {job.recommendedFitters && job.recommendedFitters.length > 0 && !isSelected && (
+                            <div className="bg-slate-50 border border-slate-200/50 rounded-lg p-2 flex items-center justify-between gap-2 text-[10px] text-slate-600">
+                                <span className="font-semibold text-slate-500 shrink-0">Closest Available:</span>
+                                <span className="font-bold text-amber-700 flex items-center gap-1.5 flex-wrap justify-end">
+                                    <span className="flex items-center gap-1">
+                                        🟢 {job.recommendedFitters[0].name}
+                                    </span>
+                                    {typeof job.recommendedFitters[0].dist === "number" && (
+                                        <span className="text-slate-500 font-semibold">{job.recommendedFitters[0].dist.toFixed(1)} km</span>
+                                    )}
+                                    {typeof job.recommendedFitters[0].duration === "number" && (
+                                        <span className="text-blue-600 font-semibold bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">
+                                            ~{formatDuration(job.recommendedFitters[0].duration)}
+                                        </span>
+                                    )}
+                                </span>
+                            </div>
+                        )}
+                        
+                        <div className="flex justify-end">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSelect();
+                                }}
+                                className="bg-amber-600 hover:bg-amber-700 text-white font-bold h-7 px-3 text-[10px] rounded-lg shadow-sm transition-colors"
+                            >
+                                {isSelected ? "Cancel Assignment" : "Assign Representative"}
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Selection Overlay / Action Area (Only for Assignments variant) */}
