@@ -1191,6 +1191,10 @@ export default function SmartSalesmanAssignmentsPage() {
         location: { lat, lng },
         address: job.address || "Pending Job Location",
         client: job.customerName || "Client",
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
       };
     }), [jobs, matchesDateFilter]);
 
@@ -1208,6 +1212,10 @@ export default function SmartSalesmanAssignmentsPage() {
         client: job.customerName || "Client",
         status: job.status,
         assignedSalesmanId: job.assignedSalesman || job.assignedTo,
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
       };
     }), [jobs, matchesDateFilter]);
 
