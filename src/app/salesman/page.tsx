@@ -7,7 +7,7 @@ import {
   ArrowLeft, ClipboardList, AlertCircle,
   Timer,
   Phone, MessageSquare,
-  Ruler, FileText, ChevronRight, Grid, X
+  Ruler, FileText, ChevronRight, Grid, X, Maximize2
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -165,6 +165,7 @@ function SalesmanPageContent() {
 
   const didAutoSelectJobRef = useRef(false);
   const lastKnownPositionRef = useRef<{ lat: number; lng: number } | null>(null);
+  const [currentPosition, setCurrentPosition] = useState<[number, number] | null>(null);
 
   useEffect(() => {
     return () => {
@@ -500,6 +501,7 @@ function SalesmanPageContent() {
         )}>
           <SalesmanGpsControl onPosition={(lat, lng) => {
             lastKnownPositionRef.current = { lat, lng };
+            setCurrentPosition([lat, lng]);
           }} />
           {/* Tabs */}
           <div className="flex border-b border-stone-200 bg-white p-2 gap-1">
@@ -581,6 +583,7 @@ function SalesmanPageContent() {
                 hasActiveJob={hasActiveJob}
                 onStatusChange={(newStatus) => handleUpdateStatus(selectedJob.id, newStatus)}
                 onBack={() => setSelectedJob(null)}
+                currentPosition={currentPosition}
               />
             </div>
           ) : (
@@ -729,12 +732,18 @@ interface CompletedQuotationItem {
   unitPrice?: number;
 }
 
-function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: SalesmanScheduleJob; hasActiveJob: boolean; onStatusChange: (status: string) => Promise<void> | void; onBack: () => void }) {
+function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosition }: { job: SalesmanScheduleJob; hasActiveJob: boolean; onStatusChange: (status: string) => Promise<void> | void; onBack: () => void; currentPosition: [number, number] | null }) {
   const router = useRouter();
   const [seconds, setSeconds] = useState(0);
   const [measurementData, setMeasurementData] = useState<{ rooms?: CompletedRoom[] } | null>(null);
   const [fullJob, setFullJob] = useState<Job | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [showTravelRoute, setShowTravelRoute] = useState(job.status === "On the way");
+
+  useEffect(() => {
+    setShowTravelRoute(job.status === "On the way");
+  }, [job.id, job.status]);
 
   useEffect(() => {
     async function loadCompletedDetails() {
@@ -853,12 +862,40 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
     <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
       {/* Visual Context Header - Full Screen Map with Glassmorphism Overlay */}
       <div className="h-[40vh] min-h-[250px] max-h-[460px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <JobDetailMap coordinates={job.coordinates || [25.20, 55.27]} />
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsMapExpanded(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsMapExpanded(true);
+            }
+          }}
+          className="absolute inset-0 z-0 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+          aria-label="Open full map"
+        >
+          <JobDetailMap
+            coordinates={job.coordinates || [25.20, 55.27]}
+            currentPosition={currentPosition}
+            routeEnabled={showTravelRoute || job.status === "On the way"}
+            interactive={false}
+          />
         </div>
+        <button
+          type="button"
+          onClick={() => setIsMapExpanded(true)}
+          className="absolute top-4 right-4 z-[60] bg-white/90 backdrop-blur-md text-stone-800 px-3 py-2 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+        >
+          <Maximize2 className="w-4 h-4" />
+          Full Map
+        </button>
 
         <button
-          onClick={onBack}
+          onClick={(event) => {
+            event.stopPropagation();
+            onBack();
+          }}
           className="absolute top-4 left-4 z-[60] bg-white/90 backdrop-blur-md text-stone-800 p-2.5 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -910,6 +947,36 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
           </div>
         </div>
       </div>
+
+      {isMapExpanded && (
+        <div className="fixed inset-0 z-[999] bg-neutral-950/90 backdrop-blur-sm p-4 md:p-6">
+          <div className="relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-stone-100 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
+            <JobDetailMap
+              coordinates={job.coordinates || [25.20, 55.27]}
+              currentPosition={currentPosition}
+              routeEnabled={showTravelRoute || job.status === "On the way"}
+              interactive
+              scrollWheelZoom
+            />
+            <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-xl border border-stone-200 backdrop-blur-md">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">Selected Job</p>
+              <p className="text-sm font-bold text-neutral-900 mt-1">{job.client}</p>
+              <p className="text-xs text-stone-500 max-w-[280px] truncate">{job.address}</p>
+              {(showTravelRoute || job.status === "On the way") && (
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-amber-600">Travel route active</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsMapExpanded(false)}
+              className="absolute right-4 top-4 z-[1000] rounded-xl bg-neutral-900 px-4 py-3 text-white shadow-xl hover:bg-neutral-800 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+            >
+              <X className="w-4 h-4" />
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto w-full pb-48 custom-scrollbar">
 
@@ -1125,7 +1192,10 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack }: { job: Sal
               isActive={job.status === "On the way"}
               disabled={job.status !== "Pending" || (hasActiveJob && job.status === "Pending")}
               variant="amber"
-              onClick={() => onStatusChange("On the way")}
+              onClick={() => {
+                setShowTravelRoute(true);
+                onStatusChange("On the way");
+              }}
             />
             <ActionButton
               icon={Timer} label="Measure" activeLabel="Measuring"

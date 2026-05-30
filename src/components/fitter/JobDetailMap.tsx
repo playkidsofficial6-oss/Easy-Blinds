@@ -1,9 +1,9 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "leaflet-routing-machine";
 
 // Premium Custom Customer Icon using Tailwind + Inline SVG
@@ -35,6 +35,11 @@ const salesmanIcon = typeof window !== 'undefined' ? L.divIcon({
 
 interface JobDetailMapProps {
     coordinates: [number, number];
+    currentPosition?: [number, number] | null;
+    routeEnabled?: boolean;
+    interactive?: boolean;
+    scrollWheelZoom?: boolean;
+    onMapClick?: () => void;
 }
 
 // Adjust map bounds dynamically to fit both the salesman and customer location
@@ -80,7 +85,10 @@ function RoutingMachine({ start, end }: RoutingMachineProps) {
                 profile: "driving"
             }),
             lineOptions: {
-                styles: [{ color: "#3b82f6", weight: 6, opacity: 0.85 }], // Professional Google Maps Blue
+                styles: [
+                    { color: "#0f172a", weight: 8, opacity: 0.28 },
+                    { color: "#f59e0b", weight: 5, opacity: 0.95 }
+                ],
                 extendToWaypoints: true,
                 missingRouteTolerance: 100
             },
@@ -110,15 +118,30 @@ function RoutingMachine({ start, end }: RoutingMachineProps) {
     return null;
 }
 
-export default function JobDetailMap({ coordinates }: JobDetailMapProps) {
-    const [salesmanCoords, setSalesmanCoords] = useState<[number, number] | null>(null);
+
+function MapClickHandler({ onMapClick }: { onMapClick?: () => void }) {
+    useMapEvents({
+        click: () => onMapClick?.(),
+    });
+    return null;
+}
+
+export default function JobDetailMap({
+    coordinates,
+    currentPosition,
+    routeEnabled = true,
+    interactive = true,
+    scrollWheelZoom = false,
+    onMapClick,
+}: JobDetailMapProps) {
+    const [detectedSalesmanCoords, setDetectedSalesmanCoords] = useState<[number, number] | null>(null);
 
     // Fetch the current salesman location on mount
     useEffect(() => {
         if (typeof window !== "undefined" && "geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    setSalesmanCoords([position.coords.latitude, position.coords.longitude]);
+                    setDetectedSalesmanCoords([position.coords.latitude, position.coords.longitude]);
                 },
                 (error) => {
                     console.warn("Unable to fetch salesman location for routing bounds:", error);
@@ -128,9 +151,11 @@ export default function JobDetailMap({ coordinates }: JobDetailMapProps) {
         }
     }, []);
 
+    const salesmanCoords = useMemo(() => currentPosition ?? detectedSalesmanCoords, [currentPosition, detectedSalesmanCoords]);
+
     // Construct array of points that need to be within bounds
     const boundsPoints: [number, number][] = [coordinates];
-    if (salesmanCoords) {
+    if (routeEnabled && salesmanCoords) {
         boundsPoints.push(salesmanCoords);
     }
 
@@ -139,8 +164,13 @@ export default function JobDetailMap({ coordinates }: JobDetailMapProps) {
             <MapContainer
                 center={coordinates}
                 zoom={14}
-                scrollWheelZoom={false}
-                zoomControl={false}
+                scrollWheelZoom={scrollWheelZoom}
+                zoomControl={interactive}
+                dragging={interactive}
+                doubleClickZoom={interactive}
+                touchZoom={interactive}
+                boxZoom={interactive}
+                keyboard={interactive}
                 className="h-full w-full"
                 style={{ background: "#f5f5f5" }}
             >
@@ -148,6 +178,8 @@ export default function JobDetailMap({ coordinates }: JobDetailMapProps) {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                 />
+
+                {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
                 {/* Custom Customer Marker */}
                 {customerIcon && <Marker position={coordinates} icon={customerIcon}>
@@ -166,7 +198,7 @@ export default function JobDetailMap({ coordinates }: JobDetailMapProps) {
                 )}
 
                 {/* Professional Road-Based Routing Line */}
-                {salesmanCoords && (
+                {routeEnabled && salesmanCoords && (
                     <RoutingMachine start={salesmanCoords} end={coordinates} />
                 )}
 
