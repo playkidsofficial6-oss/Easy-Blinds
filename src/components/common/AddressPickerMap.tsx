@@ -17,7 +17,7 @@ const markerIcon = typeof window !== "undefined" ? L.divIcon({
 }) : null;
 
 interface AddressPickerMapProps {
-    onAddressSelect: (address: string) => void;
+    onAddressSelect: (address: string, coords?: [number, number]) => void;
     externalCoords?: [number, number] | null;
 }
 
@@ -42,7 +42,7 @@ function LocationMarker({ onAddressSelect, externalCoords }: AddressPickerMapPro
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
                 const data = await response.json();
                 if (data && data.display_name) {
-                    onAddressSelect(data.display_name);
+                    onAddressSelect(data.display_name, [lat, lng]);
                 } else {
                     toast.error("Could not determine address for this location.");
                 }

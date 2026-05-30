@@ -383,8 +383,11 @@ export default function NewJobPage() {
   const suggestionCacheRef = useRef<Map<string, AddressSuggestion[]>>(new Map());
   const suggestionAbortRef = useRef<AbortController | null>(null);
 
-  const handleAddressSelect = (address: string) => {
+  const handleAddressSelect = (address: string, coords?: [number, number]) => {
     setAddressValue(address);
+    if (coords) {
+      setMapCoords(coords);
+    }
     if (addressInputRef.current) {
       addressInputRef.current.value = address;
     }
@@ -589,6 +592,12 @@ export default function NewJobPage() {
         status: "pending",
         scheduledAt,
         notes: appendedNotes || undefined,
+        location: mapCoords
+          ? {
+              type: "Point",
+              coordinates: [mapCoords[1], mapCoords[0]],
+            }
+          : undefined,
       });
 
       toast.success("Job created successfully.");
@@ -817,6 +826,7 @@ export default function NewJobPage() {
                     const val = e.target.value;
                     const capitalized = val.length > 0 ? val.charAt(0).toUpperCase() + val.slice(1) : "";
                     setAddressValue(capitalized);
+                    setMapCoords(null);
                     setShowSuggestions(true);
                     if (errors.address) setErrors((prev) => ({ ...prev, address: "" }));
                   }}
