@@ -1179,6 +1179,46 @@ export default function SmartSalesmanAssignmentsPage() {
     [jobs, sortKey, resolveUnifiedJob, matchesDateFilter],
   );
 
+  const unassignedJobsForMap = useMemo(() => jobs
+    .filter((job) => job.status === "pending" && !job.quotation && matchesDateFilter(job.scheduledAt))
+    .map((job) => {
+      const coordinates = job.location?.coordinates;
+      const lng = coordinates?.[0] ?? 76.2711;
+      const lat = coordinates?.[1] ?? 10.8505;
+      return {
+        id: job._id,
+        jobId: job.jobId,
+        location: { lat, lng },
+        address: job.address || "Pending Job Location",
+        client: job.customerName || "Client",
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
+      };
+    }), [jobs, matchesDateFilter]);
+
+  const scheduledJobsForMap = useMemo(() => jobs
+    .filter((job) => ["scheduled", "in_progress"].includes(job.status) && matchesDateFilter(job.scheduledAt))
+    .map((job) => {
+      const coordinates = job.location?.coordinates;
+      const lng = coordinates?.[0] ?? 76.2711;
+      const lat = coordinates?.[1] ?? 10.8505;
+      return {
+        id: job._id,
+        jobId: job.jobId,
+        location: { lat, lng },
+        address: job.address || "Scheduled Job Location",
+        client: job.customerName || "Client",
+        status: job.status,
+        assignedSalesmanId: job.assignedSalesman || job.assignedTo,
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
+      };
+    }), [jobs, matchesDateFilter]);
+
 
 
   const [roadData, setRoadData] = useState<Record<string, {
@@ -1811,28 +1851,30 @@ export default function SmartSalesmanAssignmentsPage() {
         {/* VIEW 1: LIVE FLEET VIEW (Default Dispatch Side panel + Map) */}
         {activeTab === "fleet" && (
           <>
-            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl flex-shrink-0">
-              <div className="p-6 border-b border-slate-100 flex-shrink-0 space-y-4 bg-white">
+            <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl flex-shrink-0">
+              <div className="p-8 border-b border-slate-100 flex-shrink-0 bg-white">
                 <div>
-                  <div className="flex items-center gap-2.5 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1.5">
-                    <div className="w-6 h-px bg-amber-600"></div>
-                    <span>Realtime Dispatch Workflow</span>
+                  <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
+                    <div className="w-8 h-px bg-amber-600"></div>
+                    <span>Workforce Optimization</span>
                   </div>
-                  <h2 className="text-2xl font-light text-slate-800 tracking-tight">Smart <span className="font-semibold text-slate-900">Workforce Manager</span></h2>
+                  <div className="flex justify-between items-end mb-6">
+                    <h2 className="text-3xl font-light text-slate-900 tracking-tight">Smart <span className="font-medium">Dispatch</span></h2>
+                  </div>
                 </div>
 
                 {/* Date Filter Panel */}
-                <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/50">
+                <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-100">
                   <button
                     onClick={() => {
                       setDateFilterType("today");
                       setViewDate(new Date());
                     }}
                     className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-center",
+                      "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
                       dateFilterType === "today"
-                        ? "bg-white text-amber-700 shadow-sm border border-slate-200/30"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
                     )}
                   >
                     Today
@@ -1843,10 +1885,10 @@ export default function SmartSalesmanAssignmentsPage() {
                       setViewDate(addDays(new Date(), 1));
                     }}
                     className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-center",
+                      "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
                       dateFilterType === "tomorrow"
-                        ? "bg-white text-amber-700 shadow-sm border border-slate-200/30"
-                        : "text-slate-500 hover:text-slate-700"
+                        ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
                     )}
                   >
                     Tomorrow
@@ -1856,10 +1898,10 @@ export default function SmartSalesmanAssignmentsPage() {
                     <PopoverTrigger asChild>
                       <button
                         className={cn(
-                          "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1 min-w-0",
+                          "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1 min-w-0",
                           dateFilterType === "custom"
-                            ? "bg-white text-amber-700 shadow-sm border border-slate-200/30"
-                            : "text-slate-500 hover:text-slate-700"
+                            ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
+                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
                         )}
                       >
                         <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
@@ -1904,14 +1946,14 @@ export default function SmartSalesmanAssignmentsPage() {
                 )}
 
                 <Tabs defaultValue="pending" className="flex-1 flex flex-col min-h-0">
-                  <div className="px-6 pt-3 bg-white border-b border-slate-100 pb-0">
-                    <TabsList className="bg-slate-100/80 p-1 rounded-xl w-full flex h-auto gap-1">
-                      <TabsTrigger value="pending" className="flex-1 rounded-lg py-2 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all">
-                        <span className="mr-1">Pending</span>
+                  <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
+                    <TabsList className="bg-slate-100 p-1 rounded-xl w-full flex h-auto gap-1">
+                      <TabsTrigger value="pending" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
+                        <span className="mr-2">Pending</span>
                         {pendingJobs.length > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[9px]">{pendingJobs.length}</span>}
                       </TabsTrigger>
-                      <TabsTrigger value="active" className="flex-1 rounded-lg py-2 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all">
-                        <span className="mr-1">Scheduled</span>
+                      <TabsTrigger value="active" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
+                        <span className="mr-2">Scheduled</span>
                         {activeJobs.length > 0 && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md text-[9px]">{activeJobs.length}</span>}
                       </TabsTrigger>
                     </TabsList>
@@ -1995,7 +2037,7 @@ export default function SmartSalesmanAssignmentsPage() {
             </div>
 
             {/* Right Map */}
-            <div className="flex-1 bg-slate-100 relative">
+            <div className="flex-1 bg-slate-100 relative overflow-hidden">
               <AssignmentMap
                 fitters={workforceMembers}
                 selectedFitterId={selectedMapFitter}
@@ -2003,10 +2045,12 @@ export default function SmartSalesmanAssignmentsPage() {
                 filterRole="Salesman"
                 selectedJob={selectedPendingJobForMap}
                 hideStatusPanel={false}
+                unassignedJobs={unassignedJobsForMap}
+                scheduledJobs={scheduledJobsForMap}
               />
               {/* Legend Overlay */}
-              <div className="absolute bottom-6 left-6 z-30 bg-white/90 backdrop-blur-md border border-slate-200/50 p-4 shadow-xl rounded-2xl max-w-sm ring-1 ring-black/5">
-                <h4 className="text-[10px] uppercase tracking-wider font-bold text-slate-500 mb-2.5">Live Fleet status</h4>
+              <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
+                <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700">
                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available</div>
                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Measuring</div>

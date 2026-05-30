@@ -909,37 +909,62 @@ function RoutingPolyline({
 
 import { renderToStaticMarkup } from "react-dom/server";
 
-function createCustomPinIcon(color: string) {
+interface MapJobMarkerCardData {
+  id?: string;
+  jobId?: string;
+  client: string;
+  address: string;
+  status?: string;
+  value?: number;
+  time?: string;
+  property?: string;
+  productType?: string;
+}
+
+function formatMarkerValue(value?: number) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "AED 0";
+  return `AED ${Math.round(value).toLocaleString()}`;
+}
+
+function shortMarkerTitle(job: MapJobMarkerCardData) {
+  const candidate = job.jobId || job.client || "Work Location";
+  return candidate.length > 16 ? `${candidate.slice(0, 16)}...` : candidate;
+}
+
+function createJobLocationIcon(job: MapJobMarkerCardData, tone: "pending" | "scheduled" | "selected" = "pending") {
+  const pinColor = tone === "scheduled" ? "#2563eb" : "#f59e0b";
+  const titleColor = tone === "scheduled" ? "#60a5fa" : "#facc15";
   const html = renderToStaticMarkup(
-    <div style={{ position: "relative", width: "30px", height: "42px", display: "flex", justifyContent: "center" }}>
-      <svg width="30" height="42" viewBox="0 0 30 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15 0C6.71573 0 0 6.71573 0 15C0 26.25 15 42 15 42C15 42 30 26.25 30 15C30 6.71573 23.2843 0 15 0Z" fill={color}/>
-        <circle cx="15" cy="15" r="6" fill="white"/>
-      </svg>
-      <div style={{
-        position: "absolute",
-        bottom: "-4px",
-        width: "16px",
-        height: "6px",
-        borderRadius: "50%",
-        background: "rgba(15,23,42,0.2)",
-        filter: "blur(2px)",
-        zIndex: -1
-      }}/>
+    <div style={{ position: "relative", width: "236px", height: "138px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>
+      <div style={{ width: "224px", borderRadius: "22px", background: "#0f172a", color: "white", boxShadow: "0 18px 38px rgba(15,23,42,0.28)", padding: "14px 16px 13px", border: "1px solid rgba(148,163,184,0.16)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: titleColor, fontSize: "14px", lineHeight: 1, fontWeight: 950, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10.5 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shortMarkerTitle(job)}</span>
+        </div>
+        <div style={{ height: "1px", background: "rgba(148,163,184,0.20)", margin: "12px 0 11px" }} />
+        <div style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: 750, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          {job.address || job.client || "Work location"}
+        </div>
+        <div style={{ marginTop: "13px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+          <span style={{ borderRadius: "9px", background: "rgba(30,41,59,0.92)", color: "#14b8a6", padding: "6px 10px", fontSize: "11px", fontWeight: 950, letterSpacing: "0.10em", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" }}>{formatMarkerValue(job.value)}</span>
+          <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 800 }}>{job.time || "10:00"}</span>
+        </div>
+      </div>
+      <div style={{ position: "relative", marginTop: "-3px" }}>
+        {tone !== "scheduled" && <div style={{ position: "absolute", inset: "-10px", borderRadius: "999px", background: "rgba(245,158,11,0.28)", animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite" }} />}
+        <div style={{ width: "20px", height: "20px", borderRadius: "999px", background: pinColor, border: "4px solid white", boxShadow: "0 10px 24px rgba(15,23,42,0.25)" }} />
+      </div>
     </div>
   );
   return L.divIcon({
     html,
-    className: "custom-pin-icon",
-    iconSize: [30, 42],
-    iconAnchor: [15, 42],
-    popupAnchor: [0, -40],
-    tooltipAnchor: [0, -44],
+    className: "job-location-card-marker",
+    iconSize: [236, 138],
+    iconAnchor: [118, 132],
+    popupAnchor: [0, -126],
+    tooltipAnchor: [0, -126],
   });
 }
-
-const pendingJobMarkerIcon = createCustomPinIcon("#f59e0b");
-const scheduledJobMarkerIcon = createCustomPinIcon("#2563eb");
 
 function MapZoomTracker({ onChange }: { onChange: (zoom: number) => void }) {
   const map = useMapEvents({
@@ -953,35 +978,63 @@ function MapZoomTracker({ onChange }: { onChange: (zoom: number) => void }) {
   return null;
 }
 
+type MapLayerKey = "salesmen" | "scheduled" | "leads" | "routes";
+
+type MapToolbarActions = {
+  fitToView: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+};
+
+function MapToolbarController({
+  boundsPoints,
+  onReady,
+}: {
+  boundsPoints: [number, number][];
+  onReady: (actions: MapToolbarActions) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    onReady({
+      fitToView: () => {
+        const validPoints = boundsPoints.filter(
+          (point) => Number.isFinite(point[0]) && Number.isFinite(point[1])
+        );
+        if (validPoints.length > 1) {
+          map.flyToBounds(L.latLngBounds(validPoints), {
+            padding: [90, 90],
+            maxZoom: 14,
+            duration: 0.9,
+          });
+          return;
+        }
+        map.flyTo(validPoints[0] ?? EASYBLINDS_HQ.position, 11, { duration: 0.9 });
+      },
+      zoomIn: () => map.zoomIn(),
+      zoomOut: () => map.zoomOut(),
+    });
+  }, [boundsPoints, map, onReady]);
+
+  return null;
+}
+
 interface SalesmanMapProps {
   fitters: Fitter[];
   selectedFitterId: string | null;
   onSelectFitter: (id: string | null) => void;
   filterRole?: "Salesman" | "Fitter";
-  selectedJob?: {
-    id: string;
-    jobId?: string;
+  selectedJob?: (MapJobMarkerCardData & {
     location: { lat: number; lng: number };
-    address: string;
-    client: string;
-  } | null;
+  }) | null;
   showOnlyMeasuring?: boolean;
-  unassignedJobs?: {
-    id: string;
-    jobId?: string;
+  unassignedJobs?: (MapJobMarkerCardData & {
     location: { lat: number; lng: number };
-    address: string;
-    client: string;
-  }[];
-  scheduledJobs?: {
-    id: string;
-    jobId?: string;
+  })[];
+  scheduledJobs?: (MapJobMarkerCardData & {
     location: { lat: number; lng: number };
-    address: string;
-    client: string;
-    status: string;
     assignedSalesmanId?: string;
-  }[];
+  })[];
   hideStatusPanel?: boolean;
 }
 
@@ -1108,6 +1161,24 @@ export default function SalesmanMap({
   const [telemetryMap, setTelemetryMap] = useState<Record<string, { distance: string; eta: string }>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [mapToolbarActions, setMapToolbarActions] = useState<MapToolbarActions | null>(null);
+  const [visibleMapLayers, setVisibleMapLayers] = useState<Record<MapLayerKey, boolean>>({
+    salesmen: true,
+    scheduled: true,
+    leads: true,
+    routes: true,
+  });
+
+  const toggleMapLayer = useCallback((layer: MapLayerKey) => {
+    setVisibleMapLayers((current) => ({
+      ...current,
+      [layer]: !current[layer],
+    }));
+  }, []);
+
+  const handleMapToolbarReady = useCallback((actions: MapToolbarActions) => {
+    setMapToolbarActions(actions);
+  }, []);
 
   const handleTelemetryUpdate = useCallback((markerId: string, distance: string, eta: string) => {
     setTelemetryMap((prev) => {
@@ -1157,6 +1228,24 @@ export default function SalesmanMap({
     return salesmenMarkers.filter((s) => s.name.toLowerCase().includes(lower));
   }, [salesmenMarkers, searchQuery]);
 
+  const mapBoundsPoints = useMemo<[number, number][]>(() => {
+    const points: [number, number][] = [EASYBLINDS_HQ.position];
+    markers.forEach((marker) => {
+      points.push(marker.position);
+      if (marker.destinationCoordinates) {
+        points.push(marker.destinationCoordinates);
+      }
+    });
+    scheduledJobs.forEach((job) => points.push([job.location.lat, job.location.lng]));
+    unassignedJobs.forEach((job) => points.push([job.location.lat, job.location.lng]));
+    if (selectedJob) {
+      points.push([selectedJob.location.lat, selectedJob.location.lng]);
+    }
+    return points;
+  }, [markers, scheduledJobs, selectedJob, unassignedJobs]);
+
+  const liveSalesmanCount = markers.filter((marker) => marker.role === "Salesman").length;
+
   return (
     <div className="relative h-full w-full">
       <MapContainer
@@ -1176,6 +1265,7 @@ export default function SalesmanMap({
 
         <MapCameraController selectedJob={selectedJob} selectedMarker={selectedMarker} />
         <MapZoomTracker onChange={setZoomLevel} />
+        <MapToolbarController boundsPoints={mapBoundsPoints} onReady={handleMapToolbarReady} />
 
         <Marker position={EASYBLINDS_HQ.position} icon={companyMarkerIcon} zIndexOffset={500}>
           <Tooltip permanent={zoomLevel >= 10} direction="top" offset={[0, -34]} opacity={1} className="bg-white/95 border border-orange-200 shadow-md rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-900">
@@ -1189,16 +1279,18 @@ export default function SalesmanMap({
           </Popup>
         </Marker>
 
-        <LiveMarkersList
-          markers={markers}
-          selectedJob={selectedJob}
-          selectedFitterId={selectedFitterId}
-          onSelectFitter={onSelectFitter}
-          zoomLevel={zoomLevel}
-        />
+        {visibleMapLayers.salesmen && (
+          <LiveMarkersList
+            markers={markers}
+            selectedJob={selectedJob}
+            selectedFitterId={selectedFitterId}
+            onSelectFitter={onSelectFitter}
+            zoomLevel={zoomLevel}
+          />
+        )}
 
         {/* Render Scheduled Jobs (Appointments Tab) */}
-        {scheduledJobs && scheduledJobs.map((job) => {
+        {visibleMapLayers.scheduled && scheduledJobs && scheduledJobs.map((job) => {
           const salesmanMarker = job.assignedSalesmanId
             ? markers.find(m => m.id === job.assignedSalesmanId)
             : null;
@@ -1207,11 +1299,8 @@ export default function SalesmanMap({
             <React.Fragment key={`sched-job-group-${job.id}`}>
               <Marker
                 position={[job.location.lat, job.location.lng]}
-                icon={scheduledJobMarkerIcon}
+                icon={createJobLocationIcon(job, "scheduled")}
               >
-                <Tooltip direction="bottom" offset={[0, 10]} opacity={0.95} permanent className="customer-dest-tooltip font-bold text-slate-800 bg-white/95 border border-slate-200/50 shadow-md px-2 py-1 rounded-md text-[10px]">
-                  📅 {job.client} ({job.status})
-                </Tooltip>
                 <Popup>
                   <div className="space-y-1 text-xs">
                     <div className="font-bold text-slate-900">{job.client}</div>
@@ -1225,7 +1314,7 @@ export default function SalesmanMap({
                 </Popup>
               </Marker>
 
-              {salesmanMarker && (
+              {visibleMapLayers.routes && salesmanMarker && (
                 <RoutingPolyline
                   key={`sched-route-${job.id}-${salesmanMarker.id}`}
                   markerId={salesmanMarker.id}
@@ -1240,15 +1329,12 @@ export default function SalesmanMap({
         })}
 
         {/* Render Unassigned Leads (Leads Tab) */}
-        {unassignedJobs && unassignedJobs.map((job) => (
+        {visibleMapLayers.leads && unassignedJobs && unassignedJobs.map((job) => (
           <Marker
             key={`unassigned-job-${job.id}`}
             position={[job.location.lat, job.location.lng]}
-            icon={pendingJobMarkerIcon}
+            icon={createJobLocationIcon(job, "pending")}
           >
-            <Tooltip direction="bottom" offset={[0, 10]} opacity={0.95} permanent className="customer-dest-tooltip font-bold text-slate-800 bg-white/95 border border-slate-200/50 shadow-md px-2 py-1 rounded-md text-[10px]">
-              🎯 {job.client}
-            </Tooltip>
             <Popup>
               <div className="space-y-1 text-xs">
                 <div className="font-bold text-slate-900">{job.client}</div>
@@ -1266,10 +1352,8 @@ export default function SalesmanMap({
         {/* Selected Job Marker (Pending Dispatch Selection) */}
         {selectedJob && (
           <>
-            <Marker position={[selectedJob.location.lat, selectedJob.location.lng]} icon={pendingJobMarkerIcon}>
-              <Tooltip direction="bottom" offset={[0, 10]} opacity={0.95} permanent className="customer-dest-tooltip font-bold text-slate-800 bg-white/95 border border-slate-200/50 shadow-md px-2 py-1 rounded-md text-[10px]">
-                📍 Pending: {selectedJob.client}
-              </Tooltip>
+            <Marker position={[selectedJob.location.lat, selectedJob.location.lng]} icon={createJobLocationIcon(selectedJob, "selected")}>
+
               <Popup>
                 <div className="space-y-1 text-xs">
                   <div className="font-bold">{selectedJob.client}</div>
@@ -1282,7 +1366,7 @@ export default function SalesmanMap({
                 </div>
               </Popup>
             </Marker>
-            {markers.map((marker) => (
+            {visibleMapLayers.routes && markers.map((marker) => (
               <RoutingPolyline
                 key={`selected-route-${marker.id}`}
                 markerId={marker.id}
@@ -1295,7 +1379,7 @@ export default function SalesmanMap({
         )}
 
         {/* Automatic Active Salesman Destinations and Routes */}
-        {markers
+        {visibleMapLayers.routes && markers
           .filter(marker => marker.role === "Salesman" &&
                              marker.destinationCoordinates &&
                              ((marker.status as string) === "On The Way" ||
@@ -1318,18 +1402,7 @@ export default function SalesmanMap({
                 />
 
                 {zoomLevel >= 11 && (
-                  <Marker position={dest} icon={scheduledJobMarkerIcon} zIndexOffset={400}>
-                    {zoomLevel >= 10 && (
-                      <Tooltip
-                        permanent
-                        direction="bottom"
-                        offset={[0, 10]}
-                        opacity={0.95}
-                        className="customer-dest-tooltip font-bold text-slate-800 bg-white/95 border border-slate-200/50 shadow-md px-2 py-1 rounded-md text-[10px]"
-                      >
-                        📍 {marker.customerName || "Customer"}
-                      </Tooltip>
-                    )}
+                  <Marker position={dest} icon={createJobLocationIcon({ id: marker.activeJobId, jobId: marker.activeJobId, client: marker.customerName || "Customer", address: marker.customerAddress || "Work location", time: "10:00" }, "scheduled")} zIndexOffset={400}>
                     <Popup>
                       <div className="space-y-1 text-xs">
                         <div className="font-bold">{marker.customerName || "Customer"}</div>
@@ -1350,6 +1423,72 @@ export default function SalesmanMap({
             );
           })}
       </MapContainer>
+
+      <div className="absolute left-1/2 top-5 z-[1000] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 p-1 shadow-2xl shadow-slate-900/10 ring-1 ring-black/5 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("salesmen")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.salesmen ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle live salesman markers"
+        >
+          <Navigation className="h-3.5 w-3.5" />
+          Live Fleet
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", visibleMapLayers.salesmen ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500")}>{liveSalesmanCount}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("scheduled")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.scheduled ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle scheduled appointment markers"
+        >
+          <Compass className="h-3.5 w-3.5" />
+          Appointments
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", visibleMapLayers.scheduled ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500")}>{scheduledJobs.length}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("leads")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.leads ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle unassigned lead markers"
+        >
+          <MapPin className="h-3.5 w-3.5" />
+          Unassigned
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", visibleMapLayers.leads ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500")}>{unassignedJobs.length}</span>
+        </button>
+        <div className="mx-1 h-6 w-px bg-slate-200" />
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("routes")}
+          className={cn(
+            "rounded-full px-3 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.routes ? "bg-amber-50 text-amber-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle route lines"
+        >
+          Routes
+        </button>
+        <button
+          type="button"
+          onClick={() => mapToolbarActions?.fitToView()}
+          className="rounded-full bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 transition-all hover:bg-slate-200"
+          title="Fit all active map points into view"
+        >
+          Fit View
+        </button>
+        <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-white">
+          <button type="button" onClick={() => mapToolbarActions?.zoomOut()} className="px-2.5 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50" title="Zoom out">−</button>
+          <button type="button" onClick={() => mapToolbarActions?.zoomIn()} className="border-l border-slate-200 px-2.5 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50" title="Zoom in">+</button>
+        </div>
+      </div>
 
       {!liveLocationsLoaded && (
         <div className="absolute bottom-4 left-4 z-[1000] rounded-full border border-white/60 bg-white/80 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 shadow-lg backdrop-blur-md">
