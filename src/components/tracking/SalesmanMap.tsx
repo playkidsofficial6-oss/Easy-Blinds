@@ -953,6 +953,47 @@ function MapZoomTracker({ onChange }: { onChange: (zoom: number) => void }) {
   return null;
 }
 
+type MapLayerKey = "salesmen" | "scheduled" | "leads" | "routes";
+
+type MapToolbarActions = {
+  fitToView: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+};
+
+function MapToolbarController({
+  boundsPoints,
+  onReady,
+}: {
+  boundsPoints: [number, number][];
+  onReady: (actions: MapToolbarActions) => void;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    onReady({
+      fitToView: () => {
+        const validPoints = boundsPoints.filter(
+          (point) => Number.isFinite(point[0]) && Number.isFinite(point[1])
+        );
+        if (validPoints.length > 1) {
+          map.flyToBounds(L.latLngBounds(validPoints), {
+            padding: [90, 90],
+            maxZoom: 14,
+            duration: 0.9,
+          });
+          return;
+        }
+        map.flyTo(validPoints[0] ?? EASYBLINDS_HQ.position, 11, { duration: 0.9 });
+      },
+      zoomIn: () => map.zoomIn(),
+      zoomOut: () => map.zoomOut(),
+    });
+  }, [boundsPoints, map, onReady]);
+
+  return null;
+}
+
 interface SalesmanMapProps {
   fitters: Fitter[];
   selectedFitterId: string | null;
@@ -1108,6 +1149,24 @@ export default function SalesmanMap({
   const [telemetryMap, setTelemetryMap] = useState<Record<string, { distance: string; eta: string }>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+  const [mapToolbarActions, setMapToolbarActions] = useState<MapToolbarActions | null>(null);
+  const [visibleMapLayers, setVisibleMapLayers] = useState<Record<MapLayerKey, boolean>>({
+    salesmen: true,
+    scheduled: true,
+    leads: true,
+    routes: true,
+  });
+
+  const toggleMapLayer = useCallback((layer: MapLayerKey) => {
+    setVisibleMapLayers((current) => ({
+      ...current,
+      [layer]: !current[layer],
+    }));
+  }, []);
+
+  const handleMapToolbarReady = useCallback((actions: MapToolbarActions) => {
+    setMapToolbarActions(actions);
+  }, []);
 
   const handleTelemetryUpdate = useCallback((markerId: string, distance: string, eta: string) => {
     setTelemetryMap((prev) => {
@@ -1157,6 +1216,24 @@ export default function SalesmanMap({
     return salesmenMarkers.filter((s) => s.name.toLowerCase().includes(lower));
   }, [salesmenMarkers, searchQuery]);
 
+  const mapBoundsPoints = useMemo<[number, number][]>(() => {
+    const points: [number, number][] = [EASYBLINDS_HQ.position];
+    markers.forEach((marker) => {
+      points.push(marker.position);
+      if (marker.destinationCoordinates) {
+        points.push(marker.destinationCoordinates);
+      }
+    });
+    scheduledJobs.forEach((job) => points.push([job.location.lat, job.location.lng]));
+    unassignedJobs.forEach((job) => points.push([job.location.lat, job.location.lng]));
+    if (selectedJob) {
+      points.push([selectedJob.location.lat, selectedJob.location.lng]);
+    }
+    return points;
+  }, [markers, scheduledJobs, selectedJob, unassignedJobs]);
+
+  const liveSalesmanCount = markers.filter((marker) => marker.role === "Salesman").length;
+
   return (
     <div className="relative h-full w-full">
       <MapContainer
@@ -1176,6 +1253,7 @@ export default function SalesmanMap({
 
         <MapCameraController selectedJob={selectedJob} selectedMarker={selectedMarker} />
         <MapZoomTracker onChange={setZoomLevel} />
+        <MapToolbarController boundsPoints={mapBoundsPoints} onReady={handleMapToolbarReady} />
 
         <Marker position={EASYBLINDS_HQ.position} icon={companyMarkerIcon} zIndexOffset={500}>
           <Tooltip permanent={zoomLevel >= 10} direction="top" offset={[0, -34]} opacity={1} className="bg-white/95 border border-orange-200 shadow-md rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-900">
@@ -1189,16 +1267,18 @@ export default function SalesmanMap({
           </Popup>
         </Marker>
 
-        <LiveMarkersList
-          markers={markers}
-          selectedJob={selectedJob}
-          selectedFitterId={selectedFitterId}
-          onSelectFitter={onSelectFitter}
-          zoomLevel={zoomLevel}
-        />
+        {visibleMapLayers.salesmen && (
+          <LiveMarkersList
+            markers={markers}
+            selectedJob={selectedJob}
+            selectedFitterId={selectedFitterId}
+            onSelectFitter={onSelectFitter}
+            zoomLevel={zoomLevel}
+          />
+        )}
 
         {/* Render Scheduled Jobs (Appointments Tab) */}
-        {scheduledJobs && scheduledJobs.map((job) => {
+        {visibleMapLayers.scheduled && scheduledJobs && scheduledJobs.map((job) => {
           const salesmanMarker = job.assignedSalesmanId
             ? markers.find(m => m.id === job.assignedSalesmanId)
             : null;
@@ -1225,7 +1305,7 @@ export default function SalesmanMap({
                 </Popup>
               </Marker>
 
-              {salesmanMarker && (
+              {visibleMapLayers.routes && salesmanMarker && (
                 <RoutingPolyline
                   key={`sched-route-${job.id}-${salesmanMarker.id}`}
                   markerId={salesmanMarker.id}
@@ -1240,7 +1320,7 @@ export default function SalesmanMap({
         })}
 
         {/* Render Unassigned Leads (Leads Tab) */}
-        {unassignedJobs && unassignedJobs.map((job) => (
+        {visibleMapLayers.leads && unassignedJobs && unassignedJobs.map((job) => (
           <Marker
             key={`unassigned-job-${job.id}`}
             position={[job.location.lat, job.location.lng]}
@@ -1282,7 +1362,7 @@ export default function SalesmanMap({
                 </div>
               </Popup>
             </Marker>
-            {markers.map((marker) => (
+            {visibleMapLayers.routes && markers.map((marker) => (
               <RoutingPolyline
                 key={`selected-route-${marker.id}`}
                 markerId={marker.id}
@@ -1295,7 +1375,7 @@ export default function SalesmanMap({
         )}
 
         {/* Automatic Active Salesman Destinations and Routes */}
-        {markers
+        {visibleMapLayers.routes && markers
           .filter(marker => marker.role === "Salesman" &&
                              marker.destinationCoordinates &&
                              ((marker.status as string) === "On The Way" ||
@@ -1350,6 +1430,72 @@ export default function SalesmanMap({
             );
           })}
       </MapContainer>
+
+      <div className="absolute left-1/2 top-5 z-[1000] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 p-1 shadow-2xl shadow-slate-900/10 ring-1 ring-black/5 backdrop-blur-md">
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("salesmen")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.salesmen ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle live salesman markers"
+        >
+          <Navigation className="h-3.5 w-3.5" />
+          Live Fleet
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", visibleMapLayers.salesmen ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500")}>{liveSalesmanCount}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("scheduled")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.scheduled ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle scheduled appointment markers"
+        >
+          <Compass className="h-3.5 w-3.5" />
+          Appointments
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", visibleMapLayers.scheduled ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500")}>{scheduledJobs.length}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("leads")}
+          className={cn(
+            "flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.leads ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle unassigned lead markers"
+        >
+          <MapPin className="h-3.5 w-3.5" />
+          Unassigned
+          <span className={cn("rounded-full px-1.5 py-0.5 text-[9px]", visibleMapLayers.leads ? "bg-white/15 text-white" : "bg-slate-100 text-slate-500")}>{unassignedJobs.length}</span>
+        </button>
+        <div className="mx-1 h-6 w-px bg-slate-200" />
+        <button
+          type="button"
+          onClick={() => toggleMapLayer("routes")}
+          className={cn(
+            "rounded-full px-3 py-2 text-[11px] font-bold transition-all",
+            visibleMapLayers.routes ? "bg-amber-50 text-amber-700" : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+          )}
+          title="Toggle route lines"
+        >
+          Routes
+        </button>
+        <button
+          type="button"
+          onClick={() => mapToolbarActions?.fitToView()}
+          className="rounded-full bg-slate-100 px-3 py-2 text-[11px] font-bold text-slate-700 transition-all hover:bg-slate-200"
+          title="Fit all active map points into view"
+        >
+          Fit View
+        </button>
+        <div className="flex items-center overflow-hidden rounded-full border border-slate-200 bg-white">
+          <button type="button" onClick={() => mapToolbarActions?.zoomOut()} className="px-2.5 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50" title="Zoom out">−</button>
+          <button type="button" onClick={() => mapToolbarActions?.zoomIn()} className="border-l border-slate-200 px-2.5 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50" title="Zoom in">+</button>
+        </div>
+      </div>
 
       {!liveLocationsLoaded && (
         <div className="absolute bottom-4 left-4 z-[1000] rounded-full border border-white/60 bg-white/80 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 shadow-lg backdrop-blur-md">

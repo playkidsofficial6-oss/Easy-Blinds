@@ -77,35 +77,42 @@ export function createLiveMarkerIcon({
   const truncatedCustomer = showCustomer ? truncateName(customerName!.toUpperCase(), 10) : "";
   const line1Text = showCustomer ? `${displayName} → ${truncatedCustomer}` : displayName;
 
-  const nameCard = zoomLevel >= 10 ? (
+  const compactLabel = zoomLevel < 9;
+  const nameCard = (
     <div
       style={{
-        background: "white",
-        color: "#1e293b",
-        fontSize: "9px",
-        fontWeight: 700,
-        letterSpacing: "0.05em",
-        padding: "4px 8px",
-        borderRadius: "8px",
-        boxShadow: "0 4px 12px rgba(15,23,42,0.15)",
-        border: "1px solid rgba(15,23,42,0.06)",
-        lineHeight: "1.3",
+        background: "rgba(255,255,255,0.96)",
+        color: "#0f172a",
+        fontSize: compactLabel ? "8.5px" : "9px",
+        fontWeight: 800,
+        letterSpacing: "0.04em",
+        padding: compactLabel ? "3px 7px" : "4px 9px",
+        borderRadius: "999px",
+        boxShadow: "0 8px 18px rgba(15,23,42,0.16), 0 1px 2px rgba(15,23,42,0.08)",
+        border: "1px solid rgba(148,163,184,0.35)",
+        lineHeight: "1.1",
         display: "flex",
-        flexDirection: "column",
+        flexDirection: compactLabel ? "row" : "column",
         alignItems: "center",
         justifyContent: "center",
         whiteSpace: "nowrap",
+        backdropFilter: "blur(8px)",
+        maxWidth: "112px",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       }}
     >
-      <div style={{ color: "#0f172a", fontWeight: 800, fontSize: "10px" }}>
+      <div style={{ color: "#0f172a", fontWeight: 900, fontSize: compactLabel ? "8.5px" : "10px", maxWidth: "100px", overflow: "hidden", textOverflow: "ellipsis" }}>
         {line1Text}
       </div>
-      <div style={{ color: accentColor, fontSize: "8.5px", marginTop: "2px", display: "flex", alignItems: "center", gap: "2.5px" }}>
-        <span>{statusEmoji}</span>
-        <span>{statusLabelText}</span>
-      </div>
+      {!compactLabel && (
+        <div style={{ color: accentColor, fontSize: "8px", marginTop: "2px", display: "flex", alignItems: "center", gap: "2.5px", fontWeight: 800 }}>
+          <span>{statusEmoji}</span>
+          <span>{statusLabelText}</span>
+        </div>
+      )}
     </div>
-  ) : null;
+  );
 
   const statusIcon = status === "Measuring" ? (
     <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21.3 15.3a2.82 2.82 0 0 1 0 4c-1 1-2.5 1-3.5 0L2.8 4.3a2.82 2.82 0 0 1 0-4c1-1 2.5-1 3.5 0Z" /><path d="m5.6 7.2 1.4-1.4" /><path d="m7.2 10.4 1.4-1.4" /><path d="m10.4 12 1.4-1.4" /><path d="m12 15.2 1.4-1.4" /><path d="m15.2 16.8 1.4-1.4" /></svg>
