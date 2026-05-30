@@ -935,34 +935,34 @@ function createJobLocationIcon(job: MapJobMarkerCardData, tone: "pending" | "sch
   const pinColor = tone === "scheduled" ? "#2563eb" : "#f59e0b";
   const titleColor = tone === "scheduled" ? "#60a5fa" : "#facc15";
   const html = renderToStaticMarkup(
-    <div style={{ position: "relative", width: "306px", height: "178px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>
-      <div style={{ width: "292px", borderRadius: "28px", background: "#0f172a", color: "white", boxShadow: "0 24px 50px rgba(15,23,42,0.32)", padding: "19px 22px 17px", border: "1px solid rgba(148,163,184,0.16)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", color: titleColor, fontSize: "20px", lineHeight: 1, fontWeight: 950, letterSpacing: "0.14em", textTransform: "uppercase" }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10.5 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
+    <div style={{ position: "relative", width: "236px", height: "138px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>
+      <div style={{ width: "224px", borderRadius: "22px", background: "#0f172a", color: "white", boxShadow: "0 18px 38px rgba(15,23,42,0.28)", padding: "14px 16px 13px", border: "1px solid rgba(148,163,184,0.16)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", color: titleColor, fontSize: "14px", lineHeight: 1, fontWeight: 950, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10.5 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shortMarkerTitle(job)}</span>
         </div>
-        <div style={{ height: "1px", background: "rgba(148,163,184,0.20)", margin: "17px 0 16px" }} />
-        <div style={{ color: "#cbd5e1", fontSize: "19px", fontWeight: 750, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ height: "1px", background: "rgba(148,163,184,0.20)", margin: "12px 0 11px" }} />
+        <div style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: 750, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {job.address || job.client || "Work location"}
         </div>
-        <div style={{ marginTop: "18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "18px" }}>
-          <span style={{ borderRadius: "9px", background: "rgba(30,41,59,0.92)", color: "#14b8a6", padding: "8px 15px", fontSize: "16px", fontWeight: 950, letterSpacing: "0.10em", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" }}>{formatMarkerValue(job.value)}</span>
-          <span style={{ color: "#94a3b8", fontSize: "17px", fontWeight: 800 }}>{job.time || "10:00"}</span>
+        <div style={{ marginTop: "13px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+          <span style={{ borderRadius: "9px", background: "rgba(30,41,59,0.92)", color: "#14b8a6", padding: "6px 10px", fontSize: "11px", fontWeight: 950, letterSpacing: "0.10em", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace" }}>{formatMarkerValue(job.value)}</span>
+          <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: 800 }}>{job.time || "10:00"}</span>
         </div>
       </div>
       <div style={{ position: "relative", marginTop: "-3px" }}>
         {tone !== "scheduled" && <div style={{ position: "absolute", inset: "-10px", borderRadius: "999px", background: "rgba(245,158,11,0.28)", animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite" }} />}
-        <div style={{ width: "28px", height: "28px", borderRadius: "999px", background: pinColor, border: "5px solid white", boxShadow: "0 10px 24px rgba(15,23,42,0.25)" }} />
+        <div style={{ width: "20px", height: "20px", borderRadius: "999px", background: pinColor, border: "4px solid white", boxShadow: "0 10px 24px rgba(15,23,42,0.25)" }} />
       </div>
     </div>
   );
   return L.divIcon({
     html,
     className: "job-location-card-marker",
-    iconSize: [306, 178],
-    iconAnchor: [153, 170],
-    popupAnchor: [0, -160],
-    tooltipAnchor: [0, -160],
+    iconSize: [236, 138],
+    iconAnchor: [118, 132],
+    popupAnchor: [0, -126],
+    tooltipAnchor: [0, -126],
   });
 }
 

@@ -82,7 +82,7 @@ export function createLiveMarkerIcon({
       <div
         style={{
           position: "relative",
-          width: compact ? "132px" : "164px",
+          width: compact ? "116px" : "136px",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -91,43 +91,43 @@ export function createLiveMarkerIcon({
       >
         <div
           style={{
-            width: compact ? "124px" : "158px",
+            width: compact ? "112px" : "130px",
             background: "rgba(255,255,255,0.96)",
             border: "1px solid rgba(226,232,240,0.95)",
-            borderRadius: "22px",
-            padding: compact ? "10px" : "14px",
-            boxShadow: "0 18px 38px rgba(15,23,42,0.18), 0 3px 10px rgba(15,23,42,0.08)",
+            borderRadius: "18px",
+            padding: compact ? "8px" : "10px",
+            boxShadow: "0 14px 30px rgba(15,23,42,0.16), 0 2px 8px rgba(15,23,42,0.08)",
             backdropFilter: "blur(10px)",
             color: "#0f172a",
             fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "7px" }}>
-            <div style={{ maxWidth: "96px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: compact ? "13px" : "18px", fontWeight: 900, letterSpacing: "-0.04em", color: "#0f172a" }}>
+            <div style={{ maxWidth: "72px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: compact ? "11px" : "13px", fontWeight: 900, letterSpacing: "-0.04em", color: "#0f172a" }}>
               {displayName}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#10b981", fontWeight: 900, fontSize: compact ? "10px" : "13px" }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
-              <svg width="18" height="14" viewBox="0 0 28 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1.5" y="2.5" width="21" height="11" rx="2.5" stroke="currentColor" strokeWidth="3"/><path d="M25 6v4" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/><rect x="4" y="5" width="14" height="6" rx="1" fill="currentColor"/></svg>
+            <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#10b981", fontWeight: 900, fontSize: compact ? "8px" : "10px" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
+              <svg width="14" height="11" viewBox="0 0 28 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1.5" y="2.5" width="21" height="11" rx="2.5" stroke="currentColor" strokeWidth="3"/><path d="M25 6v4" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/><rect x="4" y="5" width="14" height="6" rx="1" fill="currentColor"/></svg>
               <span>100%</span>
             </div>
           </div>
 
-          <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "9px 0" : "11px 0" }} />
+          <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "10px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "999px", background: statusColor, boxShadow: `0 0 0 5px ${late ? 'rgba(239,68,68,0.12)' : 'rgba(234,122,0,0.12)'}` }} />
-              <span style={{ color: statusColor, fontSize: compact ? "13px" : "16px", fontWeight: 950, letterSpacing: "0.04em", lineHeight: 1.2 }}>{statusLabelText}</span>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: statusColor, boxShadow: `0 0 0 5px ${late ? 'rgba(239,68,68,0.12)' : 'rgba(234,122,0,0.12)'}` }} />
+              <span style={{ color: statusColor, fontSize: compact ? "11px" : "12px", fontWeight: 950, letterSpacing: "0.04em", lineHeight: 1.2 }}>{statusLabelText}</span>
             </div>
-            <div style={{ borderRadius: "8px", background: "#f1f5f9", padding: compact ? "5px 7px" : "8px 10px", minWidth: compact ? "44px" : "54px", textAlign: "center", color: "#64748b", fontWeight: 800, fontSize: compact ? "12px" : "18px", lineHeight: 1.15 }}>
-              {speedText}<br /><span style={{ fontSize: compact ? "10px" : "15px", fontWeight: 700 }}>km/h</span>
+            <div style={{ borderRadius: "8px", background: "#f1f5f9", padding: compact ? "4px 6px" : "5px 7px", minWidth: compact ? "36px" : "42px", textAlign: "center", color: "#64748b", fontWeight: 800, fontSize: compact ? "10px" : "12px", lineHeight: 1.15 }}>
+              {speedText}<br /><span style={{ fontSize: compact ? "8px" : "10px", fontWeight: 700 }}>km/h</span>
             </div>
           </div>
 
-          <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "9px 0" : "11px 0" }} />
+          <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "6px 10px", color: "#64748b", fontWeight: 800, fontSize: compact ? "11px" : "14px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
             <div>ETA 0m</div>
             <div>{distanceText}</div>
             <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div>
@@ -138,8 +138,8 @@ export function createLiveMarkerIcon({
         </div>
         <div style={{ position: "relative", marginTop: "-5px" }}>
           {isPulsing && <div style={{ position: "absolute", inset: "-15px", borderRadius: "999px", backgroundColor: statusConf.ringColor, animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite", opacity: 0.75 }} />}
-          <div style={{ width: "42px", height: "42px", borderRadius: "999px", border: "4px solid white", background: statusColor, boxShadow: "0 12px 24px rgba(15,23,42,0.22)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", transform: `rotate(${bearing}deg)` }}>
-            <CarFront style={{ width: "22px", height: "22px", display: "block" }} />
+          <div style={{ width: "32px", height: "32px", borderRadius: "999px", border: "3px solid white", background: statusColor, boxShadow: "0 12px 24px rgba(15,23,42,0.22)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", transform: `rotate(${bearing}deg)` }}>
+            <CarFront style={{ width: "16px", height: "16px", display: "block" }} />
           </div>
         </div>
       </div>
@@ -157,9 +157,9 @@ export function createLiveMarkerIcon({
     return L.divIcon({
       html,
       className: "custom-map-marker",
-      iconSize: compact ? [132, 190] : [164, 220],
-      iconAnchor: [82 - offsetX, 205 - offsetY],
-      popupAnchor: [offsetX, -190 + offsetY],
+      iconSize: compact ? [116, 158] : [136, 172],
+      iconAnchor: [68 - offsetX, 162 - offsetY],
+      popupAnchor: [offsetX, -150 + offsetY],
     });
   }
 
