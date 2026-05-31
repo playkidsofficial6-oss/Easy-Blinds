@@ -927,8 +927,7 @@ function formatMarkerValue(value?: number) {
 }
 
 function shortMarkerTitle(job: MapJobMarkerCardData) {
-  const candidate = job.jobId || job.client || "Work Location";
-  return candidate.length > 16 ? `${candidate.slice(0, 16)}...` : candidate;
+  return job.client || job.jobId || "Work Location";
 }
 
 function createJobLocationIcon(job: MapJobMarkerCardData, tone: "pending" | "scheduled" | "selected" = "pending") {
