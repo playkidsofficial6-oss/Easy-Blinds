@@ -106,11 +106,11 @@ export function createLiveMarkerIcon({
             <div style={{ maxWidth: "72px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: compact ? "11px" : "13px", fontWeight: 900, letterSpacing: "-0.04em", color: "#0f172a" }}>
               {displayName}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#10b981", fontWeight: 900, fontSize: compact ? "8px" : "10px" }}>
+            {/* <div style={{ display: "flex", alignItems: "center", gap: "5px", color: "#10b981", fontWeight: 900, fontSize: compact ? "8px" : "10px" }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/></svg>
               <svg width="14" height="11" viewBox="0 0 28 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="1.5" y="2.5" width="21" height="11" rx="2.5" stroke="currentColor" strokeWidth="3"/><path d="M25 6v4" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/><rect x="4" y="5" width="14" height="6" rx="1" fill="currentColor"/></svg>
               <span>100%</span>
-            </div>
+            </div> */}
           </div>
 
           <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
@@ -118,11 +118,9 @@ export function createLiveMarkerIcon({
           <div style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: "8px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: statusColor, boxShadow: `0 0 0 5px ${late ? 'rgba(239,68,68,0.12)' : 'rgba(234,122,0,0.12)'}` }} />
-              <span style={{ color: statusColor, fontSize: compact ? "11px" : "12px", fontWeight: 950, letterSpacing: "0.04em", lineHeight: 1.2 }}>{statusLabelText}</span>
+              <span style={{ color: statusColor, fontSize: compact ? "11px" : "12px", fontWeight: 600, letterSpacing: "0.04em", lineHeight: 1.2 }}>{statusLabelText}</span>
             </div>
-            <div style={{ borderRadius: "8px", background: "#f1f5f9", padding: compact ? "4px 6px" : "5px 7px", minWidth: compact ? "36px" : "42px", textAlign: "center", color: "#64748b", fontWeight: 800, fontSize: compact ? "10px" : "12px", lineHeight: 1.15 }}>
-              {speedText}<br /><span style={{ fontSize: compact ? "8px" : "10px", fontWeight: 700 }}>km/h</span>
-            </div>
+            
           </div>
 
           <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
