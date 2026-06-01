@@ -938,10 +938,10 @@ function createJobLocationIcon(job: MapJobMarkerCardData, tone: "pending" | "sch
       <div style={{ width: "224px", borderRadius: "22px", background: "#0f172a", color: "white", boxShadow: "0 18px 38px rgba(15,23,42,0.28)", padding: "14px 16px 13px", border: "1px solid rgba(148,163,184,0.16)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", color: titleColor, fontSize: "14px", lineHeight: 1, fontWeight: 950, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10.5 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shortMarkerTitle(job)}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",fontSize:"12px" }}>{shortMarkerTitle(job)}</span>
         </div>
         <div style={{ height: "1px", background: "rgba(148,163,184,0.20)", margin: "12px 0 11px" }} />
-        <div style={{ color: "#cbd5e1", fontSize: "13px", fontWeight: 750, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ color: "#cbd5e1", fontSize: "10px", fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {job.address || job.client || "Work location"}
         </div>
         <div style={{ marginTop: "13px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
