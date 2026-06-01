@@ -1423,7 +1423,7 @@ export default function SalesmanMap({
           })}
       </MapContainer>
 
-      <div className="absolute left-1/2 top-5 z-[1000] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 p-1 shadow-2xl shadow-slate-900/10 ring-1 ring-black/5 backdrop-blur-md">
+      <div className="absolute left-1/2 top-5 z-[1000] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 p-1 shadow-2xl shadow-slate-900/10 ring-1 ring-black/5 backdrop-blur-md w-max">
         <button
           type="button"
           onClick={() => toggleMapLayer("salesmen")}

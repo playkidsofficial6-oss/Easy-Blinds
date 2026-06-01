@@ -1954,7 +1954,7 @@ export default function SmartSalesmanAssignmentsPage() {
                 scheduledJobs={scheduledJobsForMap}
               />
               {/* Legend Overlay */}
-              <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5 w-max">
+              <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
                 <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700">
                   <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available</div>
