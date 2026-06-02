@@ -238,16 +238,6 @@ function SalesmanPageContent() {
 
   const jobs = getJobsForTab(activeTab);
 
-  const hasActiveJob = useMemo(() => {
-    const allJobs = [
-      ...schedule.today,
-      ...schedule.tomorrow,
-      ...schedule.upcoming,
-      ...schedule.completed
-    ];
-    return allJobs.some(j => j.status === "On the way" || j.status === "In Progress" || j.status === "In progress");
-  }, [schedule]);
-
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
     setFilterDate("");
@@ -382,19 +372,12 @@ function SalesmanPageContent() {
     setSelectedJob((prev) => prev?.id === job.id ? job : prev);
   };
 
-  const handleRescheduleJob = async (id: string, scheduledAt: string) => {
-    if (!scheduledAt) return;
-    try {
-      const savedJob = await updateJob(id, { scheduledAt });
-      const nextJob = toScheduleJob(savedJob);
-      replaceScheduleJob(nextJob);
-    } catch (error) {
-      console.error("Unable to reschedule salesman job", error);
-    }
-  };
-
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const displayStatus = newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus;
+    const otherRouteJobsToReset = displayStatus === "On the way"
+      ? jobs.filter((item) => item.id !== id && item.status !== "Done" && item.status !== "Completed")
+      : [];
+    const otherRouteJobIdsToReset = new Set(otherRouteJobsToReset.map((item) => item.id));
     let appendedNotes = "";
 
     if (typeof window !== "undefined") {
@@ -456,6 +439,15 @@ function SalesmanPageContent() {
           if (j.id === id) {
             return { ...j, status: displayStatus, notes: appendedNotes || j.notes };
           }
+          if (otherRouteJobIdsToReset.has(j.id)) {
+            return {
+              ...j,
+              status: "Pending",
+              salesmanWorkflowStatus: "not_started",
+              activeSalesmanId: undefined,
+              activeSalesmanName: undefined,
+            };
+          }
           return j;
         });
       }
@@ -495,9 +487,9 @@ function SalesmanPageContent() {
         const updated = { ...prev };
         const tabs: Tab[] = ["today", "tomorrow", "upcoming", "completed"];
         for (const tab of tabs) {
-          updated[tab] = updated[tab].map((j) => (
-            j.id === id
-              ? {
+          updated[tab] = updated[tab].map((j) => {
+            if (j.id === id) {
+              return {
                 ...j,
                 status: savedDisplayStatus,
                 notes: savedJob.notes || j.notes,
@@ -507,9 +499,19 @@ function SalesmanPageContent() {
                 travelStartedAt: savedJob.travelStartedAt,
                 measurementStartedAt: savedJob.measurementStartedAt,
                 measurementCompletedAt: savedJob.measurementCompletedAt,
-              }
-              : j
-          ));
+              };
+            }
+            if (otherRouteJobIdsToReset.has(j.id)) {
+              return {
+                ...j,
+                status: "Pending",
+                salesmanWorkflowStatus: "not_started",
+                activeSalesmanId: undefined,
+                activeSalesmanName: undefined,
+              };
+            }
+            return j;
+          });
         }
         return updated;
       });
@@ -526,6 +528,22 @@ function SalesmanPageContent() {
           measurementCompletedAt: savedJob.measurementCompletedAt,
         } : prev);
       }
+      if (otherRouteJobsToReset.length > 0) {
+        void Promise.allSettled(
+          otherRouteJobsToReset.map((routeJob) => updateJob(routeJob.id, {
+            status: "scheduled",
+            salesmanWorkflowStatus: "not_started",
+            activeSalesmanId: undefined,
+            activeSalesmanName: undefined,
+          }))
+        ).then((results) => {
+          const failedCount = results.filter((result) => result.status === "rejected").length;
+          if (failedCount > 0) {
+            console.warn(`Unable to reset ${failedCount} other salesman route job(s) to Pending`);
+          }
+        });
+      }
+
       console.info(`Salesman workflow updated to ${savedLiveStatus}`);
 
       // After successful workflow API call, sync liveStatus
@@ -642,9 +660,7 @@ function SalesmanPageContent() {
               <JobDetailView
                 job={selectedJob}
                 routeJobs={jobs.length > 0 ? jobs : [selectedJob]}
-                hasActiveJob={hasActiveJob}
                 onStatusChange={(newStatus) => handleUpdateStatus(selectedJob.id, newStatus)}
-                onRescheduleJob={(scheduledAt) => handleRescheduleJob(selectedJob.id, scheduledAt)}
                 onSelectRouteJob={(jobId) => {
                   const nextJob = jobs.find((item) => item.id === jobId) || selectedJob;
                   setSelectedJob(nextJob);
@@ -802,18 +818,14 @@ interface CompletedQuotationItem {
 function JobDetailView({
   job,
   routeJobs,
-  hasActiveJob,
   onStatusChange,
-  onRescheduleJob,
   onSelectRouteJob,
   onBack,
   currentPosition
 }: {
   job: SalesmanScheduleJob;
   routeJobs: SalesmanScheduleJob[];
-  hasActiveJob: boolean;
   onStatusChange: (status: string) => Promise<void> | void;
-  onRescheduleJob: (scheduledAt: string) => Promise<void> | void;
   onSelectRouteJob: (jobId: string) => void;
   onBack: () => void;
   currentPosition: [number, number] | null;
@@ -825,9 +837,6 @@ function JobDetailView({
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [showTravelRoute, setShowTravelRoute] = useState(job.status === "On the way");
-  const [showReschedule, setShowReschedule] = useState(false);
-  const [rescheduleAt, setRescheduleAt] = useState("");
-  const [isSavingReschedule, setIsSavingReschedule] = useState(false);
 
   useEffect(() => {
     setShowTravelRoute(job.status === "On the way");
@@ -857,8 +866,6 @@ function JobDetailView({
     }
     void loadCompletedDetails();
   }, [job.id, job.status]);
-
-  const routeSwitchingEnabled = hasActiveJob;
 
   const managerNote = (() => {
     try {
@@ -916,26 +923,6 @@ function JobDetailView({
     const mins = Math.floor((s % 3600) / 60);
     const secs = s % 60;
     return `${h > 0 ? h + ':' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const alternativeRouteJobs = useMemo(() => {
-    return routeJobs.filter((item) => item.id !== job.id && item.status !== "Done" && item.status !== "Completed");
-  }, [routeJobs, job.id]);
-
-  const nextSuggestedJob = useMemo(() => {
-    return alternativeRouteJobs.find((item) => item.status === "Pending") || alternativeRouteJobs[0] || null;
-  }, [alternativeRouteJobs]);
-
-  const submitReschedule = async () => {
-    if (!rescheduleAt) return;
-    setIsSavingReschedule(true);
-    try {
-      await onRescheduleJob(new Date(rescheduleAt).toISOString());
-      setShowReschedule(false);
-      setRescheduleAt("");
-    } finally {
-      setIsSavingReschedule(false);
-    }
   };
 
   const parsedTimeLog = useMemo(() => {
@@ -1119,92 +1106,6 @@ function JobDetailView({
               );
             })}
           </div>
-
-          {job.status !== "Done" && job.status !== "Completed" && (
-            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
-              <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
-                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600">Flexible Route Control</p>
-                    <h3 className="text-xl font-light text-neutral-900 mt-1">Route any job, any time</h3>
-                    <p className="text-xs text-stone-500 mt-1 max-w-2xl">
-                      If point 1 is locked or the customer is unavailable, keep it in the route and tap point 2 or point 3. After finishing the available job, select the skipped customer again and continue{routeSwitchingEnabled ? " — active route switching is enabled." : "."}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowReschedule((value) => !value)}
-                    className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-bold uppercase tracking-wider"
-                  >
-                    <Calendar className="w-4 h-4 mr-2" /> Reschedule Current
-                  </Button>
-                </div>
-
-                {showReschedule && (
-                  <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 flex flex-col md:flex-row gap-3 md:items-end">
-                    <div className="flex-1">
-                      <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">Move this job to another time</label>
-                      <input
-                        type="datetime-local"
-                        value={rescheduleAt}
-                        onChange={(event) => setRescheduleAt(event.target.value)}
-                        className="mt-2 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 outline-none focus:ring-2 focus:ring-amber-400/30"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      onClick={submitReschedule}
-                      disabled={!rescheduleAt || isSavingReschedule}
-                      className="bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider"
-                    >
-                      {isSavingReschedule ? "Saving..." : "Save Time"}
-                    </Button>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
-                  {alternativeRouteJobs.length === 0 ? (
-                    <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs text-stone-500">No other open route points are available in this list.</div>
-                  ) : alternativeRouteJobs.map((routeJob, index) => (
-                    <button
-                      key={routeJob.id}
-                      type="button"
-                      onClick={() => onSelectRouteJob(routeJob.id)}
-                      className="text-left rounded-xl border border-stone-200 bg-white p-4 hover:border-neutral-900 hover:shadow-md transition-all group"
-                    >
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <span className="h-7 w-7 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-black">{index + 2}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 group-hover:text-neutral-800">Route this point</span>
-                      </div>
-                      <p className="font-semibold text-neutral-900 truncate">{routeJob.client}</p>
-                      <p className="text-[10px] font-mono font-bold text-amber-700 mt-1">{routeJob.jobId || routeJob.shortRef}</p>
-                      <p className="text-xs text-stone-500 line-clamp-2 mt-2">{routeJob.address}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-neutral-950 text-white rounded-xl p-5 shadow-sm border border-neutral-800">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Customer not available?</p>
-                <h3 className="text-xl font-light mt-1">Redirect without losing this point</h3>
-                <p className="text-xs text-white/60 mt-2 leading-relaxed">
-                  Mark this stop as delayed in your notes if needed, then route the next available customer. The skipped job stays selectable so you can complete it later today.
-                </p>
-                {nextSuggestedJob && (
-                  <button
-                    type="button"
-                    onClick={() => onSelectRouteJob(nextSuggestedJob.id)}
-                    className="mt-5 w-full rounded-xl bg-white text-neutral-950 p-4 text-left hover:bg-amber-50 transition-colors"
-                  >
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-1">Suggested next point</div>
-                    <div className="font-bold">{nextSuggestedJob.client}</div>
-                    <div className="text-xs text-neutral-500 line-clamp-1">{nextSuggestedJob.address}</div>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
           {job.status === "Done" && (
             <div className="space-y-6 text-left">
