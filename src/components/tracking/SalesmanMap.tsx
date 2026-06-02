@@ -254,6 +254,58 @@ function formatSpeed(speed?: number): string {
   return `${Math.max(0, kmh).toFixed(0)} km/h`;
 }
 
+interface RouteMetrics {
+  distanceKm: number;
+  etaMinutes: number;
+  distanceText: string;
+  etaText: string;
+  exact: boolean;
+}
+
+async function fetchRouteMetrics(start: [number, number], end: [number, number]): Promise<RouteMetrics> {
+  const [startLat, startLng] = start;
+  const [endLat, endLng] = end;
+  const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=false&alternatives=false&steps=false`;
+  const response = await fetch(url, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`Route metrics request failed with ${response.status}`);
+  }
+
+  const data = await response.json() as {
+    routes?: Array<{ distance?: number; duration?: number }>;
+  };
+  const route = data.routes?.[0];
+
+  if (typeof route?.distance !== "number" || typeof route?.duration !== "number") {
+    throw new Error("Route metrics response did not include distance and duration");
+  }
+
+  const routeDistanceKm = route.distance / 1000;
+  const etaMinutes = Math.max(1, Math.round(route.duration / 60));
+
+  return {
+    distanceKm: routeDistanceKm,
+    etaMinutes,
+    distanceText: formatDistance(routeDistanceKm),
+    etaText: formatEta(etaMinutes),
+    exact: true,
+  };
+}
+
+function getFallbackRouteMetrics(start: [number, number], end: [number, number]): RouteMetrics {
+  const fallbackDistanceKm = distanceKm(start, end);
+  const fallbackEtaMinutes = estimateEtaMinutes(fallbackDistanceKm);
+
+  return {
+    distanceKm: fallbackDistanceKm,
+    etaMinutes: fallbackEtaMinutes,
+    distanceText: `~${formatDistance(fallbackDistanceKm)}`,
+    etaText: formatEta(fallbackEtaMinutes),
+    exact: false,
+  };
+}
+
 function getRoutePreview(marker: LiveMapMarker, selectedJob?: SalesmanMapProps["selectedJob"] | null) {
   const destCoords = marker.destinationCoordinates ?? 
                      (selectedJob ? [selectedJob.location.lat, selectedJob.location.lng] as [number, number] : null);
@@ -547,7 +599,37 @@ function SmoothLiveMarker({
   const animationFrameRef = useRef<number | null>(null);
   const [displayPosition, setDisplayPosition] = useState<[number, number]>(marker.position);
   const [movementBearing, setMovementBearing] = useState(marker.heading ?? 0);
+  const [routeMetrics, setRouteMetrics] = useState<RouteMetrics | null>(null);
   const routePreview = getRoutePreview(marker, selectedJob);
+
+  const destinationCoordinates = marker.destinationCoordinates;
+  const startLat = marker.position[0];
+  const startLng = marker.position[1];
+  const endLat = destinationCoordinates?.[0];
+  const endLng = destinationCoordinates?.[1];
+
+  useEffect(() => {
+    let active = true;
+
+    if (marker.role !== "Salesman" || marker.status !== "On The Way" || !destinationCoordinates) {
+      setRouteMetrics(null);
+      return () => { active = false; };
+    }
+
+    const start: [number, number] = [startLat, startLng];
+    const end: [number, number] = [destinationCoordinates[0], destinationCoordinates[1]];
+    setRouteMetrics(getFallbackRouteMetrics(start, end));
+
+    fetchRouteMetrics(start, end)
+      .then((metrics) => {
+        if (active) setRouteMetrics(metrics);
+      })
+      .catch(() => {
+        if (active) setRouteMetrics(getFallbackRouteMetrics(start, end));
+      });
+
+    return () => { active = false; };
+  }, [destinationCoordinates, endLat, endLng, marker.role, marker.status, startLat, startLng]);
 
   useEffect(() => {
     let active = true;
@@ -626,8 +708,10 @@ function SmoothLiveMarker({
       bearing: movementBearing,
       zoomLevel,
       customerName: marker.customerName,
+      routeDistanceText: routeMetrics?.distanceText,
+      routeEtaText: routeMetrics?.etaText,
     }),
-    [marker.avatar, marker.clusterIndex, marker.clusterTotal, marker.isLate, marker.name, marker.role, marker.status, movementBearing, zoomLevel, marker.customerName],
+    [marker.avatar, marker.clusterIndex, marker.clusterTotal, marker.isLate, marker.name, marker.role, marker.status, movementBearing, zoomLevel, marker.customerName, routeMetrics?.distanceText, routeMetrics?.etaText],
   );
 
   const statusLabel = marker.isLate ? "Late" : MARKER_STATUS_CONFIG[marker.status].label;
@@ -660,9 +744,9 @@ function SmoothLiveMarker({
             <span className="font-medium text-slate-500">Current status</span>
             <span className="text-right">{statusLabel}</span>
             <span className="font-medium text-slate-500">Distance</span>
-            <span className="text-right">{formatDistance(routePreview.distance)}</span>
+            <span className="text-right">{routeMetrics?.distanceText ?? formatDistance(routePreview.distance)}</span>
             <span className="font-medium text-slate-500">ETA</span>
-            <span className="text-right">{formatEta(routePreview.eta)}</span>
+            <span className="text-right">{routeMetrics?.etaText ?? formatEta(routePreview.eta)}</span>
             <span className="font-medium text-slate-500">Travel status</span>
             <span className="text-right">{routePreview.status}</span>
             <span className="font-medium text-slate-500">Speed</span>

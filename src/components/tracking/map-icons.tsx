@@ -31,6 +31,8 @@ interface LiveMarkerIconOptions {
   bearing?: number;
   zoomLevel?: number;
   customerName?: string;
+  routeDistanceText?: string;
+  routeEtaText?: string;
 }
 
 function truncateName(text: string, maxLen: number = 10): string {
@@ -49,6 +51,8 @@ export function createLiveMarkerIcon({
   bearing = 0,
   zoomLevel = 11,
   customerName,
+  routeDistanceText,
+  routeEtaText,
 }: LiveMarkerIconOptions) {
   const activeStatus = late ? "Late" : status;
   const statusConf = MARKER_STATUS_CONFIG[activeStatus];
@@ -72,8 +76,10 @@ export function createLiveMarkerIcon({
 
   if (isMovingSalesman) {
     const speedText = status === "On The Way" ? "0" : "0";
-    const distanceText = customerName ? "0.0 km" : "0.0 km";
-    const confidenceText = status === "Offline" ? "--" : "94%";
+    void speedText;
+    const distanceText = routeDistanceText ?? (customerName ? "Calculating" : "--");
+    const etaText = routeEtaText ?? (customerName ? "Calculating" : "--");
+    const confidenceText = status === "Offline" ? "--" : routeDistanceText && routeEtaText ? "Live" : "Pending";
     const riskText = late ? "High" : status === "Offline" ? "Off" : "Low";
     const riskColor = late ? "#ef4444" : status === "Offline" ? "#64748b" : "#10b981";
     const statusColor = late ? "#ef4444" : status === "On The Way" ? "#ea7a00" : accentColor;
@@ -126,7 +132,7 @@ export function createLiveMarkerIcon({
           {statusLabelText === "ON THE WAY" && <>
             <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
-              <div>ETA 0m</div>
+              <div>ETA: {etaText}</div>
               <div>{distanceText}</div>
               <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div>
               <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div>
