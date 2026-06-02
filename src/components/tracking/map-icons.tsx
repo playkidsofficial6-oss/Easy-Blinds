@@ -75,8 +75,7 @@ export function createLiveMarkerIcon({
   const compact = zoomLevel < 9;
 
   if (isMovingSalesman) {
-    const speedText = status === "On The Way" ? "0" : "0";
-    void speedText;
+    void bearing;
     const distanceText = routeDistanceText ?? (customerName ? "Calculating" : "--");
     const etaText = routeEtaText ?? (customerName ? "Calculating" : "--");
     const confidenceText = status === "Offline" ? "--" : routeDistanceText && routeEtaText ? "Live" : "Pending";
@@ -144,7 +143,7 @@ export function createLiveMarkerIcon({
         </div>
         <div style={{ position: "relative", marginTop: "-5px" }}>
           {isPulsing && <div style={{ position: "absolute", inset: "-15px", borderRadius: "999px", backgroundColor: statusConf.ringColor, animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite", opacity: 0.75 }} />}
-          <div style={{ width: "32px", height: "32px", borderRadius: "999px", border: "3px solid white", background: statusColor, boxShadow: "0 12px 24px rgba(15,23,42,0.22)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", transform: `rotate(${bearing}deg)` }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "999px", border: "3px solid white", background: statusColor, boxShadow: "0 12px 24px rgba(15,23,42,0.22)", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
             <CarFront style={{ width: "16px", height: "16px", display: "block" }} />
           </div>
         </div>
