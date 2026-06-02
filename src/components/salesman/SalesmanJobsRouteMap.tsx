@@ -39,34 +39,38 @@ function statusTone(status: string) {
 
 function createSalesmanJobIcon(job: SalesmanRouteMapJob, index: number, selected: boolean) {
   const tone = statusTone(job.status);
-  const scale = selected ? 1.06 : 1;
-  const shadow = selected ? "0 22px 44px rgba(15,23,42,0.34)" : "0 16px 32px rgba(15,23,42,0.24)";
-  const border = selected ? "2px solid #f59e0b" : "1px solid rgba(148,163,184,0.22)";
+  const width = selected ? 178 : 168;
+  const cardWidth = width - 10;
+  const height = 92;
+  const pinLeft = Math.round(cardWidth / 2) - 6;
+  const shadow = selected ? "0 16px 32px rgba(15,23,42,0.30)" : "0 12px 24px rgba(15,23,42,0.22)";
+  const border = selected ? "1.5px solid #f59e0b" : "1px solid rgba(148,163,184,0.20)";
+  const actionLabel = selected ? "Selected" : "Route";
   const html = `
-    <div style="position:relative;width:224px;height:122px;transform:scale(${scale});transform-origin:center bottom;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;">
-      <div style="width:212px;border-radius:22px;background:#0f172a;color:white;box-shadow:${shadow};padding:13px 14px 12px;border:${border};">
-        <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px;">
-          <div style="height:26px;width:26px;border-radius:999px;background:${tone.color};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;color:white;border:2px solid rgba(255,255,255,0.9);">${index + 1}</div>
+    <div style="position:relative;width:${width}px;height:${height}px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;">
+      <div style="width:${cardWidth}px;border-radius:16px;background:#0f172a;color:white;box-shadow:${shadow};padding:9px 10px 8px;border:${border};">
+        <div style="display:flex;align-items:flex-start;gap:7px;">
+          <div style="height:22px;width:22px;min-width:22px;border-radius:999px;background:${tone.color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:white;border:2px solid rgba(255,255,255,0.9);line-height:1;">${index + 1}</div>
           <div style="min-width:0;flex:1;">
-            <div style="font-size:12px;line-height:1.05;font-weight:950;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f8fafc;">${escapeHtml(job.client || "Customer")}</div>
-            <div style="font-size:9px;font-weight:850;letter-spacing:.14em;text-transform:uppercase;color:#94a3b8;margin-top:3px;">${escapeHtml(tone.label)} • ${escapeHtml(job.time || "Route")}</div>
+            <div style="font-size:11px;line-height:1.1;font-weight:850;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f8fafc;">${escapeHtml(job.client || "Customer")}</div>
+            <div style="font-size:8px;line-height:1.2;font-weight:800;letter-spacing:.10em;text-transform:uppercase;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(tone.label)} • ${escapeHtml(job.time || "Route")}</div>
           </div>
         </div>
-        <div style="font-size:10px;line-height:1.28;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:9px;">${escapeHtml(job.address || "Customer location")}</div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace;font-size:9px;font-weight:900;color:#fde68a;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.24);border-radius:8px;padding:4px 7px;">${escapeHtml(job.jobId || job.shortRef)}</span>
-          <span style="font-size:9px;font-weight:900;color:${selected ? "#fbbf24" : "#94a3b8"};letter-spacing:.10em;text-transform:uppercase;">${selected ? "Selected" : "Tap to route"}</span>
+        <div style="font-size:8.5px;line-height:1.25;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:6px 0 7px;">${escapeHtml(job.address || "Customer location")}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,monospace;font-size:8px;font-weight:850;color:#fde68a;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.20);border-radius:7px;padding:3px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:92px;">${escapeHtml(job.jobId || job.shortRef)}</span>
+          <span style="font-size:8px;font-weight:850;color:${selected ? "#fbbf24" : "#94a3b8"};letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;">${actionLabel}</span>
         </div>
       </div>
-      <div style="position:absolute;left:94px;bottom:-3px;width:18px;height:18px;border-radius:999px;background:${tone.color};border:4px solid white;box-shadow:0 10px 24px rgba(15,23,42,.26);"></div>
+      <div style="position:absolute;left:${pinLeft}px;bottom:0;width:14px;height:14px;border-radius:999px;background:${tone.color};border:3px solid white;box-shadow:0 8px 18px rgba(15,23,42,.24);"></div>
     </div>`;
   return L.divIcon({
     html,
     className: "salesman-route-job-marker",
-    iconSize: [224, 122],
-    iconAnchor: [106, 119],
-    popupAnchor: [0, -116],
-    tooltipAnchor: [0, -116],
+    iconSize: [width, height],
+    iconAnchor: [Math.round(cardWidth / 2), height - 2],
+    popupAnchor: [0, -height + 6],
+    tooltipAnchor: [0, -height + 6],
   });
 }
 
@@ -235,7 +239,7 @@ export default function SalesmanJobsRouteMap({
               zIndexOffset={isSelected ? 900 : 300 + index}
               eventHandlers={{ click: () => onSelectJob?.(job.id) }}
             >
-              <Tooltip permanent={isSelected} direction="top" offset={[0, -122]} className="salesman-route-tooltip">
+              <Tooltip permanent={isSelected} direction="top" offset={[0, -92]} className="salesman-route-tooltip">
                 {isSelected ? "Current route target" : `Point ${index + 1}`}
               </Tooltip>
               <Popup>
