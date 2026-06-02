@@ -120,19 +120,21 @@ export function createLiveMarkerIcon({
               <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: statusColor, boxShadow: `0 0 0 5px ${late ? 'rgba(239,68,68,0.12)' : 'rgba(234,122,0,0.12)'}` }} />
               <span style={{ color: statusColor, fontSize: compact ? "11px" : "12px", fontWeight: 600, letterSpacing: "0.04em", lineHeight: 1.2 }}>{statusLabelText}</span>
             </div>
-            
+
           </div>
 
-          <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
+          {statusLabelText === "ON THE WAY" && <>
+            <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
+              <div>ETA 0m</div>
+              <div>{distanceText}</div>
+              <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div>
+              <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div>
+              <div style={{ color: "#10b981", fontWeight: 950 }}>{confidenceText}</div>
+              <div style={{ color: riskColor, fontWeight: 950 }}>{riskText}</div>
+            </div>
+          </>}
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
-            <div>ETA 0m</div>
-            <div>{distanceText}</div>
-            <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div>
-            <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div>
-            <div style={{ color: "#10b981", fontWeight: 950 }}>{confidenceText}</div>
-            <div style={{ color: riskColor, fontWeight: 950 }}>{riskText}</div>
-          </div>
         </div>
         <div style={{ position: "relative", marginTop: "-5px" }}>
           {isPulsing && <div style={{ position: "absolute", inset: "-15px", borderRadius: "999px", backgroundColor: statusConf.ringColor, animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite", opacity: 0.75 }} />}
