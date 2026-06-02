@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { createCompanyMarkerIcon, EASYBLINDS_HQ } from "@/components/tracking/map-icons";
 
 export interface SalesmanRouteMapJob {
   id: string;
@@ -149,7 +150,7 @@ export default function SalesmanJobsRouteMap({
     style.id = "salesman-route-map-styles";
     style.innerHTML = `
       @keyframes ping { 75%, 100% { transform: scale(1.8); opacity: 0; } }
-      .salesman-route-job-marker, .salesman-live-marker { background: transparent !important; border: 0 !important; overflow: visible !important; }
+      .salesman-route-job-marker, .salesman-live-marker, .company-hq-marker { background: transparent !important; border: 0 !important; overflow: visible !important; }
       .salesman-route-tooltip { background: rgba(15,23,42,.92) !important; color: #fff !important; border: 0 !important; border-radius: 999px !important; font-size: 10px !important; font-weight: 900 !important; letter-spacing: .08em !important; text-transform: uppercase !important; box-shadow: 0 10px 24px rgba(15,23,42,.22) !important; }
       .salesman-route-tooltip::before { display: none !important; }
     `;
@@ -157,10 +158,12 @@ export default function SalesmanJobsRouteMap({
   }, []);
 
   const selectedJob = useMemo(() => jobs.find((job) => job.id === selectedJobId) ?? jobs[0], [jobs, selectedJobId]);
+  const hqIcon = useMemo(() => createCompanyMarkerIcon(), []);
   const center = selectedJob?.coordinates ?? currentPosition ?? defaultCenter;
   const allPoints = useMemo<[number, number][]>(() => {
     const points = jobs.map((job) => job.coordinates).filter(Boolean);
     if (currentPosition) points.unshift(currentPosition);
+    points.unshift(EASYBLINDS_HQ.position);
     return points.length ? points : [defaultCenter];
   }, [jobs, currentPosition]);
   const routePath = useMemo<[number, number][]>(() => {
@@ -259,6 +262,15 @@ export default function SalesmanJobsRouteMap({
           );
         })}
 
+        <Marker position={EASYBLINDS_HQ.position} icon={hqIcon} zIndexOffset={250}>
+          <Popup>
+            <div className="space-y-1 text-xs min-w-[150px]">
+              <div className="font-bold text-slate-900">{EASYBLINDS_HQ.name}</div>
+              <div className="text-slate-500">{EASYBLINDS_HQ.address}</div>
+            </div>
+          </Popup>
+        </Marker>
+
         {currentPosition && salesmanIcon && (
           <Marker position={currentPosition} icon={salesmanIcon} zIndexOffset={1200}>
             <Popup><div className="text-xs font-semibold p-1">Your live location</div></Popup>
@@ -268,14 +280,14 @@ export default function SalesmanJobsRouteMap({
         {sequenceRoadPath.length >= 2 && (
           <Polyline
             positions={sequenceRoadPath}
-            pathOptions={{ color: "#0f172a", weight: 3, opacity: 0.22, dashArray: "4 10", lineCap: "round" }}
+            pathOptions={{ color: "#10b981", weight: 3, opacity: 0.22, dashArray: "4 10", lineCap: "round" }}
           />
         )}
 
         {selectedRoadPath.length >= 2 && (
           <Polyline
             positions={selectedRoadPath}
-            pathOptions={{ color: "#f59e0b", weight: 6, opacity: 0.92, lineCap: "round", lineJoin: "round" }}
+            pathOptions={{ color: "#10b981", weight: 6, opacity: 0.92, lineCap: "round", lineJoin: "round" }}
           />
         )}
       </MapContainer>

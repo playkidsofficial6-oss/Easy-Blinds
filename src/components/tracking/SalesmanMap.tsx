@@ -69,6 +69,7 @@ interface LiveMapMarker {
   heading?: number;
   assignedJobCount: number;
   activeJobId?: string;
+  activeJobStatus?: string;
   customerName?: string;
   customerAddress?: string;
   customerPhone?: string;
@@ -126,6 +127,25 @@ function estimateEtaMinutes(distance: number): number {
   return Math.max(1, Math.round((distance / 32) * 60));
 }
 
+function isOnTheWayStatus(status?: string): boolean {
+  return /on\s*the\s*way|on\s*way|way|travel|ongoing|moving/i.test(status ?? "");
+}
+
+function getJobRouteColor(jobStatus?: string): string {
+  return isOnTheWayStatus(jobStatus) ? "#10b981" : "#2563eb";
+}
+
+function getJobMotionColor(jobStatus?: string): string {
+  return isOnTheWayStatus(jobStatus) ? "#86efac" : "#93c5fd";
+}
+
+function getMarkerRouteColor(marker: LiveMapMarker): string {
+  return getJobRouteColor(marker.activeJobStatus);
+}
+
+function getMarkerMotionColor(marker: LiveMapMarker): string {
+  return getJobMotionColor(marker.activeJobStatus);
+}
 
 function rectanglesOverlap(left: ScreenRect, right: ScreenRect, padding = 6): boolean {
   return !(
@@ -346,12 +366,7 @@ function normalizeStatus(status?: string, isOnline = true): LiveMarkerStatus {
   const s = status?.toLowerCase() ?? "";
 
   if (s.includes("offline") || s.includes("busy")) return "Offline";
-  if (
-    s.includes("way") ||
-    s.includes("travel") ||
-    s.includes("ongoing") ||
-    s.includes("moving")
-  ) return "On The Way";
+  if (isOnTheWayStatus(status)) return "On The Way";
   if (s.includes("measuring") || s.includes("measure")) return "Measuring";
   if (s.includes("progress") || s.includes("working")) return "Working";
   if (s.includes("booked")) return "Working";
@@ -420,6 +435,7 @@ function buildFitterMarker(
     heading: liveLocation?.heading,
     assignedJobCount: assignedJobCount(fitter),
     activeJobId: activeJob?.id || activeJob?.jobId,
+    activeJobStatus: activeJob?.status,
     customerName: activeJob?.client,
     customerAddress: activeJob?.address,
     customerPhone: activeJob?.phone,
@@ -466,6 +482,7 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
     heading: location.heading,
     assignedJobCount: fitter ? assignedJobCount(fitter) : 0,
     activeJobId: activeJob?.id || activeJob?.jobId,
+    activeJobStatus: activeJob?.status,
     customerName: activeJob?.client,
     customerAddress: activeJob?.address,
     customerPhone: activeJob?.phone,
@@ -859,12 +876,16 @@ function RoutingPolyline({
   end,
   markerId,
   zoomLevel,
+  routeColor = "#2563eb",
+  motionColor = "#93c5fd",
   onTelemetryUpdate,
 }: {
   start: [number, number];
   end: [number, number];
   markerId: string;
   zoomLevel: number;
+  routeColor?: string;
+  motionColor?: string;
   onTelemetryUpdate?: (markerId: string, distanceLabel: string, etaLabel: string) => void;
 }) {
   const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
@@ -936,7 +957,7 @@ function RoutingPolyline({
         <Polyline
           key={`line-loading-${markerId}`}
           positions={[start, end]}
-          color="#64748b"
+          color={routeColor}
           weight={3}
           dashArray="6, 12"
           opacity={0.65}
@@ -964,7 +985,7 @@ function RoutingPolyline({
       <Polyline
         key={`route-${markerId}`}
         positions={routeCoords}
-        color="#2563eb"
+        color={routeColor}
         weight={5}
         opacity={0.92}
         lineCap="round"
@@ -973,7 +994,7 @@ function RoutingPolyline({
       <Polyline
         key={`route-motion-${markerId}`}
         positions={routeCoords}
-        color="#93c5fd"
+        color={motionColor}
         weight={3}
         opacity={0.85}
         dashArray="2, 14"
@@ -1404,6 +1425,8 @@ export default function SalesmanMap({
                   start={salesmanMarker.position}
                   end={[job.location.lat, job.location.lng]}
                   zoomLevel={zoomLevel}
+                  routeColor={getJobRouteColor(job.status)}
+                  motionColor={getJobMotionColor(job.status)}
                   onTelemetryUpdate={handleTelemetryUpdate}
                 />
               )}
@@ -1456,6 +1479,8 @@ export default function SalesmanMap({
                 start={marker.position}
                 end={[selectedJob.location.lat, selectedJob.location.lng]}
                 zoomLevel={zoomLevel}
+                routeColor={getJobRouteColor(selectedJob.status)}
+                motionColor={getJobMotionColor(selectedJob.status)}
               />
             ))}
           </>
@@ -1465,7 +1490,8 @@ export default function SalesmanMap({
         {visibleMapLayers.routes && markers
           .filter(marker => marker.role === "Salesman" &&
                              marker.destinationCoordinates &&
-                             ((marker.status as string) === "On The Way" ||
+                             (isOnTheWayStatus(marker.activeJobStatus) ||
+                              (marker.status as string) === "On The Way" ||
                               (marker.status as string) === "On Road" ||
                               (marker.status as string) === "In Progress" ||
                               (marker.status as string) === "In progress" ||
@@ -1481,6 +1507,8 @@ export default function SalesmanMap({
                   start={marker.position}
                   end={dest}
                   zoomLevel={zoomLevel}
+                  routeColor={getMarkerRouteColor(marker)}
+                  motionColor={getMarkerMotionColor(marker)}
                   onTelemetryUpdate={handleTelemetryUpdate}
                 />
 
