@@ -1210,7 +1210,7 @@ export default function SmartSalesmanAssignmentsPage() {
         location: { lat, lng },
         address: job.address || "Scheduled Job Location",
         client: job.customerName || "Client",
-        status: job.status,
+        status: getSalesmanWorkflowDisplayStatus(job),
         assignedSalesmanId: job.assignedSalesman || job.assignedTo,
         value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
         time: toDisplayTime(job.scheduledAt) ?? "10:00",
@@ -1756,8 +1756,8 @@ export default function SmartSalesmanAssignmentsPage() {
         {/* VIEW 1: LIVE FLEET VIEW (Default Dispatch Side panel + Map) */}
         {activeTab === "fleet" && (
           <>
-            <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl flex-shrink-0">
-              <div className="p-8 border-b border-slate-100 flex-shrink-0 bg-white">
+            <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
+              <div className="p-8 border-b border-slate-100 shrink-0 bg-white">
                 <div>
                   <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
                     <div className="w-8 h-px bg-amber-600"></div>
@@ -1809,7 +1809,7 @@ export default function SmartSalesmanAssignmentsPage() {
                             : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
                         )}
                       >
-                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                        <CalendarDays className="w-3.5 h-3.5 shrink-0" />
                         <span className="truncate">
                           {dateFilterType === "custom" ? format(viewDate, "MMM do") : "Date"}
                         </span>
@@ -2008,7 +2008,7 @@ export default function SmartSalesmanAssignmentsPage() {
                         <div className="p-5 space-y-4 flex-1 overflow-y-auto">
                           {fitter.locationLabel && (
                             <div className="flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/50 rounded-xl p-3">
-                              <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                              <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                               <div className="flex flex-col">
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Last Location</span>
                                 <span className="leading-snug text-slate-700">{fitter.locationLabel}</span>
@@ -2058,8 +2058,8 @@ export default function SmartSalesmanAssignmentsPage() {
         {/* VIEW 2: APPOINTMENTS VIEW */}
         {activeTab === "appointments" && (
           <>
-            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl flex-shrink-0">
-              <div className="p-6 border-b border-slate-100 flex-shrink-0 space-y-4 bg-white">
+            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
+              <div className="p-6 border-b border-slate-100 shrink-0 space-y-4 bg-white">
                 <div>
                   <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1">
                     <div className="w-6 h-px bg-blue-600"></div>
@@ -2394,8 +2394,8 @@ export default function SmartSalesmanAssignmentsPage() {
         {/* VIEW 3: UNASSIGNED LEADS VIEW */}
         {activeTab === "leads" && (
           <>
-            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl flex-shrink-0">
-              <div className="p-6 border-b border-slate-100 flex-shrink-0 space-y-4 bg-white">
+            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
+              <div className="p-6 border-b border-slate-100 shrink-0 space-y-4 bg-white">
                 <div>
                   <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1">
                     <div className="w-6 h-px bg-amber-600"></div>
@@ -2538,8 +2538,8 @@ export default function SmartSalesmanAssignmentsPage() {
         {/* VIEW 4: MEASURING VIEW */}
         {activeTab === "measuring" && (
           <>
-            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl flex-shrink-0">
-              <div className="p-6 border-b border-slate-100 flex-shrink-0 bg-white space-y-4">
+            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
+              <div className="p-6 border-b border-slate-100 shrink-0 bg-white space-y-4">
                 <div>
                   <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1">
                     <div className="w-6 h-px bg-indigo-600"></div>
@@ -2798,7 +2798,7 @@ export default function SmartSalesmanAssignmentsPage() {
                   <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
                     <SelectValue placeholder="Choose Salesman" />
                   </SelectTrigger>
-                  <SelectContent className="z-[1200] max-h-72">
+                  <SelectContent className="z-1200 max-h-72">
                     <SelectItem value="none">
                       <span className="text-slate-400">-- None --</span>
                     </SelectItem>
