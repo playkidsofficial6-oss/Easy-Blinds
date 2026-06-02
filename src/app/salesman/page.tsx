@@ -958,7 +958,7 @@ function JobDetailView({
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
       {/* Visual Context Header - Full Screen Map with Glassmorphism Overlay */}
-      <div className="h-[40vh] min-h-[250px] max-h-[460px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
+      <div className="h-[58vh] min-h-[380px] max-h-[640px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
         <div
           role="button"
           tabIndex={0}
