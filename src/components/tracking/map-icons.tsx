@@ -130,13 +130,13 @@ export function createLiveMarkerIcon({
 
           {statusLabelText === "ON THE WAY" && <>
             <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
               <div>ETA: {etaText}</div>
-              <div>{distanceText}</div>
-              <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div>
-              <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div>
-              <div style={{ color: "#10b981", fontWeight: 950 }}>{confidenceText}</div>
-              <div style={{ color: riskColor, fontWeight: 950 }}>{riskText}</div>
+              <div>KM : {distanceText}</div>
+              {/* <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div> */}
+              {/* <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div> */}
+              {/* <div style={{ color: "#10b981", fontWeight: 950 }}>{confidenceText}</div> */}
+              {/* <div style={{ color: riskColor, fontWeight: 950 }}>{riskText}</div> */}
             </div>
           </>}
 
