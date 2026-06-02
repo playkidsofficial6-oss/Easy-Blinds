@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, getJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, type Job } from "@/lib/jobs";
+import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import { updateUser } from "@/lib/users";
 import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
@@ -26,6 +26,11 @@ import { useRef } from "react";
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400 font-light italic">Initializing Map...</div>
+});
+
+const SalesmanJobsRouteMap = dynamic(() => import("@/components/salesman/SalesmanJobsRouteMap"), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400 font-light italic">Loading route map...</div>
 });
 
 type Tab = "today" | "tomorrow" | "upcoming" | "completed";
@@ -127,6 +132,18 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
   };
 }
 
+function compareScheduleJobs(a: SalesmanScheduleJob, b: SalesmanScheduleJob) {
+  const aDate = `${a.date || "9999-12-31"} ${a.time || "11:59 PM"}`;
+  const bDate = `${b.date || "9999-12-31"} ${b.time || "11:59 PM"}`;
+  try {
+    const aParsed = parse(aDate, "yyyy-MM-dd hh:mm aa", new Date()).getTime();
+    const bParsed = parse(bDate, "yyyy-MM-dd hh:mm aa", new Date()).getTime();
+    return aParsed - bParsed;
+  } catch {
+    return aDate.localeCompare(bDate);
+  }
+}
+
 function groupJobsBySchedule(jobs: Job[]): SalesmanSchedule {
   return jobs.reduce<SalesmanSchedule>((schedule, job) => {
     const scheduleJob = toScheduleJob(job);
@@ -164,6 +181,7 @@ function SalesmanPageContent() {
   const [schedule, setSchedule] = useState<SalesmanSchedule>(EMPTY_SALESMAN_SCHEDULE);
 
   const didAutoSelectJobRef = useRef(false);
+  const didAutoSelectOnTheWayRef = useRef(false);
   const lastKnownPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const [currentPosition, setCurrentPosition] = useState<[number, number] | null>(null);
 
@@ -201,6 +219,33 @@ function SalesmanPageContent() {
     setSelectedJob(foundJob);
   }, [activeJobId, schedule]);
 
+  useEffect(() => {
+    if (activeJobId) return;
+    if (selectedJob) return;
+    if (didAutoSelectOnTheWayRef.current) return;
+
+    const tabEntries: Array<[Tab, SalesmanScheduleJob[]]> = [
+      ["today", schedule.today],
+      ["tomorrow", schedule.tomorrow],
+      ["upcoming", schedule.upcoming],
+      ["completed", schedule.completed],
+    ];
+
+    const activeRouteEntry = tabEntries.find(([, tabJobs]) =>
+      tabJobs.some((item) => item.status === "On the way")
+    );
+    if (!activeRouteEntry) return;
+
+    const [tab, tabJobs] = activeRouteEntry;
+    const activeRouteJob = tabJobs.find((item) => item.status === "On the way");
+    if (!activeRouteJob) return;
+
+    didAutoSelectOnTheWayRef.current = true;
+    setActiveTab(tab);
+    setFilterDate("");
+    setSelectedJob(activeRouteJob);
+  }, [activeJobId, selectedJob, schedule]);
+
   const getJobsForTab = (tab: Tab | "custom") => {
     if (tab === "custom" && filterDate) {
        return [
@@ -220,16 +265,6 @@ function SalesmanPageContent() {
   };
 
   const jobs = getJobsForTab(activeTab);
-
-  const hasActiveJob = useMemo(() => {
-    const allJobs = [
-      ...schedule.today,
-      ...schedule.tomorrow,
-      ...schedule.upcoming,
-      ...schedule.completed
-    ];
-    return allJobs.some(j => j.status === "On the way" || j.status === "In Progress" || j.status === "In progress");
-  }, [schedule]);
 
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
@@ -332,8 +367,45 @@ function SalesmanPageContent() {
     };
   }, [user?._id]);
 
+
+  const replaceScheduleJob = (job: SalesmanScheduleJob) => {
+    setSchedule((prev) => {
+      const updated: SalesmanSchedule = {
+        today: prev.today.filter((item) => item.id !== job.id),
+        tomorrow: prev.tomorrow.filter((item) => item.id !== job.id),
+        upcoming: prev.upcoming.filter((item) => item.id !== job.id),
+        completed: prev.completed.filter((item) => item.id !== job.id),
+      };
+
+      if (job.status === "Done" || job.status === "Completed") {
+        updated.completed = [job, ...updated.completed];
+      } else if (job.date) {
+        try {
+          const parsedDate = new Date(`${job.date}T00:00:00`);
+          if (isToday(parsedDate)) {
+            updated.today = [...updated.today, job].sort(compareScheduleJobs);
+          } else if (isTomorrow(parsedDate)) {
+            updated.tomorrow = [...updated.tomorrow, job].sort(compareScheduleJobs);
+          } else {
+            updated.upcoming = [...updated.upcoming, job].sort(compareScheduleJobs);
+          }
+        } catch {
+          updated.upcoming = [...updated.upcoming, job].sort(compareScheduleJobs);
+        }
+      } else {
+        updated.upcoming = [...updated.upcoming, job].sort(compareScheduleJobs);
+      }
+      return updated;
+    });
+    setSelectedJob((prev) => prev?.id === job.id ? job : prev);
+  };
+
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const displayStatus = newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus;
+    const otherRouteJobsToReset = displayStatus === "On the way"
+      ? jobs.filter((item) => item.id !== id && item.status !== "Done" && item.status !== "Completed")
+      : [];
+    const otherRouteJobIdsToReset = new Set(otherRouteJobsToReset.map((item) => item.id));
     let appendedNotes = "";
 
     if (typeof window !== "undefined") {
@@ -356,6 +428,10 @@ function SalesmanPageContent() {
           const travelSecs = Math.floor((Date.now() - Number(travelStart)) / 1000);
           localStorage.setItem(storageKeyTravelSecs, Math.max(0, travelSecs).toString());
         }
+      } else if (displayStatus === "Pending") {
+        localStorage.removeItem(storageKeyTravelStart);
+        localStorage.removeItem(storageKeyTravelSecs);
+        localStorage.removeItem(storageKeyMeasStart);
       } else if (displayStatus === "Done") {
         const measStart = localStorage.getItem(storageKeyMeasStart);
         let measSecs = 0;
@@ -395,6 +471,15 @@ function SalesmanPageContent() {
           if (j.id === id) {
             return { ...j, status: displayStatus, notes: appendedNotes || j.notes };
           }
+          if (otherRouteJobIdsToReset.has(j.id)) {
+            return {
+              ...j,
+              status: "Pending",
+              salesmanWorkflowStatus: "not_started",
+              activeSalesmanId: undefined,
+              activeSalesmanName: undefined,
+            };
+          }
           return j;
         });
       }
@@ -422,6 +507,17 @@ function SalesmanPageContent() {
         if (displayStatus === "Done" || displayStatus === "Completed") {
           return completeSalesmanWorkflow(id, workflowPayload);
         }
+        if (displayStatus === "Pending") {
+          return updateJob(id, {
+            status: "scheduled",
+            salesmanWorkflowStatus: "not_started",
+            activeSalesmanId: undefined,
+            activeSalesmanName: undefined,
+            travelStartedAt: undefined,
+            measurementStartedAt: undefined,
+            measurementCompletedAt: undefined,
+          });
+        }
         console.warn("handleUpdateStatus: unknown status", displayStatus);
         return Promise.reject(new Error(`Unknown status: ${displayStatus}`));
       })();
@@ -434,9 +530,9 @@ function SalesmanPageContent() {
         const updated = { ...prev };
         const tabs: Tab[] = ["today", "tomorrow", "upcoming", "completed"];
         for (const tab of tabs) {
-          updated[tab] = updated[tab].map((j) => (
-            j.id === id
-              ? {
+          updated[tab] = updated[tab].map((j) => {
+            if (j.id === id) {
+              return {
                 ...j,
                 status: savedDisplayStatus,
                 notes: savedJob.notes || j.notes,
@@ -446,9 +542,19 @@ function SalesmanPageContent() {
                 travelStartedAt: savedJob.travelStartedAt,
                 measurementStartedAt: savedJob.measurementStartedAt,
                 measurementCompletedAt: savedJob.measurementCompletedAt,
-              }
-              : j
-          ));
+              };
+            }
+            if (otherRouteJobIdsToReset.has(j.id)) {
+              return {
+                ...j,
+                status: "Pending",
+                salesmanWorkflowStatus: "not_started",
+                activeSalesmanId: undefined,
+                activeSalesmanName: undefined,
+              };
+            }
+            return j;
+          });
         }
         return updated;
       });
@@ -465,6 +571,22 @@ function SalesmanPageContent() {
           measurementCompletedAt: savedJob.measurementCompletedAt,
         } : prev);
       }
+      if (otherRouteJobsToReset.length > 0) {
+        void Promise.allSettled(
+          otherRouteJobsToReset.map((routeJob) => updateJob(routeJob.id, {
+            status: "scheduled",
+            salesmanWorkflowStatus: "not_started",
+            activeSalesmanId: undefined,
+            activeSalesmanName: undefined,
+          }))
+        ).then((results) => {
+          const failedCount = results.filter((result) => result.status === "rejected").length;
+          if (failedCount > 0) {
+            console.warn(`Unable to reset ${failedCount} other salesman route job(s) to Pending`);
+          }
+        });
+      }
+
       console.info(`Salesman workflow updated to ${savedLiveStatus}`);
 
       // After successful workflow API call, sync liveStatus
@@ -580,8 +702,12 @@ function SalesmanPageContent() {
             <div className="h-full overflow-hidden flex flex-col animate-fadeIn bg-stone-50/30">
               <JobDetailView
                 job={selectedJob}
-                hasActiveJob={hasActiveJob}
+                routeJobs={jobs.length > 0 ? jobs : [selectedJob]}
                 onStatusChange={(newStatus) => handleUpdateStatus(selectedJob.id, newStatus)}
+                onSelectRouteJob={(jobId) => {
+                  const nextJob = jobs.find((item) => item.id === jobId) || selectedJob;
+                  setSelectedJob(nextJob);
+                }}
                 onBack={() => setSelectedJob(null)}
                 currentPosition={currentPosition}
               />
@@ -732,7 +858,21 @@ interface CompletedQuotationItem {
   unitPrice?: number;
 }
 
-function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosition }: { job: SalesmanScheduleJob; hasActiveJob: boolean; onStatusChange: (status: string) => Promise<void> | void; onBack: () => void; currentPosition: [number, number] | null }) {
+function JobDetailView({
+  job,
+  routeJobs,
+  onStatusChange,
+  onSelectRouteJob,
+  onBack,
+  currentPosition
+}: {
+  job: SalesmanScheduleJob;
+  routeJobs: SalesmanScheduleJob[];
+  onStatusChange: (status: string) => Promise<void> | void;
+  onSelectRouteJob: (jobId: string) => void;
+  onBack: () => void;
+  currentPosition: [number, number] | null;
+}) {
   const router = useRouter();
   const [seconds, setSeconds] = useState(0);
   const [measurementData, setMeasurementData] = useState<{ rooms?: CompletedRoom[] } | null>(null);
@@ -861,7 +1001,7 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
       {/* Visual Context Header - Full Screen Map with Glassmorphism Overlay */}
-      <div className="h-[40vh] min-h-[250px] max-h-[460px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
+      <div className="h-[58vh] min-h-[380px] max-h-[640px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
         <div
           role="button"
           tabIndex={0}
@@ -875,11 +1015,13 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
           className="absolute inset-0 z-0 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           aria-label="Open full map"
         >
-          <JobDetailMap
-            coordinates={job.coordinates || [25.20, 55.27]}
+          <SalesmanJobsRouteMap
+            jobs={routeJobs}
+            selectedJobId={job.id}
             currentPosition={currentPosition}
             routeEnabled={showTravelRoute || job.status === "On the way"}
             interactive={false}
+            onSelectJob={onSelectRouteJob}
           />
         </div>
         <button
@@ -951,12 +1093,14 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
       {isMapExpanded && (
         <div className="fixed inset-0 z-[999] bg-neutral-950/90 backdrop-blur-sm p-4 md:p-6">
           <div className="relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-stone-100 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-            <JobDetailMap
-              coordinates={job.coordinates || [25.20, 55.27]}
+            <SalesmanJobsRouteMap
+              jobs={routeJobs}
+              selectedJobId={job.id}
               currentPosition={currentPosition}
               routeEnabled={showTravelRoute || job.status === "On the way"}
               interactive
               scrollWheelZoom
+              onSelectJob={onSelectRouteJob}
             />
             <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-xl border border-stone-200 backdrop-blur-md">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">Selected Job</p>
@@ -1190,17 +1334,29 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
             <ActionButton
               icon={Navigation} label="Travel" activeLabel="On Road"
               isActive={job.status === "On the way"}
-              disabled={job.status !== "Pending" || (hasActiveJob && job.status === "Pending")}
+              disabled={job.status !== "Pending"}
               variant="amber"
               onClick={() => {
                 setShowTravelRoute(true);
                 onStatusChange("On the way");
               }}
             />
+            {job.status === "On the way" && (
+              <ActionButton
+                icon={X} label="Cancel" activeLabel="Cancel"
+                isActive={false}
+                disabled={false}
+                variant="rose"
+                onClick={() => {
+                  setShowTravelRoute(false);
+                  onStatusChange("Pending");
+                }}
+              />
+            )}
             <ActionButton
               icon={Timer} label="Measure" activeLabel="Measuring"
               isActive={job.status === "In Progress" || job.status === "In progress"}
-              disabled={(job.status !== "On the way" && job.status !== "In Progress" && job.status !== "Pending") || (hasActiveJob && job.status === "Pending")}
+              disabled={job.status !== "On the way" && job.status !== "In Progress" && job.status !== "Pending"}
               variant="blue"
               onClick={() => {
                 onStatusChange("In progress");
@@ -1246,7 +1402,7 @@ interface ActionButtonProps {
   activeLabel: string;
   isActive: boolean;
   disabled: boolean;
-  variant: "amber" | "blue" | "emerald";
+  variant: "amber" | "blue" | "emerald" | "rose";
   onClick: () => void;
 }
 
@@ -1260,7 +1416,10 @@ function ActionButton({ icon: Icon, label, activeLabel, isActive, disabled, vari
       : "bg-white/5 text-blue-500/70 border-white/5 hover:bg-white/10 hover:text-blue-400",
     emerald: isActive
       ? "bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-      : "bg-white/5 text-emerald-500/70 border-white/5 hover:bg-white/10 hover:text-emerald-400"
+      : "bg-white/5 text-emerald-500/70 border-white/5 hover:bg-white/10 hover:text-emerald-400",
+    rose: isActive
+      ? "bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.3)]"
+      : "bg-white/5 text-rose-400/80 border-white/5 hover:bg-white/10 hover:text-rose-300"
   };
 
   return (

@@ -31,6 +31,8 @@ interface LiveMarkerIconOptions {
   bearing?: number;
   zoomLevel?: number;
   customerName?: string;
+  routeDistanceText?: string;
+  routeEtaText?: string;
 }
 
 function truncateName(text: string, maxLen: number = 10): string {
@@ -49,6 +51,8 @@ export function createLiveMarkerIcon({
   bearing = 0,
   zoomLevel = 11,
   customerName,
+  routeDistanceText,
+  routeEtaText,
 }: LiveMarkerIconOptions) {
   const activeStatus = late ? "Late" : status;
   const statusConf = MARKER_STATUS_CONFIG[activeStatus];
@@ -71,9 +75,10 @@ export function createLiveMarkerIcon({
   const compact = zoomLevel < 9;
 
   if (isMovingSalesman) {
-    const speedText = status === "On The Way" ? "0" : "0";
-    const distanceText = customerName ? "0.0 km" : "0.0 km";
-    const confidenceText = status === "Offline" ? "--" : "94%";
+    void bearing;
+    const distanceText = routeDistanceText ?? (customerName ? "Calculating" : "--");
+    const etaText = routeEtaText ?? (customerName ? "Calculating" : "--");
+    const confidenceText = status === "Offline" ? "--" : routeDistanceText && routeEtaText ? "Live" : "Pending";
     const riskText = late ? "High" : status === "Offline" ? "Off" : "Low";
     const riskColor = late ? "#ef4444" : status === "Offline" ? "#64748b" : "#10b981";
     const statusColor = late ? "#ef4444" : status === "On The Way" ? "#ea7a00" : accentColor;
@@ -125,20 +130,21 @@ export function createLiveMarkerIcon({
 
           {statusLabelText === "ON THE WAY" && <>
             <div style={{ height: "1px", background: "rgba(226,232,240,0.72)", margin: compact ? "7px 0" : "8px 0" }} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
-              <div>ETA 0m</div>
-              <div>{distanceText}</div>
-              <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div>
-              <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div>
-              <div style={{ color: "#10b981", fontWeight: 950 }}>{confidenceText}</div>
-              <div style={{ color: riskColor, fontWeight: 950 }}>{riskText}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
+              <div>ETA: {etaText}</div>
+              <div>KM : {distanceText}</div>
+              <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk : Low</div>
+              {/* <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div> */}
+              {/* <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div> */}
+              {/* <div style={{ color: "#10b981", fontWeight: 950 }}>{confidenceText}</div> */}
+              {/* <div style={{ color: riskColor, fontWeight: 950 }}>{riskText}</div> */}
             </div>
           </>}
 
         </div>
         <div style={{ position: "relative", marginTop: "-5px" }}>
           {isPulsing && <div style={{ position: "absolute", inset: "-15px", borderRadius: "999px", backgroundColor: statusConf.ringColor, animation: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite", opacity: 0.75 }} />}
-          <div style={{ width: "32px", height: "32px", borderRadius: "999px", border: "3px solid white", background: statusColor, boxShadow: "0 12px 24px rgba(15,23,42,0.22)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", transform: `rotate(${bearing}deg)` }}>
+          <div style={{ width: "32px", height: "32px", borderRadius: "999px", border: "3px solid white", background: statusColor, boxShadow: "0 12px 24px rgba(15,23,42,0.22)", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
             <CarFront style={{ width: "16px", height: "16px", display: "block" }} />
           </div>
         </div>
