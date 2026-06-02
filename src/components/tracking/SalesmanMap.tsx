@@ -859,12 +859,16 @@ function RoutingPolyline({
   end,
   markerId,
   zoomLevel,
+  routeColor = "#2563eb",
+  motionColor = "#93c5fd",
   onTelemetryUpdate,
 }: {
   start: [number, number];
   end: [number, number];
   markerId: string;
   zoomLevel: number;
+  routeColor?: string;
+  motionColor?: string;
   onTelemetryUpdate?: (markerId: string, distanceLabel: string, etaLabel: string) => void;
 }) {
   const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
@@ -936,7 +940,7 @@ function RoutingPolyline({
         <Polyline
           key={`line-loading-${markerId}`}
           positions={[start, end]}
-          color="#64748b"
+          color={routeColor}
           weight={3}
           dashArray="6, 12"
           opacity={0.65}
@@ -964,7 +968,7 @@ function RoutingPolyline({
       <Polyline
         key={`route-${markerId}`}
         positions={routeCoords}
-        color="#2563eb"
+        color={routeColor}
         weight={5}
         opacity={0.92}
         lineCap="round"
@@ -973,7 +977,7 @@ function RoutingPolyline({
       <Polyline
         key={`route-motion-${markerId}`}
         positions={routeCoords}
-        color="#93c5fd"
+        color={motionColor}
         weight={3}
         opacity={0.85}
         dashArray="2, 14"
@@ -1456,6 +1460,8 @@ export default function SalesmanMap({
                 start={marker.position}
                 end={[selectedJob.location.lat, selectedJob.location.lng]}
                 zoomLevel={zoomLevel}
+                routeColor={marker.status === "On The Way" ? "#10b981" : MARKER_STATUS_CONFIG[marker.status].color}
+                motionColor={marker.status === "On The Way" ? "#86efac" : "#93c5fd"}
               />
             ))}
           </>
@@ -1481,6 +1487,8 @@ export default function SalesmanMap({
                   start={marker.position}
                   end={dest}
                   zoomLevel={zoomLevel}
+                  routeColor={marker.status === "On The Way" ? "#10b981" : MARKER_STATUS_CONFIG[marker.status].color}
+                  motionColor={marker.status === "On The Way" ? "#86efac" : "#93c5fd"}
                   onTelemetryUpdate={handleTelemetryUpdate}
                 />
 
