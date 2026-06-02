@@ -133,6 +133,7 @@ export function createLiveMarkerIcon({
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "4px 8px", color: "#64748b", fontWeight: 800, fontSize: compact ? "9px" : "10.5px" }}>
               <div>ETA: {etaText}</div>
               <div>KM : {distanceText}</div>
+              <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk : Low</div>
               {/* <div style={{ color: "#94a3b8", fontWeight: 700 }}>ETA Confidence:</div> */}
               {/* <div style={{ color: "#94a3b8", fontWeight: 700 }}>Risk:</div> */}
               {/* <div style={{ color: "#10b981", fontWeight: 950 }}>{confidenceText}</div> */}
