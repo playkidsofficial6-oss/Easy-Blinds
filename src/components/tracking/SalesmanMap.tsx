@@ -1036,8 +1036,9 @@ function shortMarkerTitle(job: MapJobMarkerCardData) {
 }
 
 function createJobLocationIcon(job: MapJobMarkerCardData, tone: "pending" | "scheduled" | "selected" = "pending") {
-  const pinColor = tone === "scheduled" ? "#2563eb" : "#f59e0b";
-  const titleColor = tone === "scheduled" ? "#60a5fa" : "#facc15";
+  const isOnTheWay = tone === "scheduled" && isOnTheWayStatus(job.status);
+  const pinColor = isOnTheWay ? "#10b981" : tone === "scheduled" ? "#2563eb" : "#f59e0b";
+  const titleColor = isOnTheWay ? "#6ee7b7" : tone === "scheduled" ? "#60a5fa" : "#facc15";
   const html = renderToStaticMarkup(
     <div style={{ position: "relative", width: "236px", height: "138px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>
       <div style={{ width: "224px", borderRadius: "22px", background: "#0f172a", color: "white", boxShadow: "0 18px 38px rgba(15,23,42,0.28)", padding: "14px 16px 13px", border: "1px solid rgba(148,163,184,0.16)" }}>
@@ -1535,7 +1536,7 @@ export default function SalesmanMap({
           })}
       </MapContainer>
 
-      <div className="absolute left-1/2 top-5 z-[1000] flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 p-1 shadow-2xl shadow-slate-900/10 ring-1 ring-black/5 backdrop-blur-md w-max">
+      <div className="absolute left-1/2 top-5 z-1000 flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200/70 bg-white/90 p-1 shadow-2xl shadow-slate-900/10 ring-1 ring-black/5 backdrop-blur-md w-max">
         <button
           type="button"
           onClick={() => toggleMapLayer("salesmen")}
@@ -1602,20 +1603,20 @@ export default function SalesmanMap({
       </div>
 
       {!liveLocationsLoaded && (
-        <div className="absolute bottom-4 left-4 z-[1000] rounded-full border border-white/60 bg-white/80 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 shadow-lg backdrop-blur-md">
+        <div className="absolute bottom-4 left-4 z-1000 rounded-full border border-white/60 bg-white/80 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 shadow-lg backdrop-blur-md">
           Loading live locations...
         </div>
       )}
 
       {liveLocationError && (
-        <div className="absolute bottom-4 left-4 z-[1000] max-w-xs rounded-md border border-red-100 bg-white/90 px-4 py-3 text-xs text-red-600 shadow-lg backdrop-blur-md">
+        <div className="absolute bottom-4 left-4 z-1000 max-w-xs rounded-md border border-red-100 bg-white/90 px-4 py-3 text-xs text-red-600 shadow-lg backdrop-blur-md">
           {liveLocationError}
         </div>
       )}
 
       {/* Live Field Status Panel */}
       <div className={cn(
-        "absolute bottom-16 right-4 z-[1000] flex w-80 md:w-96 flex-col rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-2xl backdrop-blur-md text-slate-800 transition-all duration-200 ring-1 ring-black/5",
+        "absolute bottom-16 right-4 z-1000 flex w-80 md:w-96 flex-col rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-2xl backdrop-blur-md text-slate-800 transition-all duration-200 ring-1 ring-black/5",
         hideStatusPanel && "hidden"
       )}>
         {/* Header */}
@@ -1726,7 +1727,7 @@ export default function SalesmanMap({
                         {/* Speed indication for moving salesmen */}
                         {isTravelling && salesman.speed !== undefined && salesman.speed > 0 && (
                           <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 flex items-center gap-1">
-                            <Navigation className="h-2.5 w-2.5 text-blue-500 rotate-[45deg]" />
+                            <Navigation className="h-2.5 w-2.5 text-blue-500 rotate-45" />
                             {formatSpeed(salesman.speed)}
                           </span>
                         )}
