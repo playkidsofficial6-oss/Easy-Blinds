@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -101,6 +101,35 @@ function MapBounds({ points, selected }: { points: [number, number][]; selected?
   return null;
 }
 
+function validRoutePoints(points: [number, number][]) {
+  return points.filter((point) => Number.isFinite(point[0]) && Number.isFinite(point[1]));
+}
+
+function pointsKey(points: [number, number][]) {
+  return points.map(([lat, lng]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join("|");
+}
+
+async function fetchShortestRoadPath(points: [number, number][]): Promise<[number, number][]> {
+  const valid = validRoutePoints(points);
+  if (valid.length < 2) return valid;
+
+  const coordinates = valid.map(([lat, lng]) => `${lng},${lat}`).join(";");
+  const response = await fetch(
+    `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&alternatives=false&steps=false`,
+    { cache: "no-store" }
+  );
+
+  if (!response.ok) throw new Error(`Road route request failed with ${response.status}`);
+
+  const data = await response.json() as {
+    routes?: Array<{ geometry?: { coordinates?: Array<[number, number]> } }>;
+  };
+  const routeCoordinates = data.routes?.[0]?.geometry?.coordinates;
+  if (!routeCoordinates?.length) throw new Error("Road route response did not include geometry");
+
+  return routeCoordinates.map(([lng, lat]) => [lat, lng]);
+}
+
 export default function SalesmanJobsRouteMap({
   jobs,
   selectedJobId,
@@ -135,6 +164,45 @@ export default function SalesmanJobsRouteMap({
     if (currentPosition) return [currentPosition, selectedJob.coordinates];
     return [selectedJob.coordinates];
   }, [currentPosition, routeEnabled, selectedJob]);
+  const routeSequencePath = useMemo<[number, number][]>(() => jobs.map((job) => job.coordinates), [jobs]);
+  const [selectedRoadPath, setSelectedRoadPath] = useState<[number, number][]>([]);
+  const [sequenceRoadPath, setSequenceRoadPath] = useState<[number, number][]>([]);
+  const selectedRouteKey = useMemo(() => pointsKey(routePath), [routePath]);
+  const sequenceRouteKey = useMemo(() => pointsKey(routeSequencePath), [routeSequencePath]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSelectedRoadPath([]);
+    const valid = validRoutePoints(routePath);
+    if (valid.length < 2) return;
+
+    fetchShortestRoadPath(valid)
+      .then((roadPath) => {
+        if (!cancelled) setSelectedRoadPath(roadPath);
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedRoadPath(valid);
+      });
+
+    return () => { cancelled = true; };
+  }, [selectedRouteKey, routePath]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSequenceRoadPath([]);
+    const valid = validRoutePoints(routeSequencePath);
+    if (valid.length < 2) return;
+
+    fetchShortestRoadPath(valid)
+      .then((roadPath) => {
+        if (!cancelled) setSequenceRoadPath(roadPath);
+      })
+      .catch(() => {
+        if (!cancelled) setSequenceRoadPath(valid);
+      });
+
+    return () => { cancelled = true; };
+  }, [routeSequencePath, sequenceRouteKey]);
 
   return (
     <div className="h-full w-full relative z-0">
@@ -193,17 +261,17 @@ export default function SalesmanJobsRouteMap({
           </Marker>
         )}
 
-        {routePath.length >= 2 && (
+        {sequenceRoadPath.length >= 2 && (
           <Polyline
-            positions={routePath}
-            pathOptions={{ color: "#f59e0b", weight: 6, opacity: 0.92, dashArray: "12 10", lineCap: "round" }}
+            positions={sequenceRoadPath}
+            pathOptions={{ color: "#0f172a", weight: 3, opacity: 0.22, dashArray: "4 10", lineCap: "round" }}
           />
         )}
 
-        {jobs.length > 1 && (
+        {selectedRoadPath.length >= 2 && (
           <Polyline
-            positions={jobs.map((job) => job.coordinates)}
-            pathOptions={{ color: "#0f172a", weight: 3, opacity: 0.22, dashArray: "4 10", lineCap: "round" }}
+            positions={selectedRoadPath}
+            pathOptions={{ color: "#f59e0b", weight: 6, opacity: 0.92, lineCap: "round", lineJoin: "round" }}
           />
         )}
       </MapContainer>
