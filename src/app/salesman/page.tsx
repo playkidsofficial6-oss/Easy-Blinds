@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, getJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, type Job } from "@/lib/jobs";
+import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import { updateUser } from "@/lib/users";
 import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
@@ -26,6 +26,11 @@ import { useRef } from "react";
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
   ssr: false,
   loading: () => <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400 font-light italic">Initializing Map...</div>
+});
+
+const SalesmanJobsRouteMap = dynamic(() => import("@/components/salesman/SalesmanJobsRouteMap"), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400 font-light italic">Loading route map...</div>
 });
 
 type Tab = "today" | "tomorrow" | "upcoming" | "completed";
@@ -125,6 +130,18 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     measurementCompletedAt: job.measurementCompletedAt,
     coordinates,
   };
+}
+
+function compareScheduleJobs(a: SalesmanScheduleJob, b: SalesmanScheduleJob) {
+  const aDate = `${a.date || "9999-12-31"} ${a.time || "11:59 PM"}`;
+  const bDate = `${b.date || "9999-12-31"} ${b.time || "11:59 PM"}`;
+  try {
+    const aParsed = parse(aDate, "yyyy-MM-dd hh:mm aa", new Date()).getTime();
+    const bParsed = parse(bDate, "yyyy-MM-dd hh:mm aa", new Date()).getTime();
+    return aParsed - bParsed;
+  } catch {
+    return aDate.localeCompare(bDate);
+  }
 }
 
 function groupJobsBySchedule(jobs: Job[]): SalesmanSchedule {
@@ -331,6 +348,50 @@ function SalesmanPageContent() {
       socket.off("job:assigned", handleJobAssigned);
     };
   }, [user?._id]);
+
+
+  const replaceScheduleJob = (job: SalesmanScheduleJob) => {
+    setSchedule((prev) => {
+      const updated: SalesmanSchedule = {
+        today: prev.today.filter((item) => item.id !== job.id),
+        tomorrow: prev.tomorrow.filter((item) => item.id !== job.id),
+        upcoming: prev.upcoming.filter((item) => item.id !== job.id),
+        completed: prev.completed.filter((item) => item.id !== job.id),
+      };
+
+      if (job.status === "Done" || job.status === "Completed") {
+        updated.completed = [job, ...updated.completed];
+      } else if (job.date) {
+        try {
+          const parsedDate = new Date(`${job.date}T00:00:00`);
+          if (isToday(parsedDate)) {
+            updated.today = [...updated.today, job].sort(compareScheduleJobs);
+          } else if (isTomorrow(parsedDate)) {
+            updated.tomorrow = [...updated.tomorrow, job].sort(compareScheduleJobs);
+          } else {
+            updated.upcoming = [...updated.upcoming, job].sort(compareScheduleJobs);
+          }
+        } catch {
+          updated.upcoming = [...updated.upcoming, job].sort(compareScheduleJobs);
+        }
+      } else {
+        updated.upcoming = [...updated.upcoming, job].sort(compareScheduleJobs);
+      }
+      return updated;
+    });
+    setSelectedJob((prev) => prev?.id === job.id ? job : prev);
+  };
+
+  const handleRescheduleJob = async (id: string, scheduledAt: string) => {
+    if (!scheduledAt) return;
+    try {
+      const savedJob = await updateJob(id, { scheduledAt });
+      const nextJob = toScheduleJob(savedJob);
+      replaceScheduleJob(nextJob);
+    } catch (error) {
+      console.error("Unable to reschedule salesman job", error);
+    }
+  };
 
   const handleUpdateStatus = async (id: string, newStatus: string) => {
     const displayStatus = newStatus === "Completed" ? "Done" : newStatus === "In progress" ? "In Progress" : newStatus;
@@ -580,8 +641,14 @@ function SalesmanPageContent() {
             <div className="h-full overflow-hidden flex flex-col animate-fadeIn bg-stone-50/30">
               <JobDetailView
                 job={selectedJob}
+                routeJobs={jobs.length > 0 ? jobs : [selectedJob]}
                 hasActiveJob={hasActiveJob}
                 onStatusChange={(newStatus) => handleUpdateStatus(selectedJob.id, newStatus)}
+                onRescheduleJob={(scheduledAt) => handleRescheduleJob(selectedJob.id, scheduledAt)}
+                onSelectRouteJob={(jobId) => {
+                  const nextJob = jobs.find((item) => item.id === jobId) || selectedJob;
+                  setSelectedJob(nextJob);
+                }}
                 onBack={() => setSelectedJob(null)}
                 currentPosition={currentPosition}
               />
@@ -732,7 +799,25 @@ interface CompletedQuotationItem {
   unitPrice?: number;
 }
 
-function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosition }: { job: SalesmanScheduleJob; hasActiveJob: boolean; onStatusChange: (status: string) => Promise<void> | void; onBack: () => void; currentPosition: [number, number] | null }) {
+function JobDetailView({
+  job,
+  routeJobs,
+  hasActiveJob,
+  onStatusChange,
+  onRescheduleJob,
+  onSelectRouteJob,
+  onBack,
+  currentPosition
+}: {
+  job: SalesmanScheduleJob;
+  routeJobs: SalesmanScheduleJob[];
+  hasActiveJob: boolean;
+  onStatusChange: (status: string) => Promise<void> | void;
+  onRescheduleJob: (scheduledAt: string) => Promise<void> | void;
+  onSelectRouteJob: (jobId: string) => void;
+  onBack: () => void;
+  currentPosition: [number, number] | null;
+}) {
   const router = useRouter();
   const [seconds, setSeconds] = useState(0);
   const [measurementData, setMeasurementData] = useState<{ rooms?: CompletedRoom[] } | null>(null);
@@ -740,6 +825,9 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [showTravelRoute, setShowTravelRoute] = useState(job.status === "On the way");
+  const [showReschedule, setShowReschedule] = useState(false);
+  const [rescheduleAt, setRescheduleAt] = useState("");
+  const [isSavingReschedule, setIsSavingReschedule] = useState(false);
 
   useEffect(() => {
     setShowTravelRoute(job.status === "On the way");
@@ -769,6 +857,8 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
     }
     void loadCompletedDetails();
   }, [job.id, job.status]);
+
+  const routeSwitchingEnabled = hasActiveJob;
 
   const managerNote = (() => {
     try {
@@ -828,6 +918,26 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
     return `${h > 0 ? h + ':' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const alternativeRouteJobs = useMemo(() => {
+    return routeJobs.filter((item) => item.id !== job.id && item.status !== "Done" && item.status !== "Completed");
+  }, [routeJobs, job.id]);
+
+  const nextSuggestedJob = useMemo(() => {
+    return alternativeRouteJobs.find((item) => item.status === "Pending") || alternativeRouteJobs[0] || null;
+  }, [alternativeRouteJobs]);
+
+  const submitReschedule = async () => {
+    if (!rescheduleAt) return;
+    setIsSavingReschedule(true);
+    try {
+      await onRescheduleJob(new Date(rescheduleAt).toISOString());
+      setShowReschedule(false);
+      setRescheduleAt("");
+    } finally {
+      setIsSavingReschedule(false);
+    }
+  };
+
   const parsedTimeLog = useMemo(() => {
     const match = job.notes?.match(/\[TIME_LOG\] Travel: (.*?) \| Measuring: (.*)/);
     if (match) {
@@ -875,11 +985,13 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
           className="absolute inset-0 z-0 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
           aria-label="Open full map"
         >
-          <JobDetailMap
-            coordinates={job.coordinates || [25.20, 55.27]}
+          <SalesmanJobsRouteMap
+            jobs={routeJobs}
+            selectedJobId={job.id}
             currentPosition={currentPosition}
             routeEnabled={showTravelRoute || job.status === "On the way"}
             interactive={false}
+            onSelectJob={onSelectRouteJob}
           />
         </div>
         <button
@@ -951,12 +1063,14 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
       {isMapExpanded && (
         <div className="fixed inset-0 z-[999] bg-neutral-950/90 backdrop-blur-sm p-4 md:p-6">
           <div className="relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-stone-100 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-            <JobDetailMap
-              coordinates={job.coordinates || [25.20, 55.27]}
+            <SalesmanJobsRouteMap
+              jobs={routeJobs}
+              selectedJobId={job.id}
               currentPosition={currentPosition}
               routeEnabled={showTravelRoute || job.status === "On the way"}
               interactive
               scrollWheelZoom
+              onSelectJob={onSelectRouteJob}
             />
             <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-xl border border-stone-200 backdrop-blur-md">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">Selected Job</p>
@@ -1005,6 +1119,92 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
               );
             })}
           </div>
+
+          {job.status !== "Done" && job.status !== "Completed" && (
+            <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
+              <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600">Flexible Route Control</p>
+                    <h3 className="text-xl font-light text-neutral-900 mt-1">Route any job, any time</h3>
+                    <p className="text-xs text-stone-500 mt-1 max-w-2xl">
+                      If point 1 is locked or the customer is unavailable, keep it in the route and tap point 2 or point 3. After finishing the available job, select the skipped customer again and continue{routeSwitchingEnabled ? " — active route switching is enabled." : "."}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowReschedule((value) => !value)}
+                    className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-bold uppercase tracking-wider"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" /> Reschedule Current
+                  </Button>
+                </div>
+
+                {showReschedule && (
+                  <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 flex flex-col md:flex-row gap-3 md:items-end">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">Move this job to another time</label>
+                      <input
+                        type="datetime-local"
+                        value={rescheduleAt}
+                        onChange={(event) => setRescheduleAt(event.target.value)}
+                        className="mt-2 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-neutral-800 outline-none focus:ring-2 focus:ring-amber-400/30"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={submitReschedule}
+                      disabled={!rescheduleAt || isSavingReschedule}
+                      className="bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider"
+                    >
+                      {isSavingReschedule ? "Saving..." : "Save Time"}
+                    </Button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
+                  {alternativeRouteJobs.length === 0 ? (
+                    <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-xs text-stone-500">No other open route points are available in this list.</div>
+                  ) : alternativeRouteJobs.map((routeJob, index) => (
+                    <button
+                      key={routeJob.id}
+                      type="button"
+                      onClick={() => onSelectRouteJob(routeJob.id)}
+                      className="text-left rounded-xl border border-stone-200 bg-white p-4 hover:border-neutral-900 hover:shadow-md transition-all group"
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <span className="h-7 w-7 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-black">{index + 2}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 group-hover:text-neutral-800">Route this point</span>
+                      </div>
+                      <p className="font-semibold text-neutral-900 truncate">{routeJob.client}</p>
+                      <p className="text-[10px] font-mono font-bold text-amber-700 mt-1">{routeJob.jobId || routeJob.shortRef}</p>
+                      <p className="text-xs text-stone-500 line-clamp-2 mt-2">{routeJob.address}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-neutral-950 text-white rounded-xl p-5 shadow-sm border border-neutral-800">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Customer not available?</p>
+                <h3 className="text-xl font-light mt-1">Redirect without losing this point</h3>
+                <p className="text-xs text-white/60 mt-2 leading-relaxed">
+                  Mark this stop as delayed in your notes if needed, then route the next available customer. The skipped job stays selectable so you can complete it later today.
+                </p>
+                {nextSuggestedJob && (
+                  <button
+                    type="button"
+                    onClick={() => onSelectRouteJob(nextSuggestedJob.id)}
+                    className="mt-5 w-full rounded-xl bg-white text-neutral-950 p-4 text-left hover:bg-amber-50 transition-colors"
+                  >
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-1">Suggested next point</div>
+                    <div className="font-bold">{nextSuggestedJob.client}</div>
+                    <div className="text-xs text-neutral-500 line-clamp-1">{nextSuggestedJob.address}</div>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {job.status === "Done" && (
             <div className="space-y-6 text-left">
@@ -1190,7 +1390,7 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
             <ActionButton
               icon={Navigation} label="Travel" activeLabel="On Road"
               isActive={job.status === "On the way"}
-              disabled={job.status !== "Pending" || (hasActiveJob && job.status === "Pending")}
+              disabled={job.status !== "Pending"}
               variant="amber"
               onClick={() => {
                 setShowTravelRoute(true);
@@ -1200,7 +1400,7 @@ function JobDetailView({ job, hasActiveJob, onStatusChange, onBack, currentPosit
             <ActionButton
               icon={Timer} label="Measure" activeLabel="Measuring"
               isActive={job.status === "In Progress" || job.status === "In progress"}
-              disabled={(job.status !== "On the way" && job.status !== "In Progress" && job.status !== "Pending") || (hasActiveJob && job.status === "Pending")}
+              disabled={job.status !== "On the way" && job.status !== "In Progress" && job.status !== "Pending"}
               variant="blue"
               onClick={() => {
                 onStatusChange("In progress");
