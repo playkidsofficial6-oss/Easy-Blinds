@@ -1501,8 +1501,8 @@ export default function SalesmanMap({
                   start={marker.position}
                   end={dest}
                   zoomLevel={zoomLevel}
-                  routeColor={marker.status === "On The Way" ? "#10b981" : MARKER_STATUS_CONFIG[marker.status].color}
-                  motionColor={marker.status === "On The Way" ? "#86efac" : "#93c5fd"}
+                  routeColor={getMarkerRouteColor(marker)}
+                  motionColor={getMarkerMotionColor(marker)}
                   onTelemetryUpdate={handleTelemetryUpdate}
                 />
 
