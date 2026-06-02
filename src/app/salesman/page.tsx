@@ -181,6 +181,7 @@ function SalesmanPageContent() {
   const [schedule, setSchedule] = useState<SalesmanSchedule>(EMPTY_SALESMAN_SCHEDULE);
 
   const didAutoSelectJobRef = useRef(false);
+  const didAutoSelectOnTheWayRef = useRef(false);
   const lastKnownPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const [currentPosition, setCurrentPosition] = useState<[number, number] | null>(null);
 
@@ -217,6 +218,33 @@ function SalesmanPageContent() {
     }
     setSelectedJob(foundJob);
   }, [activeJobId, schedule]);
+
+  useEffect(() => {
+    if (activeJobId) return;
+    if (selectedJob) return;
+    if (didAutoSelectOnTheWayRef.current) return;
+
+    const tabEntries: Array<[Tab, SalesmanScheduleJob[]]> = [
+      ["today", schedule.today],
+      ["tomorrow", schedule.tomorrow],
+      ["upcoming", schedule.upcoming],
+      ["completed", schedule.completed],
+    ];
+
+    const activeRouteEntry = tabEntries.find(([, tabJobs]) =>
+      tabJobs.some((item) => item.status === "On the way")
+    );
+    if (!activeRouteEntry) return;
+
+    const [tab, tabJobs] = activeRouteEntry;
+    const activeRouteJob = tabJobs.find((item) => item.status === "On the way");
+    if (!activeRouteJob) return;
+
+    didAutoSelectOnTheWayRef.current = true;
+    setActiveTab(tab);
+    setFilterDate("");
+    setSelectedJob(activeRouteJob);
+  }, [activeJobId, selectedJob, schedule]);
 
   const getJobsForTab = (tab: Tab | "custom") => {
     if (tab === "custom" && filterDate) {
@@ -400,6 +428,10 @@ function SalesmanPageContent() {
           const travelSecs = Math.floor((Date.now() - Number(travelStart)) / 1000);
           localStorage.setItem(storageKeyTravelSecs, Math.max(0, travelSecs).toString());
         }
+      } else if (displayStatus === "Pending") {
+        localStorage.removeItem(storageKeyTravelStart);
+        localStorage.removeItem(storageKeyTravelSecs);
+        localStorage.removeItem(storageKeyMeasStart);
       } else if (displayStatus === "Done") {
         const measStart = localStorage.getItem(storageKeyMeasStart);
         let measSecs = 0;
@@ -474,6 +506,17 @@ function SalesmanPageContent() {
         }
         if (displayStatus === "Done" || displayStatus === "Completed") {
           return completeSalesmanWorkflow(id, workflowPayload);
+        }
+        if (displayStatus === "Pending") {
+          return updateJob(id, {
+            status: "scheduled",
+            salesmanWorkflowStatus: "not_started",
+            activeSalesmanId: undefined,
+            activeSalesmanName: undefined,
+            travelStartedAt: undefined,
+            measurementStartedAt: undefined,
+            measurementCompletedAt: undefined,
+          });
         }
         console.warn("handleUpdateStatus: unknown status", displayStatus);
         return Promise.reject(new Error(`Unknown status: ${displayStatus}`));
@@ -1298,6 +1341,18 @@ function JobDetailView({
                 onStatusChange("On the way");
               }}
             />
+            {job.status === "On the way" && (
+              <ActionButton
+                icon={X} label="Cancel" activeLabel="Cancel"
+                isActive={false}
+                disabled={false}
+                variant="rose"
+                onClick={() => {
+                  setShowTravelRoute(false);
+                  onStatusChange("Pending");
+                }}
+              />
+            )}
             <ActionButton
               icon={Timer} label="Measure" activeLabel="Measuring"
               isActive={job.status === "In Progress" || job.status === "In progress"}
@@ -1347,7 +1402,7 @@ interface ActionButtonProps {
   activeLabel: string;
   isActive: boolean;
   disabled: boolean;
-  variant: "amber" | "blue" | "emerald";
+  variant: "amber" | "blue" | "emerald" | "rose";
   onClick: () => void;
 }
 
@@ -1361,7 +1416,10 @@ function ActionButton({ icon: Icon, label, activeLabel, isActive, disabled, vari
       : "bg-white/5 text-blue-500/70 border-white/5 hover:bg-white/10 hover:text-blue-400",
     emerald: isActive
       ? "bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-      : "bg-white/5 text-emerald-500/70 border-white/5 hover:bg-white/10 hover:text-emerald-400"
+      : "bg-white/5 text-emerald-500/70 border-white/5 hover:bg-white/10 hover:text-emerald-400",
+    rose: isActive
+      ? "bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.3)]"
+      : "bg-white/5 text-rose-400/80 border-white/5 hover:bg-white/10 hover:text-rose-300"
   };
 
   return (
