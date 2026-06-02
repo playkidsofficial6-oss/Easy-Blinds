@@ -131,16 +131,20 @@ function isOnTheWayStatus(status?: string): boolean {
   return /on\s*the\s*way|on\s*way|way|travel|ongoing|moving/i.test(status ?? "");
 }
 
+function getJobRouteColor(jobStatus?: string): string {
+  return isOnTheWayStatus(jobStatus) ? "#10b981" : "#2563eb";
+}
+
+function getJobMotionColor(jobStatus?: string): string {
+  return isOnTheWayStatus(jobStatus) ? "#86efac" : "#93c5fd";
+}
+
 function getMarkerRouteColor(marker: LiveMapMarker): string {
-  return isOnTheWayStatus(marker.activeJobStatus) || isOnTheWayStatus(marker.status)
-    ? "#10b981"
-    : MARKER_STATUS_CONFIG[marker.status].color;
+  return getJobRouteColor(marker.activeJobStatus);
 }
 
 function getMarkerMotionColor(marker: LiveMapMarker): string {
-  return isOnTheWayStatus(marker.activeJobStatus) || isOnTheWayStatus(marker.status)
-    ? "#86efac"
-    : "#93c5fd";
+  return getJobMotionColor(marker.activeJobStatus);
 }
 
 function rectanglesOverlap(left: ScreenRect, right: ScreenRect, padding = 6): boolean {
@@ -1421,6 +1425,8 @@ export default function SalesmanMap({
                   start={salesmanMarker.position}
                   end={[job.location.lat, job.location.lng]}
                   zoomLevel={zoomLevel}
+                  routeColor={getJobRouteColor(job.status)}
+                  motionColor={getJobMotionColor(job.status)}
                   onTelemetryUpdate={handleTelemetryUpdate}
                 />
               )}
@@ -1473,8 +1479,8 @@ export default function SalesmanMap({
                 start={marker.position}
                 end={[selectedJob.location.lat, selectedJob.location.lng]}
                 zoomLevel={zoomLevel}
-                routeColor={getMarkerRouteColor(marker)}
-                motionColor={getMarkerMotionColor(marker)}
+                routeColor={getJobRouteColor(selectedJob.status)}
+                motionColor={getJobMotionColor(selectedJob.status)}
               />
             ))}
           </>
