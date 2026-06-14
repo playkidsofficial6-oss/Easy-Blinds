@@ -665,7 +665,7 @@ function SalesmanPageContent() {
             {filterDate && (
               <button 
                 onClick={() => handleDateChange("")}
-                className="flex-shrink-0 p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
+                className="shrink-0 p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-100"
                 title="Clear date filter"
               >
                 <X className="w-4 h-4" />
@@ -695,7 +695,7 @@ function SalesmanPageContent() {
 
         {/* Main Content Area */}
         <main className={cn(
-          "flex-1 bg-white relative overflow-hidden flex flex-col transition-all duration-500 w-full md:w-auto absolute md:relative h-full",
+          "flex-1 bg-white overflow-hidden flex flex-col transition-all duration-500 w-full md:w-auto absolute md:relative h-full",
           selectedJob ? "opacity-100 z-50 pointer-events-auto" : "opacity-100 z-10 md:z-0"
         )}>
           {selectedJob ? (
@@ -823,7 +823,7 @@ function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSe
       </div>
 
       <div className={cn("flex items-start gap-1.5 text-[11px] font-medium transition-colors", isSelected ? "text-white/60" : "text-neutral-500 opacity-70")}>
-        <MapPin className={cn("w-3.5 h-3.5 flex-shrink-0", isSelected ? "text-white/40" : "text-neutral-400")} />
+        <MapPin className={cn("w-3.5 h-3.5 shrink-0", isSelected ? "text-white/40" : "text-neutral-400")} />
         <span className="line-clamp-1">{job.address}</span>
       </div>
     </div>
@@ -1001,7 +1001,7 @@ function JobDetailView({
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
       {/* Visual Context Header - Full Screen Map with Glassmorphism Overlay */}
-      <div className="h-[58vh] min-h-[380px] max-h-[640px] bg-stone-100 relative flex-shrink-0 border-b border-stone-200 group overflow-hidden">
+      <div className="h-[58vh] min-h-[380px] max-h-[640px] bg-stone-100 relative shrink-0 border-b border-stone-200 group overflow-hidden">
         <div
           role="button"
           tabIndex={0}
@@ -1027,7 +1027,7 @@ function JobDetailView({
         <button
           type="button"
           onClick={() => setIsMapExpanded(true)}
-          className="absolute top-4 right-4 z-[60] bg-white/90 backdrop-blur-md text-stone-800 px-3 py-2 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+          className="absolute top-4 right-4 z-60 bg-white/90 backdrop-blur-md text-stone-800 px-3 py-2 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
         >
           <Maximize2 className="w-4 h-4" />
           Full Map
@@ -1038,7 +1038,7 @@ function JobDetailView({
             event.stopPropagation();
             onBack();
           }}
-          className="absolute top-4 left-4 z-[60] bg-white/90 backdrop-blur-md text-stone-800 p-2.5 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors"
+          className="absolute top-4 left-4 z-60 bg-white/90 backdrop-blur-md text-stone-800 p-2.5 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
@@ -1067,12 +1067,12 @@ function JobDetailView({
             </h2>
             <div className="space-y-2 text-xs text-stone-600 font-medium">
               <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-stone-400 flex-shrink-0 mt-0.5" />
+                <MapPin className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
                 <span className="leading-snug">{job.address}</span>
               </div>
               {job.customerPhone && (
                 <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-stone-400 flex-shrink-0" />
+                  <Phone className="w-4 h-4 text-stone-400 shrink-0" />
                   <span>{job.customerPhone}</span>
                 </div>
               )}
@@ -1091,7 +1091,7 @@ function JobDetailView({
       </div>
 
       {isMapExpanded && (
-        <div className="fixed inset-0 z-[999] bg-neutral-950/90 backdrop-blur-sm p-4 md:p-6">
+        <div className="fixed inset-0 z-999 bg-neutral-950/90 backdrop-blur-sm p-4 md:p-6">
           <div className="relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-stone-100 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
             <SalesmanJobsRouteMap
               jobs={routeJobs}
@@ -1102,7 +1102,7 @@ function JobDetailView({
               scrollWheelZoom
               onSelectJob={onSelectRouteJob}
             />
-            <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/95 px-4 py-3 shadow-xl border border-stone-200 backdrop-blur-md">
+            <div className="absolute left-4 top-4 z-1000 rounded-xl bg-white/95 px-4 py-3 shadow-xl border border-stone-200 backdrop-blur-md">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">Selected Job</p>
               <p className="text-sm font-bold text-neutral-900 mt-1">{job.client}</p>
               <p className="text-xs text-stone-500 max-w-[280px] truncate">{job.address}</p>
@@ -1113,7 +1113,7 @@ function JobDetailView({
             <button
               type="button"
               onClick={() => setIsMapExpanded(false)}
-              className="absolute right-4 top-4 z-[1000] rounded-xl bg-neutral-900 px-4 py-3 text-white shadow-xl hover:bg-neutral-800 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+              className="absolute right-4 top-4 z-1000 rounded-xl bg-neutral-900 px-4 py-3 text-white shadow-xl hover:bg-neutral-800 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
             >
               <X className="w-4 h-4" />
               Close
@@ -1156,7 +1156,7 @@ function JobDetailView({
               <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center flex-shrink-0">
+                    <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center shrink-0">
                       <Ruler className="w-5 h-5" />
                     </div>
                     <div>
@@ -1200,7 +1200,7 @@ function JobDetailView({
                                   )}
                                 </div>
                               </div>
-                              <div className="text-left md:text-right flex-shrink-0">
+                              <div className="text-left md:text-right shrink-0">
                                 <span className="text-[10px] text-stone-400 font-bold block uppercase tracking-wider">Width × Height</span>
                                 <span className="font-mono text-sm font-semibold text-neutral-800">{open.width || 0} cm × {open.height || 0} cm</span>
                               </div>
@@ -1219,7 +1219,7 @@ function JobDetailView({
               <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center flex-shrink-0">
+                    <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center shrink-0">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
@@ -1329,7 +1329,7 @@ function JobDetailView({
 
       {/* Action Bar */}
       {job.status !== "Done" && job.status !== "Completed" && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-5xl">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-100 w-[95%] max-w-5xl">
           <div className="bg-neutral-900 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 backdrop-blur-xl flex items-stretch gap-2 h-20 md:h-24">
             <ActionButton
               icon={Navigation} label="Travel" activeLabel="On Road"
