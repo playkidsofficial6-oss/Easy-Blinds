@@ -77,6 +77,7 @@ export function useDispatchOperations() {
   );
 
   useEffect(() => {
+     
     refresh();
     const timer = window.setInterval(refresh, POLL_MS);
     if ("BroadcastChannel" in window) {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { api } from "./api";
 
 export type QuoteStatus = "Approved" | "Sent" | "Negotiation" | "Rejected" | "Draft";
 
@@ -35,6 +34,7 @@ export function useQuotes() {
     const [isLoaded, setIsLoaded] = useState(false);
 
     const loadQuotes = useCallback(async () => {
+        await Promise.resolve(); // prevent synchronous state update within effect
         try {
             const local = localStorage.getItem('mock_quotes');
             if (local) {
@@ -50,6 +50,7 @@ export function useQuotes() {
     }, []);
 
     useEffect(() => {
+         
         loadQuotes();
     }, [loadQuotes]);
 

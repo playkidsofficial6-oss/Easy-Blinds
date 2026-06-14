@@ -90,6 +90,7 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
 
   // Initial load
   useEffect(() => {
+     
     void reload().catch(() => undefined);
   }, [reload]);
 
@@ -102,6 +103,7 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
   // Socket connection and event listeners
   useEffect(() => {
     if (!token) {
+       
       setIsConnected(false);
       return undefined;
     }

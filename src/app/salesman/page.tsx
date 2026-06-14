@@ -1537,7 +1537,7 @@ function SalesmanGpsControl({ onPosition }: SalesmanGpsControlProps) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.role]);
 
-    const stopTracking = async () => {
+    async function stopTracking() {
         if (watchIdRef.current !== null && "geolocation" in navigator) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
@@ -1570,9 +1570,9 @@ function SalesmanGpsControl({ onPosition }: SalesmanGpsControlProps) {
             const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
             setErrorMessage(message);
         }
-    };
+    }
 
-    const startTracking = () => {
+    function startTracking() {
         const currentUser = userRef.current;
         if (!currentUser || !isSalesmanRole(currentUser.role)) {
             setStatus("error");
@@ -1699,7 +1699,7 @@ function SalesmanGpsControl({ onPosition }: SalesmanGpsControlProps) {
                 timeout: 10000,
             },
         );
-    };
+    }
 
     const isTracking = status === "tracking" || status === "requesting";
     const statusLabel = status === "requesting"
