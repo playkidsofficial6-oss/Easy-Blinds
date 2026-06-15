@@ -42,7 +42,8 @@ const navItems = [
     { name: "Review Tracking", href: "/sales-manager/reviews", icon: Star },
     { name: "Pending Reviews", href: "/sales-manager/reviews/pending", icon: PlayCircle },
     { name: "Catalogue", href: "/sales-manager/catalogue", icon: BookOpen },
-    { name: "Team", href: "/sales-manager/fitters", icon: Users },
+    { name: "Staff Directory", href: "/sales-manager/staff", icon: Users },
+    { name: "Staff Requests", href: "/sales-manager/staff-request", icon: Users },
 ];
 
 export default function SalesManagerLayout({ children }: SalesManagerLayoutProps) {

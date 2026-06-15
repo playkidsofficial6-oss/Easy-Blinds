@@ -319,7 +319,7 @@ const highlightSuggestionMatch = (text: string, query: string) => {
 const isValidLocalPhoneNumber = (phone: string, countryCode: string): boolean => {
   let digits = phone.replace(/\D/g, "");
   
-  if (!digits || digits.length < 7 || digits.length > 15) {
+  if (!digits) {
     return false;
   }
 
@@ -332,32 +332,7 @@ const isValidLocalPhoneNumber = (phone: string, countryCode: string): boolean =>
     digits = digits.slice(1);
   }
   
-  switch (cleanCountryCode) {
-    case "+971": // UAE: 9 digits
-      return digits.length === 9;
-    case "+966": // Saudi Arabia: 9 digits
-      return digits.length === 9;
-    case "+974": // Qatar: 8 digits
-      return digits.length === 8;
-    case "+973": // Bahrain: 8 digits
-      return digits.length === 8;
-    case "+965": // Kuwait: 8 digits
-      return digits.length === 8;
-    case "+968": // Oman: 8 digits
-      return digits.length === 8;
-    case "+91": // India: 10 digits
-      return digits.length === 10;
-    case "+92": // Pakistan: 10 digits
-      return digits.length === 10;
-    case "+63": // Philippines: 10 digits
-      return digits.length === 10;
-    case "+1": // US: 10 digits
-      return digits.length === 10;
-    case "+44": // UK: 10 digits
-      return digits.length === 10;
-    default:
-      return digits.length >= 7 && digits.length <= 15;
-  }
+  return digits.length >= 9 && digits.length <= 11;
 };
 
 export default function NewJobPage() {
@@ -533,7 +508,9 @@ export default function NewJobPage() {
     const dateValue = String(formData.get("scheduledDate") || "").trim();
     const timeValue = String(formData.get("scheduledTime") || "").trim();
 
-    if (dateValue) {
+    if (!dateValue) {
+      newErrors.scheduledDate = "Requested Date is required.";
+    } else {
       const selectedDate = new Date(dateValue);
       const today = new Date();
       // Reset time for both dates to midnight for a fair date comparison
@@ -542,6 +519,17 @@ export default function NewJobPage() {
 
       if (selectedDate < today) {
         newErrors.scheduledDate = "Scheduled date cannot be in the past.";
+      }
+    }
+
+    if (!timeValue) {
+      newErrors.scheduledTime = "Requested Time is required.";
+    }
+
+    if (dateValue && timeValue && !newErrors.scheduledDate && !newErrors.scheduledTime) {
+      const scheduledAtDate = new Date(`${dateValue}T${timeValue}:00`);
+      if (scheduledAtDate < new Date()) {
+        newErrors.scheduledTime = "Scheduled time cannot be in the past.";
       }
     }
 
@@ -962,7 +950,7 @@ export default function NewJobPage() {
           </div>
           <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="scheduledDate" className="text-slate-600 dark:text-slate-300">Requested Date</Label>
+              <Label htmlFor="scheduledDate" className="text-slate-600 dark:text-slate-300">Requested Date <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <CalendarIcon className={cn("w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none z-10", errors.scheduledDate && "text-red-500")} />
                 <Popover>
@@ -1008,16 +996,24 @@ export default function NewJobPage() {
               {errors.scheduledDate && <p className="text-sm text-red-500 mt-1">{errors.scheduledDate}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="scheduledTime" className="text-slate-600 dark:text-slate-300">Requested Time</Label>
+              <Label htmlFor="scheduledTime" className="text-slate-600 dark:text-slate-300">Requested Time <span className="text-red-500">*</span></Label>
               <div className="relative">
-                <Clock className="w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none" />
+                <Clock className={cn("w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none", errors.scheduledTime && "text-red-500")} />
                 <Input 
                   id="scheduledTime" 
                   name="scheduledTime" 
                   type="time" 
-                  className="pl-9 bg-white dark:bg-slate-900"
+                  required
+                  min={
+                    selectedDate && selectedDate.toDateString() === new Date().toDateString()
+                      ? `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`
+                      : undefined
+                  }
+                  onChange={handleInputChange}
+                  className={cn("pl-9 bg-white dark:bg-slate-900", errors.scheduledTime && "border-red-500 focus-visible:ring-red-500")}
                 />
               </div>
+              {errors.scheduledTime && <p className="text-sm text-red-500 mt-1">{errors.scheduledTime}</p>}
             </div>
           </CardContent>
         </Card>

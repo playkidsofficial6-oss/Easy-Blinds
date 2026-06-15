@@ -617,6 +617,7 @@ function SmoothLiveMarker({
   const [displayPosition, setDisplayPosition] = useState<[number, number]>(marker.position);
   const [movementBearing, setMovementBearing] = useState(marker.heading ?? 0);
   const [routeMetrics, setRouteMetrics] = useState<RouteMetrics | null>(null);
+  const [isHovered, setIsHovered] = useState(false);
   const routePreview = getRoutePreview(marker, selectedJob);
 
   const destinationCoordinates = marker.destinationCoordinates;
@@ -717,18 +718,12 @@ function SmoothLiveMarker({
     () => createLiveMarkerIcon({
       status: marker.status,
       late: marker.isLate,
-      avatarUrl: marker.avatar,
       name: marker.name,
       role: marker.role,
       clusterIndex: marker.clusterIndex,
       clusterTotal: marker.clusterTotal,
-      bearing: movementBearing,
-      zoomLevel,
-      customerName: marker.customerName,
-      routeDistanceText: routeMetrics?.distanceText,
-      routeEtaText: routeMetrics?.etaText,
     }),
-    [marker.avatar, marker.clusterIndex, marker.clusterTotal, marker.isLate, marker.name, marker.role, marker.status, movementBearing, zoomLevel, marker.customerName, routeMetrics?.distanceText, routeMetrics?.etaText],
+    [marker.clusterIndex, marker.clusterTotal, marker.isLate, marker.name, marker.role, marker.status],
   );
 
   const statusLabel = marker.isLate ? "Late" : MARKER_STATUS_CONFIG[marker.status].label;
@@ -739,43 +734,55 @@ function SmoothLiveMarker({
     marker.status === "Available" ? 100 : 0;
 
   return (
-    <Marker
-      ref={markerRef}
-      key={marker.id}
-      position={displayPosition}
-      icon={icon}
-      zIndexOffset={zIndexOffset}
-      eventHandlers={{
-        click: () => onSelectFitter(marker.id),
-      }}
-    >
-      <Popup closeButton={false} className="live-location-popup">
-        <div className="min-w-56 space-y-2 text-xs text-slate-600">
-          <div>
-            <div className="text-sm font-semibold text-slate-900">{marker.name}</div>
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{marker.role}</div>
+    <>
+      <Marker
+        ref={markerRef}
+        key={marker.id}
+        position={displayPosition}
+        icon={icon}
+        zIndexOffset={zIndexOffset}
+        eventHandlers={{
+          click: () => onSelectFitter(marker.id),
+          mouseover: () => setIsHovered(true),
+          mouseout: () => setIsHovered(false),
+        }}
+      >
+        <Tooltip direction="top" offset={[0, -20]} opacity={1}>
+          <div className="min-w-56 space-y-2 text-xs text-slate-600">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">{marker.name}</div>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{marker.role}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <span className="font-medium text-slate-500">Phone</span>
+              <span className="text-right">{marker.phone || "Not available"}</span>
+              <span className="font-medium text-slate-500">Current status</span>
+              <span className="text-right">{statusLabel}</span>
+              <span className="font-medium text-slate-500">Distance</span>
+              <span className="text-right">{routeMetrics?.distanceText ?? formatDistance(routePreview.distance)}</span>
+              <span className="font-medium text-slate-500">ETA</span>
+              <span className="text-right">{routeMetrics?.etaText ?? formatEta(routePreview.eta)}</span>
+              <span className="font-medium text-slate-500">Travel status</span>
+              <span className="text-right">{routePreview.status}</span>
+              <span className="font-medium text-slate-500">Speed</span>
+              <span className="text-right">{formatSpeed(marker.speed)}</span>
+              <span className="font-medium text-slate-500">Last updated</span>
+              <span className="text-right">{marker.lastUpdated}</span>
+              <span className="font-medium text-slate-500">Assigned jobs</span>
+              <span className="text-right">{marker.assignedJobCount}</span>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-            <span className="font-medium text-slate-500">Phone</span>
-            <span className="text-right">{marker.phone || "Not available"}</span>
-            <span className="font-medium text-slate-500">Current status</span>
-            <span className="text-right">{statusLabel}</span>
-            <span className="font-medium text-slate-500">Distance</span>
-            <span className="text-right">{routeMetrics?.distanceText ?? formatDistance(routePreview.distance)}</span>
-            <span className="font-medium text-slate-500">ETA</span>
-            <span className="text-right">{routeMetrics?.etaText ?? formatEta(routePreview.eta)}</span>
-            <span className="font-medium text-slate-500">Travel status</span>
-            <span className="text-right">{routePreview.status}</span>
-            <span className="font-medium text-slate-500">Speed</span>
-            <span className="text-right">{formatSpeed(marker.speed)}</span>
-            <span className="font-medium text-slate-500">Last updated</span>
-            <span className="text-right">{marker.lastUpdated}</span>
-            <span className="font-medium text-slate-500">Assigned jobs</span>
-            <span className="text-right">{marker.assignedJobCount}</span>
-          </div>
-        </div>
-      </Popup>
-    </Marker>
+        </Tooltip>
+      </Marker>
+      {isHovered && destinationCoordinates && (
+        <Polyline
+          positions={[displayPosition, destinationCoordinates]}
+          color={marker.status === "On The Way" ? "#10b981" : "#3b82f6"}
+          weight={3}
+          dashArray="5, 10"
+        />
+      )}
+    </>
   );
 }
 

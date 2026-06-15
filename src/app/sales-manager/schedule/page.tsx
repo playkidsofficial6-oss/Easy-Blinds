@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 // Flatten all upcoming jobs from all fitters
 const getAllUpcomingJobs = () => {
-    let jobs: any[] = [];
+    const jobs: any[] = [];
     MOCK_TEAM.forEach(fitter => {
         if (fitter.schedule && fitter.schedule.upcoming) {
             fitter.schedule.upcoming.forEach(job => {

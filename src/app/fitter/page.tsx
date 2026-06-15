@@ -77,7 +77,7 @@ export default function FitterPage() {
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col h-screen overflow-hidden">
 
             {/* Global Header */}
-            <header className="bg-slate-900 border-b border-slate-800 px-8 py-5 flex items-center justify-between shadow-md flex-shrink-0 z-50 h-[80px]">
+            <header className="bg-slate-900 border-b border-slate-800 px-8 py-5 flex items-center justify-between shadow-md shrink-0 z-50 h-[80px]">
                 <div className="flex items-center gap-5">
                     <div className="h-10 w-10 bg-blue-600 flex items-center justify-center text-white font-light text-xl tracking-tight shadow-lg shadow-blue-900/20">EB</div>
                     <div>
@@ -92,7 +92,7 @@ export default function FitterPage() {
                         <div className="text-sm font-medium text-white">{currentFitter.name}</div>
                         <div className="text-xs text-slate-400 font-light">{format(new Date(), "EEEE, d MMM")}</div>
                     </div>
-                    <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-blue-400 font-medium text-base border border-slate-700 flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-blue-400 font-medium text-base border border-slate-700 shrink-0">
                         {currentFitter.name.charAt(0)}
                     </div>
                     {/* Sign Out */}
@@ -153,7 +153,7 @@ export default function FitterPage() {
 
                 {/* Main Content Area / Detail View */}
                 <main className={cn(
-                    "flex-1 bg-slate-100 relative overflow-hidden flex flex-col transition-opacity duration-300 w-full md:w-auto absolute md:relative h-full",
+                    "flex-1 bg-slate-100 overflow-hidden flex flex-col transition-opacity duration-300 w-full md:w-auto absolute md:relative h-full",
                     selectedJob ? "opacity-100 z-50" : "opacity-0 md:opacity-100 -z-10 md:z-0 pointer-events-none md:pointer-events-auto"
                 )}>
                     {selectedJob ? (
@@ -263,7 +263,7 @@ function FitterGpsControl() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.role]);
 
-    const stopTracking = async () => {
+    async function stopTracking() {
         if (watchIdRef.current !== null && "geolocation" in navigator) {
             navigator.geolocation.clearWatch(watchIdRef.current);
             watchIdRef.current = null;
@@ -294,9 +294,9 @@ function FitterGpsControl() {
             const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
             setErrorMessage(message);
         }
-    };
+    }
 
-    const startTracking = () => {
+    function startTracking() {
         const currentUser = userRef.current;
         const isFitter = currentUser && ["fitter", "field"].includes(currentUser.role?.toLowerCase() ?? "");
         if (!currentUser || !isFitter) {
@@ -418,7 +418,7 @@ function FitterGpsControl() {
                 timeout: 10000,
             },
         );
-    };
+    }
 
     const isTracking = status === "tracking" || status === "requesting";
     const statusLabel = status === "requesting"
@@ -510,7 +510,7 @@ function JobCard({ job, onSelect, isSelected }: { job: FitterJob; onSelect: () =
             </h3>
 
             <div className="flex items-start gap-2 text-slate-500 text-xs mb-4 font-light">
-                <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0 text-slate-400" />
+                <MapPin className="w-3 h-3 mt-0.5 shrink-0 text-slate-400" />
                 <span className="line-clamp-1">{job.address}</span>
             </div>
         </div>
@@ -557,7 +557,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
     return (
         <div className="flex-1 flex flex-col min-h-0 bg-slate-100">
             {/* Header / Map Area */}
-            <div className="h-72 bg-slate-200 relative flex-shrink-0 group shadow-lg z-10">
+            <div className="h-72 bg-slate-200 relative shrink-0 group shadow-lg z-10">
                 <button
                     onClick={onBack}
                     className="absolute top-4 left-4 z-50 md:hidden bg-white/90 p-3 rounded-none shadow-sm backdrop-blur-sm border border-slate-200"
@@ -569,7 +569,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                     <JobDetailMap coordinates={coordinates} />
                 </div>
 
-                <div className="absolute bottom-0 left-0 right-0 z-10 p-8 pt-24 bg-gradient-to-t from-slate-900/90 to-transparent pointer-events-none">
+                <div className="absolute bottom-0 left-0 right-0 z-10 p-8 pt-24 bg-linear-to-t from-slate-900/90 to-transparent pointer-events-none">
                     <div className="flex items-center gap-3 text-blue-200/80 text-[10px] uppercase tracking-[0.2em] font-semibold mb-2">
                         <div className="w-8 h-px bg-blue-500"></div>
                         <span>Job Assignment</span>
@@ -614,7 +614,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mb-2 flex items-center gap-2">
                             <Wallet className="w-3 h-3 text-slate-500" /> Reference
                         </div>
-                        <div className="text-xl font-light text-slate-900 font-mono text-sm mt-1">{job.id}</div>
+                        <div className="font-light text-slate-900 font-mono text-sm mt-1">{job.id}</div>
                     </div>
                     <div className={cn("bg-white p-6 border-t-4 shadow-sm", job.status === "Done" ? "border-emerald-500" : job.status === "In Progress" ? "border-blue-600" : "border-amber-500")}>
                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mb-2 flex items-center gap-2">
@@ -634,7 +634,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                 <div className="grid md:grid-cols-2 gap-6 mb-10">
                     <div className="bg-white p-8 space-y-8 shadow-sm">
                         <div className="flex gap-6">
-                            <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center flex-shrink-0 text-purple-600">
+                            <div className="w-12 h-12 bg-purple-50 rounded-full flex items-center justify-center shrink-0 text-purple-600">
                                 <Ruler className="w-5 h-5 stroke-2" />
                             </div>
                             <div>
@@ -658,7 +658,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
 
                     <div className="bg-white p-8 space-y-8 shadow-sm">
                         <div className="flex gap-6">
-                            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center flex-shrink-0 text-blue-600">
+                            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center shrink-0 text-blue-600">
                                 <MapPin className="w-5 h-5 stroke-2" />
                             </div>
                             <div>
@@ -674,7 +674,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                         </div>
 
                         <div className="flex gap-6 pt-6 border-t border-slate-100">
-                            <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center flex-shrink-0 text-amber-600">
+                            <div className="w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center shrink-0 text-amber-600">
                                 <Info className="w-5 h-5 stroke-2" />
                             </div>
                             <div>
@@ -784,7 +784,7 @@ function CompletionModal({ isOpen, onClose, onConfirm }: { isOpen: boolean; onCl
     const allChecked = Object.values(checks).every(Boolean);
 
     return (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-100 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-lg shadow-2xl rounded-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                     <h3 className="text-lg font-bold text-slate-800 uppercase tracking-widest">Complete Installation</h3>

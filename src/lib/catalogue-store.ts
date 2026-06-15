@@ -68,6 +68,7 @@ export function useCatalogue() {
         if (typeof window === "undefined") return;
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
+             
             setData(JSON.parse(stored));
         } else {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DATA));

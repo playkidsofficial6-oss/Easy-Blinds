@@ -402,6 +402,7 @@ export function useLiveFitters() {
   const [error, setError] = useState<string | null>(null);
 
   const loadFitters = useCallback(async () => {
+    await Promise.resolve(); // prevent synchronous state update within effect
     setIsLoaded(false);
     setError(null);
 
@@ -450,6 +451,7 @@ export function useLiveFitters() {
   }, []);
 
   useEffect(() => {
+     
     loadFitters();
   }, [loadFitters]);
 

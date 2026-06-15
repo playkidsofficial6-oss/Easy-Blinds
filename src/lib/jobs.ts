@@ -40,6 +40,10 @@ export interface Job {
     type: string;
     coordinates: number[];
   };
+  rescheduleRequest?: {
+    status: 'pending' | 'resolved';
+    requestedAt: string;
+  };
 }
 
 export interface CreateJobInput {
@@ -71,6 +75,10 @@ export interface CreateJobInput {
   location?: {
     type: string;
     coordinates: number[];
+  };
+  rescheduleRequest?: {
+    status: 'pending' | 'resolved';
+    requestedAt: string;
   };
 }
 

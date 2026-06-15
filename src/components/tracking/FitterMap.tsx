@@ -1352,20 +1352,20 @@ export default function FitterMap({
       </MapContainer>
 
       {!liveLocationsLoaded && (
-        <div className="absolute bottom-4 left-4 z-[1000] rounded-full border border-white/60 bg-white/80 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 shadow-lg backdrop-blur-md">
+        <div className="absolute bottom-4 left-4 z-1000 rounded-full border border-white/60 bg-white/80 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 shadow-lg backdrop-blur-md">
           Loading live locations...
         </div>
       )}
 
       {liveLocationError && (
-        <div className="absolute bottom-4 left-4 z-[1000] max-w-xs rounded-md border border-red-100 bg-white/90 px-4 py-3 text-xs text-red-600 shadow-lg backdrop-blur-md">
+        <div className="absolute bottom-4 left-4 z-1000 max-w-xs rounded-md border border-red-100 bg-white/90 px-4 py-3 text-xs text-red-600 shadow-lg backdrop-blur-md">
           {liveLocationError}
         </div>
       )}
 
       {/* Live Field Status Panel */}
       <div className={cn(
-        "absolute bottom-16 right-4 z-[1000] flex w-80 md:w-96 flex-col rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-2xl backdrop-blur-md text-slate-800 transition-all duration-200 ring-1 ring-black/5",
+        "absolute bottom-16 right-4 z-1000 flex w-80 md:w-96 flex-col rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-2xl backdrop-blur-md text-slate-800 transition-all duration-200 ring-1 ring-black/5",
         hideStatusPanel && "hidden"
       )}>
         {/* Header */}
@@ -1476,7 +1476,7 @@ export default function FitterMap({
                         {/* Speed indication for moving salesmen */}
                         {isTravelling && salesman.speed !== undefined && salesman.speed > 0 && (
                           <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 flex items-center gap-1">
-                            <Navigation className="h-2.5 w-2.5 text-blue-500 rotate-[45deg]" />
+                            <Navigation className="h-2.5 w-2.5 text-blue-500 rotate-45" />
                             {formatSpeed(salesman.speed)}
                           </span>
                         )}
