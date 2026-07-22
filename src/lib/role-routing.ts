@@ -1,13 +1,13 @@
 import { UserRole } from "@/lib/auth";
 
 export const ROLE_PORTAL_PATHS: Partial<Record<UserRole, string>> = {
-  owner: "/owner",
-  sales_manager: "/sales-manager",
-  salesman: "/salesman",
-  sales_man: "/salesman",
-  fitter: "/fitter",
-  stitching: "/stitching",
-  field: "/field",
+  owner: "/dashboard",
+  sales_manager: "/dashboard",
+  salesman: "/dashboard",
+  sales_man: "/dashboard",
+  fitter: "/dashboard",
+  stitching: "/dashboard",
+  field: "/dashboard",
 };
 
 function normalizeRole(role?: UserRole | null): UserRole | undefined {
