@@ -10,7 +10,11 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AUTH_TOKEN_STORAGE_KEY } from "@/lib/api";
+import {
+  AUTH_TOKEN_STORAGE_KEY,
+  REFRESH_TOKEN_STORAGE_KEY,
+  api,
+} from "@/lib/api";
 import {
   AuthResponse,
   AuthUser,
@@ -36,6 +40,12 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 function persistSession(response: AuthResponse): void {
   window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, response.accessToken);
+  window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, response.refreshToken);
+}
+
+function clearSession(): void {
+  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  window.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -46,7 +56,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(
     (redirectTo = "/login") => {
-      window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      // Fire-and-forget server-side logout to invalidate the refresh token
+      api.post("/auth/logout").catch(() => {
+        // Ignore errors — we're logging out anyway
+      });
+
+      clearSession();
       setToken(null);
       setUser(null);
       router.replace(redirectTo);
@@ -70,7 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(profile);
       return profile;
     } catch {
-      window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      clearSession();
       setToken(null);
       setUser(null);
       return null;
@@ -86,7 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleExpiredSession = () => {
       toast.error("Your session has expired. Please sign in again.");
-      logout("/login");
+      clearSession();
+      setToken(null);
+      setUser(null);
+      router.replace("/login");
     };
 
     window.addEventListener("easy-blinds-auth-expired", handleExpiredSession);
@@ -97,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         handleExpiredSession,
       );
     };
-  }, [logout]);
+  }, [router]);
 
   const login = useCallback(async (payload: LoginPayload) => {
     const response = await loginRequest(payload);

@@ -1,6 +1,6 @@
 import type { AuthUser, UserRole } from "@/lib/auth";
 
-export type LiveLocationRole = Extract<UserRole, "salesman" | "fitter"> | "SALESMAN" | "FITTER";
+export type LiveLocationRole = UserRole.Salesman | UserRole.Fitter | "Salesman" | "Fitter" | "salesman" | "fitter" | "SALESMAN" | "FITTER";
 
 export interface LiveLocationCoordinates {
   lat: number;

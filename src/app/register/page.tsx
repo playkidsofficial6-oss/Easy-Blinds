@@ -27,13 +27,13 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { UserRole } from "@/lib/auth";
 
 const roleOptions: Array<{ label: string; value: UserRole; redirect: string }> = [
-  { label: "Owner", value: "owner", redirect: "/owner" },
-  { label: "Sales Manager", value: "sales_manager", redirect: "/sales-manager" },
-  { label: "Salesman", value: "salesman", redirect: "/salesman" },
-  { label: "Field Team", value: "field", redirect: "/field" },
-  { label: "Fitter", value: "fitter", redirect: "/fitter" },
-  { label: "Stitching Workshop", value: "stitching", redirect: "/stitching" },
-  { label: "General User", value: "user", redirect: "/owner" },
+  { label: "Owner", value: UserRole.Owner, redirect: "/owner" },
+  { label: "Sales Manager", value: UserRole.SalesManager, redirect: "/sales-manager" },
+  { label: "Salesman", value: UserRole.Salesman, redirect: "/salesman" },
+  { label: "Field Team", value: UserRole.Field, redirect: "/field" },
+  { label: "Fitter", value: UserRole.Fitter, redirect: "/fitter" },
+  { label: "Stitching Workshop", value: UserRole.Stitching, redirect: "/stitching" },
+  { label: "General User", value: UserRole.User, redirect: "/owner" },
 ];
 
 function getErrorMessage(error: unknown) {
@@ -49,7 +49,7 @@ function getErrorMessage(error: unknown) {
     }
   }
 
-  return "Unable to register the account. Please check the form and try again.";
+  return "An unexpected error occurred. Please try again.";
 }
 
 function getPasswordError(password: string, confirmPassword: string) {
@@ -75,7 +75,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("sales_manager");
+  const [role, setRole] = useState<UserRole>(UserRole.SalesManager);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -5,10 +5,11 @@ import { addDays, format, isSameDay, parseISO } from "date-fns";
 
 import {
   getFitters,
+  FitterProfileStatus,
   type FitterProfileRecord,
-  type FitterProfileStatus,
 } from "./fitters-api";
-import { getJobs, type Job } from "./jobs";
+import { getJobs, JobPriority, JobStatus, type Job } from "./jobs";
+import { isFitterRole, UserRole } from "./auth";
 import { getUsers, updateUser, type UserRecord, extractLatLng } from "./users";
 import { getAllLiveLocations } from "@/services/api";
 import {
@@ -93,24 +94,48 @@ const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
 function extractAssignedFitter(job: Job) {
-  if (job.assignedTo) return job.assignedTo;
+  if (job.assignedTo) {
+    if (typeof job.assignedTo === "object" && job.assignedTo !== null) {
+      return (job.assignedTo as any).name || (job.assignedTo as any)._id;
+    }
+    return job.assignedTo;
+  }
+  if (job.assignedSalesman) {
+    if (typeof job.assignedSalesman === "object" && job.assignedSalesman !== null) {
+      return (job.assignedSalesman as any).name || (job.assignedSalesman as any)._id;
+    }
+    return job.assignedSalesman;
+  }
   const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
   return match?.[1]?.trim();
 }
 
-function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name" | "_id">) {
-  if (job.assignedTo) {
-    // New format: compare by MongoDB _id
-    if (job.assignedTo === fitter._id) return true;
-    // Legacy fallback: assignedTo might still be a name string
-    if (job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
+export function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name" | "_id">) {
+  const targetId = fitter._id;
+  const targetName = fitter.name.toLowerCase();
+
+  const checkRef = (ref?: any) => {
+    if (!ref) return false;
+    if (typeof ref === "object" && ref !== null) {
+      if (ref._id === targetId) return true;
+      if (ref.name && ref.name.toLowerCase() === targetName) return true;
+      return false;
+    }
+    if (typeof ref === "string") {
+      if (ref === targetId) return true;
+      if (ref.toLowerCase() === targetName) return true;
+    }
     return false;
+  };
+
+  if (checkRef(job.assignedTo) || checkRef(job.assignedSalesman) || checkRef(job.assignedFitter)) {
+    return true;
   }
-  // Oldest legacy: name embedded in notes
+
   const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
   const assignedName = match?.[1]?.trim();
   if (!assignedName) return false;
-  return assignedName.toLowerCase() === fitter.name.toLowerCase();
+  return assignedName.toLowerCase() === targetName;
 }
 
 function isJobForDate(job: Job, date: Date) {
@@ -156,7 +181,7 @@ function toFitterJob(job: Job): FitterJob {
     scheduledAt: job.scheduledAt,
     date: job.scheduledAt ? format(parseISO(job.scheduledAt), "yyyy-MM-dd") : undefined,
     timerStartedAt: job.timerStartedAt,
-    status: job.status === "completed" ? "Done" : job.status === "in_progress" ? "In Progress" : "Pending",
+    status: job.status === JobStatus.Completed ? "Done" : job.status === JobStatus.InProgress ? "In Progress" : "Pending",
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
     phone: job.customerPhone,
@@ -164,7 +189,7 @@ function toFitterJob(job: Job): FitterJob {
     brand: "Easy Blinds",
     property: `Qty ${job.quantity ?? 1}`,
     productType: normalizeProductType(job.productType),
-    priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
+    priority: job.priority ?? JobPriority.Low,
     coordinates: ll ? [ll.lat, ll.lng] as [number, number] : undefined,
     estimatedDuration: (job as any).estimatedDuration,
     width: (job as any).width,
@@ -205,18 +230,18 @@ function getLastUpdated(
 ) {
   return toReadableLastUpdated(
     toIsoString(liveLocation?.lastUpdatedAt) ??
-      toIsoString(liveLocation?.updatedAt) ??
-      toIsoString(profile.location?.updatedAt) ??
-      toIsoString(profile.updatedAt) ??
-      toIsoString(profile.user.location?.updatedAt) ??
-      toIsoString(profile.user.updatedAt),
+    toIsoString(liveLocation?.updatedAt) ??
+    toIsoString(profile.location?.updatedAt) ??
+    toIsoString(profile.updatedAt) ??
+    toIsoString(profile.user.location?.updatedAt) ??
+    toIsoString(profile.user.updatedAt),
   );
 }
 
 function toLiveStatus(status: FitterProfileStatus): FitterStatus {
-  if (status === "fully_booked") return "Fully Booked";
-  if (status === "in_progress") return "In progress";
-  if (status === "on_the_way") return "On the way";
+  if (status === FitterProfileStatus.FullyBooked) return "Fully Booked";
+  if (status === FitterProfileStatus.InProgress) return "In progress";
+  if (status === FitterProfileStatus.OnTheWay) return "On the way";
   return "Available";
 }
 
@@ -236,7 +261,7 @@ function getStatus(
 }
 
 function getCurrentJobStartTime(jobs: Job[]) {
-  const activeJob = jobs.find((job) => job.status === "in_progress" && job.scheduledAt);
+  const activeJob = jobs.find((job) => job.status === JobStatus.InProgress && job.scheduledAt);
   if (!activeJob?.scheduledAt) return null;
 
   try {
@@ -254,7 +279,7 @@ function buildFitter(
   const user = profile.user;
   const today = new Date();
   const tomorrow = addDays(today, 1);
-  const assignedJobs = jobs.filter((job) => ["scheduled", "in_progress", "completed"].includes(job.status) && isAssignedToFitter(job, user));
+  const assignedJobs = jobs.filter((job) => [JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status) && isAssignedToFitter(job, user));
   const todayJobs = assignedJobs.filter((job) => isJobForDate(job, today)).map(toFitterJob);
   const tomorrowJobs = assignedJobs.filter((job) => isJobForDate(job, tomorrow)).map(toFitterJob);
   const upcomingJobs = assignedJobs
@@ -273,7 +298,7 @@ function buildFitter(
   return {
     id: user._id,
     name: user.name,
-    role: "Fitter",
+    role: UserRole.Fitter,
     jobRef: activeJob?.id ?? "--",
     status: getStatus(profile, todayJobs, remainingCapacity, liveLocation),
     location,
@@ -288,7 +313,7 @@ function buildFitter(
       today: todayJobs,
       tomorrow: tomorrowJobs,
       upcoming: upcomingJobs,
-      completed: assignedJobs.filter((job) => job.status === "completed").map(toFitterJob),
+      completed: assignedJobs.filter((job) => job.status === JobStatus.Completed).map(toFitterJob),
     },
     currentJobStartTime: getCurrentJobStartTime(assignedJobs),
     capacity: {
@@ -302,13 +327,13 @@ function buildFitter(
 
 function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
   return users
-    .filter((user) => user.role?.toLowerCase() === "fitter")
+    .filter((user) => isFitterRole(user.role))
     .map((user) => ({
       userId: user._id,
       user,
       phone: user.phone,
       location: user.location,
-      status: "available",
+      status: FitterProfileStatus.Available,
       capacity: user.maxDailyJobs || 5,
       skills: [],
     }));
@@ -321,7 +346,7 @@ function buildInitialHistory(liveLocation?: LiveLocationRecord): FitterEvent[] {
 
   const ts = liveLocation.lastUpdatedAt ?? liveLocation.updatedAt ?? "";
   let timeLabel = "--";
-  try { timeLabel = format(new Date(ts), "HH:mm"); } catch {}
+  try { timeLabel = format(new Date(ts), "HH:mm"); } catch { }
 
   return [{
     id: `init-${ts}`,
@@ -342,7 +367,7 @@ function applyLiveLocationToFitters(
 
     const ts = liveLocation.lastUpdatedAt ?? liveLocation.updatedAt ?? new Date().toISOString();
     let timeLabel = "--";
-    try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch {}
+    try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch { }
 
     const newEvent: FitterEvent = {
       id: `loc-${ts}-${Math.random().toString(36).slice(2, 7)}`,
@@ -375,7 +400,7 @@ function applyPresenceToFitters(
 
     const ts = event.timestamp ?? event.lastUpdatedAt ?? new Date().toISOString();
     let timeLabel = "--";
-    try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch {}
+    try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch { }
 
     const newEvent: FitterEvent = {
       id: `presence-${ts}-${Math.random().toString(36).slice(2, 7)}`,
@@ -451,7 +476,7 @@ export function useLiveFitters() {
   }, []);
 
   useEffect(() => {
-     
+
     loadFitters();
   }, [loadFitters]);
 

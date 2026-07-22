@@ -1,9 +1,26 @@
 import { AxiosError } from "axios";
 import { api } from "./api";
 
-export type JobStatus = "pending" | "scheduled" | "in_progress" | "completed" | "cancelled";
-export type JobPriority = "low" | "medium" | "high";
-export type SalesmanWorkflowStatus = "not_started" | "travelling" | "measuring" | "completed";
+export enum JobStatus {
+  Pending = "Pending",
+  Scheduled = "Scheduled",
+  InProgress = "In Progress",
+  Completed = "Completed",
+  Cancelled = "Cancelled",
+}
+
+export enum JobPriority {
+  Low = "Low",
+  Medium = "Medium",
+  High = "High",
+}
+
+export enum SalesmanWorkflowStatus {
+  NotStarted = "Not Started",
+  Travelling = "Travelling",
+  Measuring = "Measuring",
+  Completed = "Completed",
+}
 
 export interface Job {
   _id: string;
@@ -31,10 +48,10 @@ export interface Job {
   measurementCompletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
-  assignedTo?: string;
-  assignedBy?: string;
-  assignedSalesman?: string;
-  assignedFitter?: string;
+  assignedTo?: any;
+  assignedBy?: any;
+  assignedSalesman?: any;
+  assignedFitter?: any;
   quotation?: any;
   location?: {
     type: string;
@@ -44,6 +61,45 @@ export interface Job {
     status: 'pending' | 'resolved';
     requestedAt: string;
   };
+}
+
+export function isAssignedToUser(job: Job, user?: { _id?: string; name?: string; email?: string } | null): boolean {
+  if (!job || !user) return false;
+
+  const targetId = user._id;
+  const targetName = user.name ? user.name.toLowerCase().trim() : undefined;
+  const targetEmail = user.email ? user.email.toLowerCase().trim() : undefined;
+
+  const checkRef = (ref?: any): boolean => {
+    if (!ref) return false;
+    if (typeof ref === "object" && ref !== null) {
+      if (targetId && (ref._id === targetId || ref.id === targetId)) return true;
+      if (targetName && ref.name && typeof ref.name === "string" && ref.name.toLowerCase().trim() === targetName) return true;
+      if (targetEmail && ref.email && typeof ref.email === "string" && ref.email.toLowerCase().trim() === targetEmail) return true;
+      return false;
+    }
+    if (typeof ref === "string") {
+      const cleanRef = ref.trim();
+      if (targetId && cleanRef === targetId) return true;
+      if (targetName && cleanRef.toLowerCase() === targetName) return true;
+      if (targetEmail && cleanRef.toLowerCase() === targetEmail) return true;
+    }
+    return false;
+  };
+
+  if (checkRef(job.assignedTo) || checkRef(job.assignedSalesman) || checkRef(job.assignedFitter) || checkRef(job.activeSalesmanId)) {
+    return true;
+  }
+
+  if (job.notes && targetName) {
+    const match = job.notes.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
+    const assignedName = match?.[1]?.trim();
+    if (assignedName && assignedName.toLowerCase() === targetName) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export interface CreateJobInput {
