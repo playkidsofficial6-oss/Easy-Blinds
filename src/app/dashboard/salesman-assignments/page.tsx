@@ -20,7 +20,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
 import { getJobErrorMessage, getJobs, updateJob, deleteJob, type Job } from "@/lib/jobs";
-import { useLiveFitters, type Fitter, type FitterJob, type FitterStatus } from "@/lib/live-store";
+import { useLiveFitters, isAssignedToFitter, type Fitter, type FitterJob, type FitterStatus } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { useLiveLocation } from "@/hooks";
 import { getLiveLocationSocket } from "@/services/socket";
@@ -385,15 +385,23 @@ function getJobDisplayId(job: Job) {
 }
 
 // Returns the display name of the assigned fitter.
-// Prefers looking up fitterId in the lookup map; falls back to legacy note-parsing.
 function resolveAssignedFitterName(job: Job, fitterNameById: Map<string, string>): string {
-  if (job.assignedTo) {
-    // New format: assignedTo is a userId
-    const name = fitterNameById.get(job.assignedTo);
-    if (name) return name;
-    // Legacy fallback: assignedTo might still be a name string
-    return job.assignedTo;
-  }
+  const resolveRef = (ref?: any) => {
+    if (!ref) return undefined;
+    if (typeof ref === "object" && ref !== null && typeof ref.name === "string") {
+      return ref.name;
+    }
+    if (typeof ref === "string") {
+      const fromMap = fitterNameById.get(ref);
+      if (fromMap) return fromMap;
+      if (!ref.match(/^[a-f0-9]{24}$/i)) return ref;
+    }
+    return undefined;
+  };
+
+  const resolved = resolveRef(job.assignedSalesman) || resolveRef(job.assignedTo) || resolveRef(job.assignedFitter);
+  if (resolved) return resolved;
+
   // Oldest legacy: name embedded in notes
   const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
   return match?.[1]?.trim() || "Assigned Team";
@@ -466,8 +474,10 @@ function toUnifiedJob(job: Job): UnifiedJob {
     time: toDisplayTime(job.scheduledAt),
     requestedDate: getRequestedDateDisplay(job),
     endTime: undefined,
-    // team is resolved at call site where fitterNameById is available
-    team: job.assignedTo,
+    team: typeof job.assignedTo === "object" && job.assignedTo !== null ? (job.assignedTo as any).name : job.assignedTo,
+    assignedSalesman: job.assignedSalesman,
+    assignedTo: job.assignedTo,
+    assignedFitter: job.assignedFitter,
     assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     createdAt: job.createdAt,
@@ -1066,11 +1076,7 @@ export default function SmartSalesmanAssignmentsPage() {
         if (!["scheduled", "in_progress", "completed", "pending"].includes(job.status)) {
           return false;
         }
-        if (job.assignedSalesman === user._id || job.assignedTo === user._id) return true;
-        if (job.assignedTo && job.assignedTo.toLowerCase() === salesmanName.toLowerCase()) return true;
-
-        const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
-        return match?.[1]?.trim().toLowerCase() === salesmanName.toLowerCase();
+        return isAssignedToFitter(job, user);
       });
 
       const activeWorkflowJob = assignedJobs.find((job) => job.salesmanWorkflowStatus === "travelling" || job.salesmanWorkflowStatus === "measuring");
@@ -1141,16 +1147,21 @@ export default function SmartSalesmanAssignmentsPage() {
   const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
     const raw = toUnifiedJob(job);
 
-    // Attempt to resolve team name nicely
-    let assignedFitterName: string | undefined;
-    let assignedSalesmanName: string | undefined;
+    const resolveRefName = (ref: any): string | undefined => {
+      if (!ref) return undefined;
+      if (typeof ref === "object" && ref !== null && typeof ref.name === "string") {
+        return ref.name;
+      }
+      if (typeof ref === "string") {
+        const fromMap = userNameById.get(ref);
+        if (fromMap) return fromMap;
+        if (!ref.match(/^[a-f0-9]{24}$/i)) return ref;
+      }
+      return undefined;
+    };
 
-    if (job.assignedFitter && userNameById.has(job.assignedFitter)) {
-      assignedFitterName = userNameById.get(job.assignedFitter);
-    }
-    if (job.assignedSalesman && userNameById.has(job.assignedSalesman)) {
-      assignedSalesmanName = userNameById.get(job.assignedSalesman);
-    }
+    let assignedFitterName = resolveRefName(job.assignedFitter);
+    let assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
 
     let teamName = "Assigned Team";
     if (!assignedFitterName && !assignedSalesmanName) {
@@ -1162,12 +1173,18 @@ export default function SmartSalesmanAssignmentsPage() {
       teamName = parts.join(" & ");
     }
 
-    let assignedBy = raw.assignedBy;
-    if (assignedBy && userNameById.has(assignedBy)) {
-      assignedBy = userNameById.get(assignedBy);
-    }
+    let assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
 
-    return { ...raw, team: teamName, assignedFitterName, assignedSalesmanName, assignedBy };
+    return { 
+      ...raw, 
+      team: teamName, 
+      assignedFitterName, 
+      assignedSalesmanName, 
+      assignedBy,
+      assignedSalesman: job.assignedSalesman,
+      assignedTo: job.assignedTo,
+      assignedFitter: job.assignedFitter,
+    };
   }, [userNameById]);
 
   const pendingJobs = useMemo(
@@ -1583,7 +1600,7 @@ export default function SmartSalesmanAssignmentsPage() {
         assignedTo: assignedToId,
         assignedFitter: dialogState.fitterId,
         assignedSalesman: dialogState.salesmanId,
-        assignedBy: user?.name || user?._id || "Sales Manager",
+        assignedBy: user?._id || user?.name || "Sales Manager",
         notes: `${sourceJob?.notes ? sourceJob.notes + '\n\n' : ''}Assigned to ${assignedName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));

@@ -56,25 +56,25 @@ export default function SalesManagerDashboard() {
       title: "Unassigned Jobs",
       value: isLoading ? "..." : unassignedJobs,
       icon: AlertCircle,
-      href: "/sales-manager/salesman-assignments",
+      href: "/dashboard/salesman-assignments",
     },
     {
       title: "Scheduled Jobs",
       value: isLoading ? "..." : scheduledJobs,
       icon: CheckCircle,
-      href: null,
+      href: "/dashboard/active",
     },
     {
       title: "Completed (Month)",
       value: isLoading ? "..." : completedThisMonth,
       icon: CheckCircle,
-      href: null,
+      href: "/dashboard/jobs",
     },
     {
       title: "Active Salesmen",
       value: isLoading ? "..." : activeSalesmen,
       icon: Users,
-      href: "/sales-manager/salesmen",
+      href: "/dashboard/salesmen",
     },
   ];
 
@@ -94,7 +94,7 @@ export default function SalesManagerDashboard() {
             <span className="block font-bold">Assignments</span>
           </h1>
         </div>
-        <Link href="/sales-manager/jobs/new">
+        <Link href="/dashboard/jobs/new">
           <button className="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white px-10 py-5 text-base font-semibold transition-all duration-150 flex items-center gap-3 rounded-sm shadow-lg shadow-amber-900/30">
             <PlusCircle className="w-6 h-6" />
             New Job

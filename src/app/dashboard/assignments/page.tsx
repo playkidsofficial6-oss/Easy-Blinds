@@ -98,8 +98,10 @@ function toUnifiedJob(job: Job): UnifiedJob {
     status: statusLabel,
     time: toDisplayTime(job.scheduledAt),
     endTime: undefined,
-    // team is resolved at call site where fitterNameById is available
-    team: job.assignedTo,
+    team: typeof job.assignedTo === "object" && job.assignedTo !== null ? (job.assignedTo as any).name : job.assignedTo,
+    assignedSalesman: job.assignedSalesman,
+    assignedTo: job.assignedTo,
+    assignedFitter: job.assignedFitter,
     assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     createdAt: job.createdAt,
@@ -374,34 +376,44 @@ export default function SmartAssignmentsPage() {
   const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
     const raw = toUnifiedJob(job);
     
-    // Attempt to resolve team name nicely
-    let assignedFitterName: string | undefined;
-    let assignedSalesmanName: string | undefined;
+    const resolveRefName = (ref: any): string | undefined => {
+      if (!ref) return undefined;
+      if (typeof ref === "object" && ref !== null && typeof ref.name === "string") {
+        return ref.name;
+      }
+      if (typeof ref === "string") {
+        const fromMap = userNameById.get(ref);
+        if (fromMap) return fromMap;
+        if (!ref.match(/^[a-f0-9]{24}$/i)) return ref;
+      }
+      return undefined;
+    };
 
-    if (job.assignedFitter && userNameById.has(job.assignedFitter)) {
-        assignedFitterName = userNameById.get(job.assignedFitter);
-    }
-    if (job.assignedSalesman && userNameById.has(job.assignedSalesman)) {
-        assignedSalesmanName = userNameById.get(job.assignedSalesman);
-    }
+    let assignedFitterName = resolveRefName(job.assignedFitter);
+    let assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
 
     let teamName = "Assigned Team";
     if (!assignedFitterName && !assignedSalesmanName) {
-        teamName = resolveAssignedFitterName(job, userNameById);
+      teamName = resolveAssignedFitterName(job, userNameById);
     } else {
-        const parts = [];
-        if (assignedFitterName) parts.push(assignedFitterName);
-        if (assignedSalesmanName) parts.push(assignedSalesmanName);
-        teamName = parts.join(" & ");
+      const parts = [];
+      if (assignedFitterName) parts.push(assignedFitterName);
+      if (assignedSalesmanName) parts.push(assignedSalesmanName);
+      teamName = parts.join(" & ");
     }
+
+    let assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
     
-    // Resolve assignedBy (sales manager name) from the stored userId
-    let assignedBy = raw.assignedBy;
-    if (assignedBy && userNameById.has(assignedBy)) {
-      assignedBy = userNameById.get(assignedBy);
-    }
-    
-    return { ...raw, team: teamName, assignedFitterName, assignedSalesmanName, assignedBy };
+    return { 
+      ...raw, 
+      team: teamName, 
+      assignedFitterName, 
+      assignedSalesmanName, 
+      assignedBy,
+      assignedSalesman: job.assignedSalesman,
+      assignedTo: job.assignedTo,
+      assignedFitter: job.assignedFitter,
+    };
   }, [userNameById]);
 
   const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending" && !!job.assignedFitter).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
@@ -503,7 +515,7 @@ export default function SmartAssignmentsPage() {
         status: "scheduled",
         scheduledAt,
         assignedTo: dialogState.fitterId,
-        assignedBy: user?.name || user?._id || "Sales Manager",
+        assignedBy: user?._id || user?.name || "Sales Manager",
         notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));

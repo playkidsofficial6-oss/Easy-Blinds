@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, MapPin, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs } from "@/lib/jobs";
+import { getJobs, isAssignedToUser } from "@/lib/jobs";
 
 interface MeasurementListItem {
     id: string;
@@ -60,7 +60,7 @@ export default function MeasurementsPage() {
 
             const response = await getJobs({ limit: 100 });
             const assignedItems: MeasurementListItem[] = response.items
-                .filter((job) => job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email)
+                .filter((job) => isAssignedToUser(job, user))
                 .map((job) => ({
                     id: job._id,
                     client: job.customerName,

@@ -18,7 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, getJobErrorMessage, type Job } from "@/lib/jobs";
+import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, getJobErrorMessage, isAssignedToUser, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import { updateUser } from "@/lib/users";
 import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
@@ -300,11 +300,7 @@ function SalesmanPageContent() {
     const loadAssignedJobs = async () => {
       try {
         const response = await getJobs({ limit: 100 });
-        const assignedJobs = response.items.filter((job) =>
-          job.assignedTo === user._id ||
-          job.assignedTo === user.name ||
-          job.assignedTo === user.email
-        );
+        const assignedJobs = response.items.filter((job) => isAssignedToUser(job, user));
         setSchedule(groupJobsBySchedule(assignedJobs));
       } catch (err) {
         console.error("Failed to load assigned jobs initially:", err);
@@ -312,7 +308,7 @@ function SalesmanPageContent() {
     };
 
     void loadAssignedJobs();
-  }, [user?._id]);
+  }, [user?._id, user?.name, user?.email]);
 
   useEffect(() => {
     if (!user?._id) return;
@@ -322,7 +318,7 @@ function SalesmanPageContent() {
 
     const handleJobAssigned = (job: any) => {
       console.info("[Socket] job:assigned event received:", job);
-      const isStillAssigned = job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email;
+      const isStillAssigned = isAssignedToUser(job, user);
 
       if (!isStillAssigned) {
         setSchedule((prev) => {

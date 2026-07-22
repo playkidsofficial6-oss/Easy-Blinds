@@ -26,10 +26,13 @@ function compactJobType(job: UnifiedJob) {
     return value.slice(0, 3).toUpperCase() || "APP";
 }
 
-function initialsFromName(name: string) {
-    return name
-        .split(" ")
-        .map((part) => part.trim()[0])
+function initialsFromName(name: any): string {
+    if (!name || typeof name !== "string") return "MU";
+    const clean = name.trim();
+    if (!clean) return "MU";
+    return clean
+        .split(/\s+/)
+        .map((part) => part[0])
         .filter(Boolean)
         .slice(0, 2)
         .join("")
@@ -64,7 +67,10 @@ export interface UnifiedJob {
     team?: string;
     assignedFitterName?: string;
     assignedSalesmanName?: string;
-    assignedBy?: string;
+    assignedSalesman?: any;
+    assignedTo?: any;
+    assignedFitter?: any;
+    assignedBy?: any;
     createdAt?: string;
 }
 
@@ -101,7 +107,29 @@ function LiveCountdown({ startedAt }: { startedAt: string }) {
 export function JobCard({ job, isSelected, onSelect, onAction, variant = "assignment", showEditDelete = false }: JobCardProps) {
     const statusLabel = variant === "schedule" ? (job.status || "SCHEDULED").toUpperCase() : (job.status || "PENDING").toUpperCase();
     const firstRecommendation = job.recommendedFitters?.[0];
-    const representativeName = job.assignedSalesmanName || job.assignedFitterName || (job.team && job.team !== "Assigned Team" ? job.team : undefined) || firstRecommendation?.name || "Unassigned";
+    
+    const resolveName = (ref: any): string | undefined => {
+        if (!ref) return undefined;
+        if (typeof ref === "object" && ref !== null && typeof ref.name === "string") {
+            return ref.name;
+        }
+        if (typeof ref === "string" && !ref.match(/^[a-f0-9]{24}$/i)) {
+            return ref;
+        }
+        return undefined;
+    };
+
+    const resolvedAssignedName =
+        resolveName(job.assignedSalesman) ||
+        resolveName(job.assignedTo) ||
+        resolveName(job.assignedFitter) ||
+        (typeof job.assignedSalesmanName === "string" ? job.assignedSalesmanName : undefined) ||
+        (typeof job.assignedFitterName === "string" ? job.assignedFitterName : undefined);
+
+    const teamStr = typeof job.team === "string" && job.team !== "Assigned Team" ? job.team : undefined;
+    const recNameStr = typeof firstRecommendation?.name === "string" ? firstRecommendation.name : undefined;
+
+    const representativeName = resolvedAssignedName || teamStr || recNameStr || "Unassigned";
     const representativeInitials = initialsFromName(representativeName);
     const distanceLabel = typeof firstRecommendation?.dist === "number" ? `${firstRecommendation.dist.toFixed(1)} km` : "Not Started";
     const etaLabel = typeof firstRecommendation?.duration === "number" ? formatDuration(firstRecommendation.duration) : "Not Available";

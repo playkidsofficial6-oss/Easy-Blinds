@@ -93,24 +93,48 @@ const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
 function extractAssignedFitter(job: Job) {
-  if (job.assignedTo) return job.assignedTo;
+  if (job.assignedTo) {
+    if (typeof job.assignedTo === "object" && job.assignedTo !== null) {
+      return (job.assignedTo as any).name || (job.assignedTo as any)._id;
+    }
+    return job.assignedTo;
+  }
+  if (job.assignedSalesman) {
+    if (typeof job.assignedSalesman === "object" && job.assignedSalesman !== null) {
+      return (job.assignedSalesman as any).name || (job.assignedSalesman as any)._id;
+    }
+    return job.assignedSalesman;
+  }
   const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
   return match?.[1]?.trim();
 }
 
-function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name" | "_id">) {
-  if (job.assignedTo) {
-    // New format: compare by MongoDB _id
-    if (job.assignedTo === fitter._id) return true;
-    // Legacy fallback: assignedTo might still be a name string
-    if (job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
+export function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name" | "_id">) {
+  const targetId = fitter._id;
+  const targetName = fitter.name.toLowerCase();
+
+  const checkRef = (ref?: any) => {
+    if (!ref) return false;
+    if (typeof ref === "object" && ref !== null) {
+      if (ref._id === targetId) return true;
+      if (ref.name && ref.name.toLowerCase() === targetName) return true;
+      return false;
+    }
+    if (typeof ref === "string") {
+      if (ref === targetId) return true;
+      if (ref.toLowerCase() === targetName) return true;
+    }
     return false;
+  };
+
+  if (checkRef(job.assignedTo) || checkRef(job.assignedSalesman) || checkRef(job.assignedFitter)) {
+    return true;
   }
-  // Oldest legacy: name embedded in notes
+
   const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
   const assignedName = match?.[1]?.trim();
   if (!assignedName) return false;
-  return assignedName.toLowerCase() === fitter.name.toLowerCase();
+  return assignedName.toLowerCase() === targetName;
 }
 
 function isJobForDate(job: Job, date: Date) {

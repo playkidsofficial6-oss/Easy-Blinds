@@ -589,7 +589,7 @@ export default function NewJobPage() {
       });
 
       toast.success("Job created successfully.");
-      router.push("/sales-manager/salesman-assignments");
+      router.push("/dashboard/salesman-assignments");
       router.refresh();
     } catch (error) {
       const errMsg = getJobErrorMessage(error, "Unable to create job.");

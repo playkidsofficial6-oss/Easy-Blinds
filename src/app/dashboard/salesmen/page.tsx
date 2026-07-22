@@ -37,7 +37,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { FitterList } from "@/components/tracking/FitterList";
 import { getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { getJobs, updateJob, type Job, getJobErrorMessage } from "@/lib/jobs";
-import type { Fitter, FitterJob } from "@/lib/live-store";
+import { isAssignedToFitter, type Fitter, type FitterJob } from "@/lib/live-store";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -100,20 +100,7 @@ function isJobForDate(job: Job, date: Date) {
 }
 
 function isAssignedToSalesman(job: Job, salesman: UserRecord) {
-    // Check assignedSalesman field (set by the Reassign dialog)
-    if (job.assignedSalesman) {
-        if (job.assignedSalesman === salesman._id) return true;
-        if (job.assignedSalesman.toLowerCase() === salesman.name.toLowerCase()) return true;
-    }
-    if (job.assignedTo) {
-        if (job.assignedTo === salesman._id) return true;
-        if (job.assignedTo.toLowerCase() === salesman.name.toLowerCase()) return true;
-        return false;
-    }
-    const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
-    const assignedName = match?.[1]?.trim();
-    if (!assignedName) return false;
-    return assignedName.toLowerCase() === salesman.name.toLowerCase();
+    return isAssignedToFitter(job, salesman);
 }
 
 function getUnassignedJobs(jobs: Job[]) {
