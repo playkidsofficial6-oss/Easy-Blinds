@@ -39,7 +39,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
-import type { UserRole } from "@/lib/auth";
+import { isFieldRole, isFitterRole, isOwnerRole, isSalesManagerRole, isSalesmanRole, UserRole } from "@/lib/auth";
 import { brands } from "@/lib/brands";
 import {
     DropdownMenu,
@@ -64,60 +64,60 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
         : "EB";
 
     const getNavItems = (role?: UserRole | null) => {
-        switch (role) {
-            case "owner":
-                return [
-                    { name: 'Executive Dashboard', href: '/dashboard', icon: BarChart3 },
-                    { name: 'Sales Insights', href: '/dashboard/analytics/sales', icon: TrendingUp },
-                    { name: 'Fitting Efficiency', href: '/dashboard/performance', icon: PieChart },
-                    { name: 'Review Performance', href: '/dashboard/analytics/reviews', icon: Star },
-                    { name: 'Team Rankings', href: '/dashboard/analytics/rankings', icon: Award },
-                    { name: 'Team Management', href: '/dashboard/team', icon: Users },
-                    { name: 'Area Analysis', href: '/dashboard/areas', icon: MapPin },
-                    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-                ];
-            case "sales_manager":
-                return [
-                    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-                    { name: "Salesman Assignments", href: "/dashboard/salesman-assignments", icon: ClipboardList },
-                    { name: "Fitter Assignments", href: "/dashboard/assignments", icon: ClipboardList },
-                    { name: "Salesmen", href: "/dashboard/salesmen", icon: UserCheck },
-                    { name: "Fitters", href: "/dashboard/tracking", icon: NavigationIcon },
-                    { name: "Fittings Analytics", href: "/dashboard/analytics", icon: LineChart },
-                    { name: "Fitter Performance", href: "/dashboard/performance", icon: BarChart3 },
-                    { name: "Review Tracking", href: "/dashboard/reviews", icon: Star },
-                    { name: "Pending Reviews", href: "/dashboard/reviews/pending", icon: PlayCircle },
-                    { name: "Catalogue", href: "/dashboard/catalogue", icon: BookOpen },
-                    { name: "Staff Directory", href: "/dashboard/staff", icon: Users },
-                    { name: "Staff Requests", href: "/dashboard/staff-request", icon: Users },
-                ];
-            case "salesman":
-            case "sales_man":
-            case "field":
-                return [
-                    { name: "Field Work", href: "/dashboard", icon: Ruler },
-                    { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
-                    { name: "Products", href: "/dashboard/products", icon: Package },
-                    { name: "Our Gallery", href: "/dashboard/gallery", icon: LayoutDashboard },
-                    { name: "Reviews", href: "/dashboard/reviews", icon: Star },
-                ];
-            case "stitching":
-                return [
-                    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-                    { name: 'Active Jobs', href: '/dashboard/active', icon: Scissors },
-                    { name: 'History', href: '/dashboard/history', icon: History },
-                    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-                ];
-            case "fitter":
-                return [
-                    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-                    { name: "My Assignments", href: "/dashboard/assignments", icon: ClipboardList },
-                ];
-            default:
-                return [
-                    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-                ];
+        if (isOwnerRole(role)) {
+            return [
+                { name: 'Executive Dashboard', href: '/dashboard', icon: BarChart3 },
+                { name: 'Sales Insights', href: '/dashboard/analytics/sales', icon: TrendingUp },
+                { name: 'Fitting Efficiency', href: '/dashboard/performance', icon: PieChart },
+                { name: 'Review Performance', href: '/dashboard/analytics/reviews', icon: Star },
+                { name: 'Team Rankings', href: '/dashboard/analytics/rankings', icon: Award },
+                { name: 'Team Management', href: '/dashboard/team', icon: Users },
+                { name: 'Area Analysis', href: '/dashboard/areas', icon: MapPin },
+                { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+            ];
         }
+        if (isSalesManagerRole(role)) {
+            return [
+                { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+                { name: "Salesman Assignments", href: "/dashboard/salesman-assignments", icon: ClipboardList },
+                { name: "Fitter Assignments", href: "/dashboard/assignments", icon: ClipboardList },
+                { name: "Salesmen", href: "/dashboard/salesmen", icon: UserCheck },
+                { name: "Fitters", href: "/dashboard/tracking", icon: NavigationIcon },
+                { name: "Fittings Analytics", href: "/dashboard/analytics", icon: LineChart },
+                { name: "Fitter Performance", href: "/dashboard/performance", icon: BarChart3 },
+                { name: "Review Tracking", href: "/dashboard/reviews", icon: Star },
+                { name: "Pending Reviews", href: "/dashboard/reviews/pending", icon: PlayCircle },
+                { name: "Catalogue", href: "/dashboard/catalogue", icon: BookOpen },
+                { name: "Staff Directory", href: "/dashboard/staff", icon: Users },
+                { name: "Staff Requests", href: "/dashboard/staff-request", icon: Users },
+            ];
+        }
+        if (isSalesmanRole(role) || isFieldRole(role)) {
+            return [
+                { name: "Field Work", href: "/dashboard", icon: Ruler },
+                { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
+                { name: "Products", href: "/dashboard/products", icon: Package },
+                { name: "Our Gallery", href: "/dashboard/gallery", icon: LayoutDashboard },
+                { name: "Reviews", href: "/dashboard/reviews", icon: Star },
+            ];
+        }
+        if (role === UserRole.Stitching || String(role).toLowerCase() === "stitching") {
+            return [
+                { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+                { name: 'Active Jobs', href: '/dashboard/active', icon: Scissors },
+                { name: 'History', href: '/dashboard/history', icon: History },
+                { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+            ];
+        }
+        if (isFitterRole(role)) {
+            return [
+                { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+                { name: "My Assignments", href: "/dashboard/assignments", icon: ClipboardList },
+            ];
+        }
+        return [
+            { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        ];
     };
 
     const navItems = getNavItems(user?.role);
@@ -182,7 +182,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                     );
                 })}
 
-                {user?.role === "sales_manager" && (
+                {isSalesManagerRole(user?.role) && (
                     <Link
                         href="/dashboard/jobs/new"
                         onClick={() => setIsMobileOpen(false)}

@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { getJob, updateJob, type Job } from "@/lib/jobs";
+import { getJob, updateJob, type Job, JobStatus } from "@/lib/jobs";
 import { getUsers, type UserRecord } from "@/lib/users";
+import { isFitterRole } from "@/lib/auth";
 import { toast } from "sonner";
 import {
     X, Ruler, FileText, UserCheck, ChevronDown, ChevronUp,
@@ -57,9 +58,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                 setMeasurement(measurementRes.value.data);
             }
             if (usersData.status === "fulfilled") {
-                setFitters(usersData.value.filter(u =>
-                    ["fitter"].includes(u.role?.toLowerCase() || "")
-                ));
+                setFitters(usersData.value.filter(u => isFitterRole(u.role)));
             }
         } catch (e) {
             toast.error("Failed to load job details");
@@ -79,7 +78,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
             await updateJob(job._id, {
                 assignedFitter: selectedFitter,
                 assignedTo: selectedFitter,
-                status: "scheduled",
+                status: JobStatus.Scheduled,
             });
             toast.success("Job successfully assigned to fitter!");
             await load();

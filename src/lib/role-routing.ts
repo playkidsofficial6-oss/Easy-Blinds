@@ -1,31 +1,25 @@
 import { UserRole } from "@/lib/auth";
 
 export const ROLE_PORTAL_PATHS: Partial<Record<UserRole, string>> = {
-  owner: "/dashboard",
-  sales_manager: "/dashboard",
-  salesman: "/dashboard",
-  sales_man: "/dashboard",
-  fitter: "/dashboard",
-  stitching: "/dashboard",
-  field: "/dashboard",
+  [UserRole.Owner]: "/dashboard",
+  [UserRole.SalesManager]: "/dashboard",
+  [UserRole.Salesman]: "/dashboard",
+  [UserRole.Field]: "/dashboard",
+  [UserRole.Fitter]: "/dashboard",
+  [UserRole.Stitching]: "/dashboard",
+  [UserRole.Admin]: "/dashboard",
+  [UserRole.User]: "/dashboard",
 };
 
-function normalizeRole(role?: UserRole | null): UserRole | undefined {
-  return role === "sales_man" ? "salesman" : role ?? undefined;
-}
-
 export function getPortalPathForRole(role?: UserRole | null): string {
-  const normalizedRole = normalizeRole(role);
-  return normalizedRole ? ROLE_PORTAL_PATHS[normalizedRole] ?? "/login" : "/login";
+  return role ? ROLE_PORTAL_PATHS[role] ?? "/login" : "/login";
 }
 
 export function canAccessRole(userRole: UserRole | undefined, allowedRoles?: UserRole[]): boolean {
   if (!allowedRoles?.length) {
     return true;
   }
-
-  const normalizedRole = normalizeRole(userRole);
-  return Boolean(normalizedRole && allowedRoles.includes(normalizedRole));
+  return Boolean(userRole && allowedRoles.includes(userRole));
 }
 
 export function getSafePortalRedirect(role: UserRole, requestedPath?: string | null): string {

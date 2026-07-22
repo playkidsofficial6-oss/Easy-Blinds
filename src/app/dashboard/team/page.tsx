@@ -4,12 +4,14 @@ import { useAuth } from "@/components/providers/auth-provider";
 import OwnerTeam from "@/components/dashboard/OwnerTeam";
 import DashboardTeam from "@/components/dashboard/DashboardTeam";
 
+import { isOwnerRole } from "@/lib/auth";
+
 export default function TeamPage() {
     const { user } = useAuth();
 
     if (!user) return null;
 
-    if (user.role === "owner") {
+    if (isOwnerRole(user.role)) {
         return <OwnerTeam />;
     }
     

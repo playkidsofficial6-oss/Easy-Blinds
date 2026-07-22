@@ -4,16 +4,18 @@ import { useAuth } from "@/components/providers/auth-provider";
 import SalesManagerReviews from "@/components/dashboard/SalesManagerReviews";
 import SalesmanReviews from "@/components/dashboard/SalesmanReviews";
 
+import { isFieldRole, isSalesManagerRole, isSalesmanRole } from "@/lib/auth";
+
 export default function ReviewsPage() {
     const { user } = useAuth();
 
     if (!user) return null;
 
-    if (user.role === "sales_manager") {
+    if (isSalesManagerRole(user.role)) {
         return <SalesManagerReviews />;
     }
     
-    if (user.role === "salesman" || user.role === "sales_man" || user.role === "field") {
+    if (isSalesmanRole(user.role) || isFieldRole(user.role)) {
         return <SalesmanReviews />;
     }
 

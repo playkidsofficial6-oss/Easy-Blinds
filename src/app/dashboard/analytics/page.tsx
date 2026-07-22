@@ -3,12 +3,14 @@
 import { useAuth } from "@/components/providers/auth-provider";
 import OwnerAnalytics from "@/components/dashboard/OwnerAnalytics";
 
+import { isOwnerRole } from "@/lib/auth";
+
 export default function AnalyticsPage() {
     const { user } = useAuth();
 
     if (!user) return null;
 
-    if (user.role === "owner") {
+    if (isOwnerRole(user.role)) {
         return <OwnerAnalytics />;
     }
 

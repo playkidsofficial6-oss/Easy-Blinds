@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
-import { createJob, getJobErrorMessage, type JobPriority } from "@/lib/jobs";
+import { createJob, getJobErrorMessage, JobPriority, JobStatus } from "@/lib/jobs";
 import { cn } from "@/lib/utils";
 
 const AddressPickerMap = dynamic(() => import("@/components/common/AddressPickerMap"), {
@@ -576,8 +576,8 @@ export default function NewJobPage() {
         address,
         propertyType: String(formData.get("propertyType") || "").trim() || undefined,
         projectValue: Number.isFinite(projectValue) ? projectValue : undefined,
-        priority: String(formData.get("priority") || "medium") as JobPriority,
-        status: "pending",
+        priority: (formData.get("priority") as JobPriority) || JobPriority.Medium,
+        status: JobStatus.Pending,
         scheduledAt,
         notes: appendedNotes || undefined,
         location: mapCoords
@@ -928,14 +928,14 @@ export default function NewJobPage() {
 
             <div className="space-y-2">
               <Label htmlFor="priority" className="text-slate-600 dark:text-slate-300">Priority <span className="text-red-500">*</span></Label>
-              <Select name="priority" defaultValue="medium" required>
+              <Select name="priority" defaultValue={JobPriority.Medium} required>
                 <SelectTrigger className="bg-white dark:bg-slate-900">
                   <SelectValue placeholder="Select priority" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="high">High Priority</SelectItem>
-                  <SelectItem value="medium">Medium Priority</SelectItem>
-                  <SelectItem value="low">Low Priority</SelectItem>
+                  <SelectItem value={JobPriority.High}>High Priority</SelectItem>
+                  <SelectItem value={JobPriority.Medium}>Medium Priority</SelectItem>
+                  <SelectItem value={JobPriority.Low}>Low Priority</SelectItem>
                 </SelectContent>
               </Select>
             </div>

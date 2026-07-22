@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, MapPin, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, isAssignedToUser } from "@/lib/jobs";
+import { getJobs, isAssignedToUser, JobStatus } from "@/lib/jobs";
 
 interface MeasurementListItem {
     id: string;
@@ -67,7 +67,7 @@ export default function MeasurementsPage() {
                     area: job.address,
                     property: job.propertyType ?? "Property",
                     date: job.scheduledAt ?? job.updatedAt ?? job.createdAt ?? new Date().toISOString(),
-                    status: job.status === "completed" ? "Completed" : "Draft",
+                    status: job.status === JobStatus.Completed ? "Completed" : "Draft",
                     rooms: job.quantity ?? 0,
                     assignedTo: user.name,
                 }));

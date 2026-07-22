@@ -4,16 +4,18 @@ import { useAuth } from "@/components/providers/auth-provider";
 import OwnerPerformance from "@/components/dashboard/OwnerPerformance";
 import SalesManagerPerformance from "@/components/dashboard/SalesManagerPerformance";
 
+import { isOwnerRole, isSalesManagerRole } from "@/lib/auth";
+
 export default function PerformancePage() {
     const { user } = useAuth();
 
     if (!user) return null;
 
-    if (user.role === "owner") {
+    if (isOwnerRole(user.role)) {
         return <OwnerPerformance />;
     }
     
-    if (user.role === "sales_manager") {
+    if (isSalesManagerRole(user.role)) {
         return <SalesManagerPerformance />;
     }
 

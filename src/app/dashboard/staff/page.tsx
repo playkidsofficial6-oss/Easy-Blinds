@@ -38,13 +38,13 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const roleOptions: Array<{ label: string; value: UserRole }> = [
-  { label: "Owner", value: "owner" },
-  { label: "Sales Manager", value: "sales_manager" },
-  { label: "Salesman", value: "salesman" },
-  { label: "Field Team", value: "field" },
-  { label: "Fitter", value: "fitter" },
-  { label: "Stitching Workshop", value: "stitching" },
-  { label: "General User", value: "user" },
+  { label: "Owner", value: UserRole.Owner },
+  { label: "Sales Manager", value: UserRole.SalesManager },
+  { label: "Salesman", value: UserRole.Salesman },
+  { label: "Field Team", value: UserRole.Field },
+  { label: "Fitter", value: UserRole.Fitter },
+  { label: "Stitching Workshop", value: UserRole.Stitching },
+  { label: "General User", value: UserRole.User },
 ];
 
 function getErrorMessage(error: unknown) {
@@ -75,7 +75,7 @@ export default function StaffDirectoryPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("salesman");
+  const [role, setRole] = useState<UserRole>(UserRole.Salesman);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -135,7 +135,7 @@ export default function StaffDirectoryPage() {
       setEmail("");
       setPassword("");
       setConfirmPassword("");
-      setRole("salesman");
+      setRole(UserRole.Salesman);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
@@ -294,12 +294,12 @@ export default function StaffDirectoryPage() {
           <Tabs value={selectedRoleFilter} onValueChange={setSelectedRoleFilter} className="w-full md:w-auto">
             <TabsList className="bg-neutral-200/50 dark:bg-neutral-800 h-10 w-full overflow-x-auto justify-start no-scrollbar">
               <TabsTrigger value="all" className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">All</TabsTrigger>
-              <TabsTrigger value="sales_manager" className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Manager</TabsTrigger>
-              <TabsTrigger value="salesman" className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Salesman</TabsTrigger>
-              <TabsTrigger value="fitter" className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Fitter</TabsTrigger>
-              <TabsTrigger value="field" className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Field Team</TabsTrigger>
-              <TabsTrigger value="stitching" className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Stitching</TabsTrigger>
-              <TabsTrigger value="owner" className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Owner</TabsTrigger>
+              <TabsTrigger value={UserRole.SalesManager} className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Manager</TabsTrigger>
+              <TabsTrigger value={UserRole.Salesman} className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Salesman</TabsTrigger>
+              <TabsTrigger value={UserRole.Fitter} className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Fitter</TabsTrigger>
+              <TabsTrigger value={UserRole.Field} className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Field Team</TabsTrigger>
+              <TabsTrigger value={UserRole.Stitching} className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Stitching</TabsTrigger>
+              <TabsTrigger value={UserRole.Owner} className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Owner</TabsTrigger>
             </TabsList>
           </Tabs>
           

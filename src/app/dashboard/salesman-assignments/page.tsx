@@ -19,7 +19,8 @@ import { JobCard, type UnifiedJob } from "@/components/common/JobCard";
 import { useAuth } from "@/components/providers/auth-provider";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
-import { getJobErrorMessage, getJobs, updateJob, deleteJob, type Job } from "@/lib/jobs";
+import { isAdminRole, isFieldRole, isOwnerRole, isSalesManagerRole, isSalesmanRole, UserRole } from "@/lib/auth";
+import { getJobErrorMessage, getJobs, JobPriority, JobStatus, SalesmanWorkflowStatus, updateJob, deleteJob, type Job } from "@/lib/jobs";
 import { useLiveFitters, isAssignedToFitter, type Fitter, type FitterJob, type FitterStatus } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { useLiveLocation } from "@/hooks";
@@ -430,17 +431,17 @@ function getRequestedDateDisplay(job: Job): string | undefined {
 }
 
 function getSalesmanWorkflowDisplayStatus(job: Job): FitterJob["status"] {
-  if (job.salesmanWorkflowStatus === "travelling") return "On the way";
-  if (job.salesmanWorkflowStatus === "measuring") return "In Progress";
-  if (job.salesmanWorkflowStatus === "completed") return "Done";
-  if (job.status === "in_progress") return "In Progress";
-  if (job.status === "completed") return "Done";
+  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Travelling) return "On the way";
+  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Measuring) return "In Progress";
+  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Completed) return "Done";
+  if (job.status === JobStatus.InProgress) return "In Progress";
+  if (job.status === JobStatus.Completed) return "Done";
   return "Pending";
 }
 
 function getSalesmanMapStatus(job?: Job, fallback: FitterStatus = "Available"): FitterStatus {
-  if (job?.salesmanWorkflowStatus === "travelling") return "On the way";
-  if (job?.salesmanWorkflowStatus === "measuring") return "In progress";
+  if (job?.salesmanWorkflowStatus === SalesmanWorkflowStatus.Travelling) return "On the way";
+  if (job?.salesmanWorkflowStatus === SalesmanWorkflowStatus.Measuring) return "In progress";
   return fallback;
 }
 
@@ -501,7 +502,7 @@ function toFitterJob(job: Job): FitterJob {
     brand: "Easy Blinds",
     property: job.propertyType,
     productType: "Blinds",
-    priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
+    priority: job.priority === JobPriority.High ? "High" : job.priority === JobPriority.Medium ? "Medium" : "Low",
   };
 }
 
@@ -531,15 +532,14 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
 }
 
 function isSalesmanUser(user: UserRecord) {
-  const role = user.role?.toLowerCase() ?? "";
-  return role === "salesman" || role === "sales_man" || role === "field";
+  return isSalesmanRole(user.role) || isFieldRole(user.role);
 }
 
 function toSalesmanWorkforceMember(user: UserRecord): Fitter {
   return {
     id: user._id,
     name: user.name,
-    role: "Salesman",
+    role: UserRole.Salesman,
     jobRef: "--",
     status: user.liveStatus ?? "Available",
     location: (() => { const ll = extractLatLng(user.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
@@ -646,11 +646,11 @@ export default function SmartSalesmanAssignmentsPage() {
     address: "",
     scheduledDate: "",
     scheduledTime: "",
-    priority: "medium" as "low" | "medium" | "high",
+    priority: JobPriority.Medium,
     assignedSalesman: "",
     projectValue: "",
     notes: "",
-    status: "pending" as "pending" | "scheduled" | "in_progress" | "completed" | "cancelled",
+    status: JobStatus.Pending,
   });
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -769,7 +769,8 @@ export default function SmartSalesmanAssignmentsPage() {
   };
 
   const isAuthorized = useMemo(() => {
-    return !!(user && ["owner", "sales_manager", "salesmanager", "admin"].includes(user.role?.toLowerCase() ?? ""));
+    if (!user) return false;
+    return isOwnerRole(user.role) || isSalesManagerRole(user.role) || isAdminRole(user.role);
   }, [user]);
 
   const handleCardAction = useCallback((actionType: string, jobId: string) => {
@@ -790,11 +791,11 @@ export default function SmartSalesmanAssignmentsPage() {
         address: rawJob.address || "",
         scheduledDate: rawJob.scheduledAt ? format(parseISO(rawJob.scheduledAt), "yyyy-MM-dd") : "",
         scheduledTime: rawJob.scheduledAt ? format(parseISO(rawJob.scheduledAt), "HH:mm") : "",
-        priority: rawJob.priority || "medium",
+        priority: rawJob.priority || JobPriority.Medium,
         assignedSalesman: rawJob.assignedSalesman || rawJob.assignedTo || "",
         projectValue: rawJob.projectValue !== undefined ? String(rawJob.projectValue) : "",
         notes: rawJob.notes || "",
-        status: rawJob.status || "pending",
+        status: rawJob.status || JobStatus.Pending,
       });
       setAddressValue(rawJob.address || "");
       if (rawJob.location?.coordinates && rawJob.location.coordinates.length >= 2) {
@@ -1012,7 +1013,7 @@ export default function SmartSalesmanAssignmentsPage() {
   const fitters = useMemo<Fitter[]>(() => {
     return baseFitters.map((fitter) => {
       const assignedJobs = jobs.filter((job) => {
-        if (!["scheduled", "in_progress", "completed"].includes(job.status)) {
+        if (![JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status)) {
           return false;
         }
         if (job.assignedFitter === fitter.id || job.assignedTo === fitter.id) return true;
@@ -1050,7 +1051,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
   const selectedPendingJobForMap = useMemo(() => {
     if (!selectedJobId) return undefined;
-    const job = jobs.find((j) => j._id === selectedJobId && j.status === "pending");
+    const job = jobs.find((j) => j._id === selectedJobId && j.status === JobStatus.Pending);
     if (!job) return undefined;
     
     let lat = 10.8505;
@@ -1073,13 +1074,13 @@ export default function SmartSalesmanAssignmentsPage() {
     return salesmanUsers.map((user) => {
       const salesmanName = user.name;
       const assignedJobs = jobs.filter((job) => {
-        if (!["scheduled", "in_progress", "completed", "pending"].includes(job.status)) {
+        if (![JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed, JobStatus.Pending].includes(job.status)) {
           return false;
         }
         return isAssignedToFitter(job, user);
       });
 
-      const activeWorkflowJob = assignedJobs.find((job) => job.salesmanWorkflowStatus === "travelling" || job.salesmanWorkflowStatus === "measuring");
+      const activeWorkflowJob = assignedJobs.find((job) => job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Travelling || job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Measuring);
       const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
       const tomorrow = assignedJobs.filter((job) => isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob);
       const activeJob = activeWorkflowJob
@@ -1160,8 +1161,8 @@ export default function SmartSalesmanAssignmentsPage() {
       return undefined;
     };
 
-    let assignedFitterName = resolveRefName(job.assignedFitter);
-    let assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
+    const assignedFitterName = resolveRefName(job.assignedFitter);
+    const assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
 
     let teamName = "Assigned Team";
     if (!assignedFitterName && !assignedSalesmanName) {
@@ -1173,7 +1174,7 @@ export default function SmartSalesmanAssignmentsPage() {
       teamName = parts.join(" & ");
     }
 
-    let assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
+    const assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
 
     return { 
       ...raw, 
@@ -1188,16 +1189,16 @@ export default function SmartSalesmanAssignmentsPage() {
   }, [userNameById]);
 
   const pendingJobs = useMemo(
-    () => sortUnifiedJobs(jobs.filter((job) => job.status === "pending" && !job.quotation && matchesDateFilter(job.scheduledAt)).map(resolveUnifiedJob), sortKey),
+    () => sortUnifiedJobs(jobs.filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt)).map(resolveUnifiedJob), sortKey),
     [jobs, sortKey, resolveUnifiedJob, matchesDateFilter]
   );
   const activeJobs = useMemo(
-    () => sortUnifiedJobs(jobs.filter((job) => ["scheduled", "in_progress"].includes(job.status) && matchesDateFilter(job.scheduledAt)).map(resolveUnifiedJob), sortKey),
+    () => sortUnifiedJobs(jobs.filter((job) => [JobStatus.Scheduled, JobStatus.InProgress].includes(job.status) && matchesDateFilter(job.scheduledAt)).map(resolveUnifiedJob), sortKey),
     [jobs, sortKey, resolveUnifiedJob, matchesDateFilter],
   );
 
   const unassignedJobsForMap = useMemo(() => jobs
-    .filter((job) => job.status === "pending" && !job.quotation && matchesDateFilter(job.scheduledAt))
+    .filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt))
     .map((job) => {
       const coordinates = job.location?.coordinates;
       const lng = coordinates?.[0] ?? 76.2711;
@@ -1216,7 +1217,7 @@ export default function SmartSalesmanAssignmentsPage() {
     }), [jobs, matchesDateFilter]);
 
   const scheduledJobsForMap = useMemo(() => jobs
-    .filter((job) => ["scheduled", "in_progress"].includes(job.status) && matchesDateFilter(job.scheduledAt))
+    .filter((job) => [JobStatus.Scheduled, JobStatus.InProgress].includes(job.status) && matchesDateFilter(job.scheduledAt))
     .map((job) => {
       const coordinates = job.location?.coordinates;
       const lng = coordinates?.[0] ?? 76.2711;
@@ -1595,7 +1596,7 @@ export default function SmartSalesmanAssignmentsPage() {
       const sourceJob = jobs.find((item) => item._id === dialogState.jobId);
 
       const updated = await updateJob(dialogState.jobId, {
-        status: "scheduled",
+        status: JobStatus.Scheduled,
         scheduledAt,
         assignedTo: assignedToId,
         assignedFitter: dialogState.fitterId,
@@ -1618,7 +1619,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
     try {
       const updated = await updateJob(dialogState.jobId, {
-        status: "pending",
+        status: JobStatus.Pending,
         assignedTo: "",
         assignedFitter: "",
         assignedSalesman: "",
@@ -1646,18 +1647,18 @@ export default function SmartSalesmanAssignmentsPage() {
 
   // 1. Appointments Data
   const filteredAppointments = useMemo(() => {
-    let list = jobs.filter(job => ["scheduled", "in_progress", "completed"].includes(job.status));
+    let list = jobs.filter(job => [JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status));
     const today = new Date();
     const tomorrow = addDays(today, 1);
     
     if (apptFilter === "today") {
-      list = list.filter(j => j.status !== "completed" && j.scheduledAt && isSameDay(parseISO(j.scheduledAt), today));
+      list = list.filter(j => j.status !== JobStatus.Completed && j.scheduledAt && isSameDay(parseISO(j.scheduledAt), today));
     } else if (apptFilter === "tomorrow") {
-      list = list.filter(j => j.status !== "completed" && j.scheduledAt && isSameDay(parseISO(j.scheduledAt), tomorrow));
+      list = list.filter(j => j.status !== JobStatus.Completed && j.scheduledAt && isSameDay(parseISO(j.scheduledAt), tomorrow));
     } else if (apptFilter === "upcoming") {
-      list = list.filter(j => j.status !== "completed" && j.scheduledAt && parseISO(j.scheduledAt) > tomorrow);
+      list = list.filter(j => j.status !== JobStatus.Completed && j.scheduledAt && parseISO(j.scheduledAt) > tomorrow);
     } else if (apptFilter === "completed") {
-      list = list.filter(j => j.status === "completed");
+      list = list.filter(j => j.status === JobStatus.Completed);
     }
 
     if (tabSearch) {
@@ -1686,9 +1687,9 @@ export default function SmartSalesmanAssignmentsPage() {
   const filteredUnassignedLeads = useMemo(() => {
     let list = jobs.filter(job => {
       if (leadFilter === "pending") {
-        return job.status === "pending";
+        return job.status === JobStatus.Pending;
       } else {
-        return job.status === "scheduled" && !job.assignedSalesman && !job.assignedTo;
+        return job.status === JobStatus.Scheduled && !job.assignedSalesman && !job.assignedTo;
       }
     });
 
@@ -1724,9 +1725,9 @@ export default function SmartSalesmanAssignmentsPage() {
   // 4. Performance Metrics
   const performanceMetrics = useMemo(() => {
     const total = jobs.length;
-    const completed = jobs.filter(j => j.status === "completed").length;
-    const pending = jobs.filter(j => j.status === "pending").length;
-    const scheduled = jobs.filter(j => j.status === "scheduled" || j.status === "in_progress").length;
+    const completed = jobs.filter(j => j.status === JobStatus.Completed).length;
+    const pending = jobs.filter(j => j.status === JobStatus.Pending).length;
+    const scheduled = jobs.filter(j => j.status === JobStatus.Scheduled || j.status === JobStatus.InProgress).length;
     const conversionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     const revenue = jobs.reduce((sum, j) => sum + (j.projectValue || 0), 0);
     
@@ -1742,7 +1743,7 @@ export default function SmartSalesmanAssignmentsPage() {
       const salesmanId = j.assignedTo || j.activeSalesmanId;
       if (salesmanId && salesmanJobs[salesmanId]) {
         salesmanJobs[salesmanId].total += 1;
-        if (j.status === "completed") {
+        if (j.status === JobStatus.Completed) {
           salesmanJobs[salesmanId].completed += 1;
           salesmanJobs[salesmanId].revenue += j.projectValue || 0;
         }
@@ -1991,7 +1992,7 @@ export default function SmartSalesmanAssignmentsPage() {
                       return {
                         id: userObj._id,
                         name: userObj.name,
-                        role: userObj.role === "sales_manager" ? "Sales Manager" : userObj.role,
+                        role: isSalesManagerRole(userObj.role) ? UserRole.SalesManager : (userObj.role || UserRole.Salesman),
                         avatar: userObj.avatar,
                         phone: userObj.phone,
                         status: userObj.liveStatus || "Available",
@@ -2163,7 +2164,7 @@ export default function SmartSalesmanAssignmentsPage() {
                       return {
                         id: userObj._id,
                         name: userObj.name,
-                        role: userObj.role === "sales_manager" ? "Sales Manager" : userObj.role,
+                        role: isSalesManagerRole(userObj.role) ? UserRole.SalesManager : (userObj.role || UserRole.Fitter),
                         avatar: userObj.avatar,
                         phone: userObj.phone,
                         status: userObj.liveStatus || "Available",
@@ -2177,11 +2178,11 @@ export default function SmartSalesmanAssignmentsPage() {
                       } as unknown as Fitter;
                     })();
                     const rawJob = jobs.find(item => item._id === job.id);
-                    const statusVal = rawJob?.salesmanWorkflowStatus || (rawJob?.status === "completed" ? "completed" : "not_started");
+                    const statusVal = rawJob?.salesmanWorkflowStatus || (rawJob?.status === JobStatus.Completed ? SalesmanWorkflowStatus.Completed : SalesmanWorkflowStatus.NotStarted);
                     
-                    const isTravelling = statusVal === "travelling";
-                    const isMeasuring = statusVal === "measuring";
-                    const isCompleted = statusVal === "completed" || rawJob?.status === "completed";
+                    const isTravelling = statusVal === SalesmanWorkflowStatus.Travelling;
+                    const isMeasuring = statusVal === SalesmanWorkflowStatus.Measuring;
+                    const isCompleted = statusVal === SalesmanWorkflowStatus.Completed || rawJob?.status === JobStatus.Completed;
                     const isPending = !isTravelling && !isMeasuring && !isCompleted;
 
                     const formatTimeSafe = (dateStr?: string) => {
@@ -2465,9 +2466,9 @@ export default function SmartSalesmanAssignmentsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Priorities</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value={JobPriority.High}>High</SelectItem>
+                      <SelectItem value={JobPriority.Medium}>Medium</SelectItem>
+                      <SelectItem value={JobPriority.Low}>Low</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -2576,13 +2577,13 @@ export default function SmartSalesmanAssignmentsPage() {
                   <div className="bg-emerald-50 border border-emerald-100/50 rounded-xl p-2">
                     <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Completed</span>
                     <span className="text-lg font-bold text-emerald-700">
-                      {jobs.filter(j => j.status === "completed" && j.salesmanWorkflowStatus === "completed").length}
+                      {jobs.filter(j => j.status === JobStatus.Completed && j.salesmanWorkflowStatus === SalesmanWorkflowStatus.Completed).length}
                     </span>
                   </div>
                   <div className="bg-slate-50 border border-slate-200/50 rounded-xl p-2">
                     <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Visits</span>
                     <span className="text-lg font-bold text-slate-700">
-                      {jobs.filter(j => ["scheduled", "in_progress"].includes(j.status)).length}
+                      {jobs.filter(j => [JobStatus.Scheduled, JobStatus.InProgress].includes(j.status)).length}
                     </span>
                   </div>
                 </div>
@@ -3072,9 +3073,9 @@ export default function SmartSalesmanAssignmentsPage() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value={JobPriority.Low}>Low</SelectItem>
+                    <SelectItem value={JobPriority.Medium}>Medium</SelectItem>
+                    <SelectItem value={JobPriority.High}>High</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -3089,11 +3090,11 @@ export default function SmartSalesmanAssignmentsPage() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value={JobStatus.Pending}>Pending</SelectItem>
+                    <SelectItem value={JobStatus.Scheduled}>Scheduled</SelectItem>
+                    <SelectItem value={JobStatus.InProgress}>In Progress</SelectItem>
+                    <SelectItem value={JobStatus.Completed}>Completed</SelectItem>
+                    <SelectItem value={JobStatus.Cancelled}>Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -3155,20 +3156,20 @@ export default function SmartSalesmanAssignmentsPage() {
               </div>
 
               {/* Safety active warning */}
-              {["travelling", "measuring"].includes(deleteJobTarget.salesmanWorkflowStatus || "") || deleteJobTarget.status === "in_progress" ? (
+              {[SalesmanWorkflowStatus.Travelling, SalesmanWorkflowStatus.Measuring].includes(deleteJobTarget.salesmanWorkflowStatus as any) || deleteJobTarget.status === JobStatus.InProgress ? (
                 <div className="bg-red-50 border border-red-200 text-red-800 p-3.5 rounded-xl text-xs flex gap-2.5">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <div>
                     <p className="font-bold">⚠️ Warning: This job is currently active!</p>
                     <p className="text-[11px] mt-0.5 text-red-700 leading-normal">
-                      A salesman is currently {deleteJobTarget.salesmanWorkflowStatus === "travelling" ? "travelling to" : "measuring"} this customer. Deleting it will disrupt their active workflow.
+                      A salesman is currently {deleteJobTarget.salesmanWorkflowStatus === SalesmanWorkflowStatus.Travelling ? "travelling to" : "measuring"} this customer. Deleting it will disrupt their active workflow.
                     </p>
                   </div>
                 </div>
               ) : null}
 
               {/* Explicit confirmation checkbox if job is active */}
-              {["travelling", "measuring"].includes(deleteJobTarget.salesmanWorkflowStatus || "") || deleteJobTarget.status === "in_progress" ? (
+              {[SalesmanWorkflowStatus.Travelling, SalesmanWorkflowStatus.Measuring].includes(deleteJobTarget.salesmanWorkflowStatus as any) || deleteJobTarget.status === JobStatus.InProgress ? (
                 <div className="flex items-center gap-2 px-1">
                   <input
                     type="checkbox"
@@ -3191,7 +3192,7 @@ export default function SmartSalesmanAssignmentsPage() {
               onClick={handleConfirmDelete}
               disabled={
                 !!(deleteJobTarget &&
-                (["travelling", "measuring"].includes(deleteJobTarget.salesmanWorkflowStatus || "") || deleteJobTarget.status === "in_progress") &&
+                ([SalesmanWorkflowStatus.Travelling, SalesmanWorkflowStatus.Measuring].includes(deleteJobTarget.salesmanWorkflowStatus as any) || deleteJobTarget.status === JobStatus.InProgress) &&
                 !confirmActiveDelete)
               }
               className="bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-600/10 rounded-xl"

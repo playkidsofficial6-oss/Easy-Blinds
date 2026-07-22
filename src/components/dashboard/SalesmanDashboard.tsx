@@ -18,7 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, getJobErrorMessage, isAssignedToUser, type Job } from "@/lib/jobs";
+import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, getJobErrorMessage, isAssignedToUser, JobStatus, SalesmanWorkflowStatus, JobPriority, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import { updateUser } from "@/lib/users";
 import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
@@ -70,12 +70,12 @@ const EMPTY_SALESMAN_SCHEDULE: SalesmanSchedule = {
 };
 
 function toScheduleStatus(job: Job) {
-  if (job.salesmanWorkflowStatus === "travelling") return "On the way";
-  if (job.salesmanWorkflowStatus === "measuring") return "In Progress";
-  if (job.salesmanWorkflowStatus === "completed") return "Done";
-  if (job.status === "in_progress") return "In Progress";
-  if (job.status === "completed") return "Done";
-  if (job.status === "cancelled") return "Completed";
+  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Travelling) return "On the way";
+  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Measuring) return "In Progress";
+  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Completed) return "Done";
+  if (job.status === JobStatus.InProgress) return "In Progress";
+  if (job.status === JobStatus.Completed) return "Done";
+  if (job.status === JobStatus.Cancelled) return "Completed";
   return "Pending";
 }
 
@@ -149,7 +149,7 @@ function compareScheduleJobs(a: SalesmanScheduleJob, b: SalesmanScheduleJob) {
 function groupJobsBySchedule(jobs: Job[]): SalesmanSchedule {
   return jobs.reduce<SalesmanSchedule>((schedule, job) => {
     const scheduleJob = toScheduleJob(job);
-    if (job.status === "completed" || job.status === "cancelled") {
+    if (job.status === JobStatus.Completed || job.status === JobStatus.Cancelled) {
       schedule.completed.push(scheduleJob);
       return schedule;
     }
@@ -349,7 +349,7 @@ function SalesmanPageContent() {
         }
 
         if (!found) {
-          if (job.status === "completed" || job.status === "cancelled") {
+          if (job.status === JobStatus.Completed || job.status === JobStatus.Cancelled) {
             updated.completed = [scheduleJob, ...updated.completed];
           } else if (job.scheduledAt) {
             const date = new Date(job.scheduledAt);
@@ -499,7 +499,7 @@ function SalesmanPageContent() {
             return {
               ...j,
               status: "Pending",
-              salesmanWorkflowStatus: "not_started",
+              salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
               activeSalesmanId: undefined,
               activeSalesmanName: undefined,
             };
@@ -533,8 +533,8 @@ function SalesmanPageContent() {
         }
         if (displayStatus === "Pending") {
           return updateJob(id, {
-            status: "scheduled",
-            salesmanWorkflowStatus: "not_started",
+            status: JobStatus.Scheduled,
+            salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
             activeSalesmanId: undefined,
             activeSalesmanName: undefined,
             travelStartedAt: undefined,
@@ -572,7 +572,7 @@ function SalesmanPageContent() {
               return {
                 ...j,
                 status: "Pending",
-                salesmanWorkflowStatus: "not_started",
+                salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
                 activeSalesmanId: undefined,
                 activeSalesmanName: undefined,
               };
@@ -598,8 +598,8 @@ function SalesmanPageContent() {
       if (otherRouteJobsToReset.length > 0) {
         void Promise.allSettled(
           otherRouteJobsToReset.map((routeJob) => updateJob(routeJob.id, {
-            status: "scheduled",
-            salesmanWorkflowStatus: "not_started",
+            status: JobStatus.Scheduled,
+            salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
             activeSalesmanId: undefined,
             activeSalesmanName: undefined,
           }))

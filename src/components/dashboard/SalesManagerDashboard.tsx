@@ -6,8 +6,9 @@ import { AlertCircle, ArrowUp, CheckCircle, ClipboardList, PlusCircle, Users } f
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { getJobErrorMessage, getJobs, type Job } from "@/lib/jobs";
+import { getJobErrorMessage, getJobs, JobStatus, type Job } from "@/lib/jobs";
 import { getUsers, type UserRecord } from "@/lib/users";
+import { isFitterRole, isSalesmanRole } from "@/lib/auth";
 
 export default function SalesManagerDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -34,12 +35,12 @@ export default function SalesManagerDashboard() {
     loadData();
   }, []);
 
-  const unassignedJobs = useMemo(() => jobs.filter((job) => job.status === "pending").length, [jobs]);
-  const scheduledJobs = useMemo(() => jobs.filter((job) => job.status === "scheduled").length, [jobs]);
+  const unassignedJobs = useMemo(() => jobs.filter((job) => job.status === JobStatus.Pending).length, [jobs]);
+  const scheduledJobs = useMemo(() => jobs.filter((job) => job.status === JobStatus.Scheduled).length, [jobs]);
   const completedThisMonth = useMemo(() => {
     const now = new Date();
     return jobs.filter((job) => {
-      if (job.status !== "completed") {
+      if (job.status !== JobStatus.Completed) {
         return false;
       }
 
@@ -48,8 +49,8 @@ export default function SalesManagerDashboard() {
     }).length;
   }, [jobs]);
 
-  const activeFitters = useMemo(() => users.filter((u) => u.role === "fitter").length, [users]);
-  const activeSalesmen = useMemo(() => users.filter((u) => u.role === "salesman").length, [users]);
+  const activeFitters = useMemo(() => users.filter((u) => isFitterRole(u.role)).length, [users]);
+  const activeSalesmen = useMemo(() => users.filter((u) => isSalesmanRole(u.role)).length, [users]);
 
   const stats = [
     {

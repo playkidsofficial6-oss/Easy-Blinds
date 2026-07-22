@@ -16,8 +16,9 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { UserRole } from "@/lib/auth";
 
-type TrialRole = "owner" | "sales_manager" | "salesman" | "fitter" | "stitching";
+type TrialRole = UserRole.Owner | UserRole.SalesManager | UserRole.Salesman | UserRole.Fitter | UserRole.Stitching;
 
 interface TrialMetric {
   label: string;
@@ -47,7 +48,7 @@ interface TrialProfile {
 
 const trialProfiles: TrialProfile[] = [
   {
-    role: "owner",
+    role: UserRole.Owner,
     label: "Owner",
     portalName: "Executive Control Room",
     mockUser: "Aisha Rahman",
@@ -69,7 +70,7 @@ const trialProfiles: TrialProfile[] = [
     ],
   },
   {
-    role: "sales_manager",
+    role: UserRole.SalesManager,
     label: "Sales Manager",
     portalName: "Smart Dispatch Trial",
     mockUser: "Omar Siddiqui",
@@ -91,7 +92,7 @@ const trialProfiles: TrialProfile[] = [
     ],
   },
   {
-    role: "salesman",
+    role: UserRole.Salesman,
     label: "Salesman",
     portalName: "Field Sales Demo",
     mockUser: "John Matthews",
@@ -113,7 +114,7 @@ const trialProfiles: TrialProfile[] = [
     ],
   },
   {
-    role: "fitter",
+    role: UserRole.Fitter,
     label: "Fitter",
     portalName: "Installation Day View",
     mockUser: "Naveen Kumar",
@@ -135,7 +136,7 @@ const trialProfiles: TrialProfile[] = [
     ],
   },
   {
-    role: "stitching",
+    role: UserRole.Stitching,
     label: "Stitching",
     portalName: "Production Queue Trial",
     mockUser: "Fatima Noor",
@@ -159,7 +160,7 @@ const trialProfiles: TrialProfile[] = [
 ];
 
 export default function FreeTrialPage() {
-  const [selectedRole, setSelectedRole] = useState<TrialRole>("sales_manager");
+  const [selectedRole, setSelectedRole] = useState<TrialRole>(UserRole.SalesManager);
   const profile = useMemo(
     () => trialProfiles.find((item) => item.role === selectedRole) ?? trialProfiles[0],
     [selectedRole],
@@ -282,7 +283,7 @@ export default function FreeTrialPage() {
               </div>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button className="h-11 rounded-full bg-neutral-950 px-6 text-white hover:bg-neutral-800" onClick={() => setSelectedRole("sales_manager")}>
+                <Button className="h-11 rounded-full bg-neutral-950 px-6 text-white hover:bg-neutral-800" onClick={() => setSelectedRole(UserRole.SalesManager)}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   Reset to manager demo
                 </Button>

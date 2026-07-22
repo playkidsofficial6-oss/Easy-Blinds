@@ -10,7 +10,7 @@ import { Plus, Trash2, Save, ArrowLeft, Calculator, X, FileText, Send } from "lu
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
-import { updateJob, getJob } from "@/lib/jobs";
+import { updateJob, getJob, JobStatus } from "@/lib/jobs";
 import { toast } from "sonner";
 
 interface LineItem {
@@ -143,7 +143,7 @@ export default function NewQuotePage() {
             };
 
             await updateJob(jobId, {
-                status: "completed",
+                status: JobStatus.Completed,
                 notes: [originalJobNotes, notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
                 quotation,
             });

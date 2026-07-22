@@ -1,9 +1,26 @@
 import { AxiosError } from "axios";
 import { api } from "./api";
 
-export type JobStatus = "pending" | "scheduled" | "in_progress" | "completed" | "cancelled";
-export type JobPriority = "low" | "medium" | "high";
-export type SalesmanWorkflowStatus = "not_started" | "travelling" | "measuring" | "completed";
+export enum JobStatus {
+  Pending = "Pending",
+  Scheduled = "Scheduled",
+  InProgress = "In Progress",
+  Completed = "Completed",
+  Cancelled = "Cancelled",
+}
+
+export enum JobPriority {
+  Low = "Low",
+  Medium = "Medium",
+  High = "High",
+}
+
+export enum SalesmanWorkflowStatus {
+  NotStarted = "Not Started",
+  Travelling = "Travelling",
+  Measuring = "Measuring",
+  Completed = "Completed",
+}
 
 export interface Job {
   _id: string;

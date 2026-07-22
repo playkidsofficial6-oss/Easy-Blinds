@@ -17,7 +17,8 @@ import { JobCard, type UnifiedJob } from "@/components/common/JobCard";
 import { useAuth } from "@/components/providers/auth-provider";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
 import { cn } from "@/lib/utils";
-import { getJobErrorMessage, getJobs, updateJob, type Job } from "@/lib/jobs";
+import { isSalesmanRole, UserRole } from "@/lib/auth";
+import { getJobErrorMessage, getJobs, JobPriority, JobStatus, updateJob, type Job } from "@/lib/jobs";
 import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 
@@ -116,7 +117,7 @@ function toFitterJob(job: Job): FitterJob {
     address: job.address,
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
     endTime: "",
-    status: job.status === "in_progress" ? "In Progress" : job.status === "completed" ? "Done" : "Pending",
+    status: job.status === JobStatus.InProgress ? "In Progress" : job.status === JobStatus.Completed ? "Done" : "Pending",
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
     phone: job.customerPhone,
@@ -124,7 +125,7 @@ function toFitterJob(job: Job): FitterJob {
     brand: "Easy Blinds",
     property: `Qty ${job.quantity ?? 1}`,
     productType: "Blinds",
-    priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
+    priority: job.priority === JobPriority.High ? "High" : job.priority === JobPriority.Medium ? "Medium" : "Low",
   };
 }
 
@@ -154,15 +155,14 @@ function sortUnifiedJobs(jobs: UnifiedJob[], sortKey: DispatchSortKey) {
 }
 
 function isSalesmanUser(user: UserRecord) {
-  const role = user.role?.toLowerCase() ?? "";
-  return role === "salesman" || role === "sales_man";
+  return isSalesmanRole(user.role);
 }
 
 function toSalesmanWorkforceMember(user: UserRecord): Fitter {
   return {
     id: user._id,
     name: user.name,
-    role: "Salesman",
+    role: UserRole.Salesman,
     jobRef: "--",
     status: user.liveStatus ?? "Available",
     location: (() => { const ll = extractLatLng(user.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
@@ -297,7 +297,7 @@ export default function SmartAssignmentsPage() {
   const fitters = useMemo<Fitter[]>(() => {
     return baseFitters.map((fitter) => {
       const assignedJobs = jobs.filter((job) => {
-        if (!["scheduled", "in_progress", "completed"].includes(job.status)) {
+        if (![JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status)) {
           return false;
         }
         // Match by userId (new) or name (legacy)
@@ -389,8 +389,8 @@ export default function SmartAssignmentsPage() {
       return undefined;
     };
 
-    let assignedFitterName = resolveRefName(job.assignedFitter);
-    let assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
+    const assignedFitterName = resolveRefName(job.assignedFitter);
+    const assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
 
     let teamName = "Assigned Team";
     if (!assignedFitterName && !assignedSalesmanName) {
@@ -402,7 +402,7 @@ export default function SmartAssignmentsPage() {
       teamName = parts.join(" & ");
     }
 
-    let assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
+    const assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
     
     return { 
       ...raw, 
@@ -416,11 +416,11 @@ export default function SmartAssignmentsPage() {
     };
   }, [userNameById]);
 
-  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === "pending" && !!job.assignedFitter).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
+  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === JobStatus.Pending && !!job.assignedFitter).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
   const activeJobs = useMemo(
     () => sortUnifiedJobs(
       jobs.filter((job) => {
-        if (!["scheduled", "in_progress"].includes(job.status)) return false;
+        if (![JobStatus.Scheduled, JobStatus.InProgress].includes(job.status)) return false;
         // Always show jobs assigned to a fitter (regardless of date)
         if (job.assignedFitter) return true;
         // Also show date-filtered jobs assigned via legacy assignedTo
@@ -512,7 +512,7 @@ export default function SmartAssignmentsPage() {
 
     try {
       const updated = await updateJob(dialogState.jobId, {
-        status: "scheduled",
+        status: JobStatus.Scheduled,
         scheduledAt,
         assignedTo: dialogState.fitterId,
         assignedBy: user?._id || user?.name || "Sales Manager",
@@ -533,7 +533,7 @@ export default function SmartAssignmentsPage() {
 
     try {
       const updated = await updateJob(dialogState.jobId, {
-        status: "pending",
+        status: JobStatus.Pending,
         assignedTo: "",
         assignedBy: "",
         notes: "Returned to pending queue from Smart Dispatch.",

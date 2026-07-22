@@ -10,6 +10,8 @@ import dynamic from "next/dynamic";
 import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
 import { useRouter } from "next/navigation";
 
+import { isFieldRole, isFitterRole } from "@/lib/auth";
+
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
     ssr: false,
     loading: () => <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400 font-light">Loading Map...</div>
@@ -23,10 +25,8 @@ export default function FitterPage() {
     const [activeTab, setActiveTab] = useState<Tab>("today");
     const [selectedJob, setSelectedJob] = useState<FitterJob | null>(null);
 
-    const isFitterRole = ["fitter", "field"].includes(
-      user?.role?.toLowerCase() ?? ""
-    );
-    const currentFitter = isFitterRole
+    const isFitterRoleUser = Boolean(user && (isFitterRole(user.role) || isFieldRole(user.role)));
+    const currentFitter = isFitterRoleUser
       ? fitters.find(f => f.id === user?._id)
       : null;
 
@@ -225,7 +225,7 @@ function FitterGpsControl() {
     // Stop tracking and redirect to login if session is lost while tracking
     useEffect(() => {
         const currentUser = userRef.current;
-        const isFitter = currentUser && ["fitter", "field"].includes(currentUser.role?.toLowerCase() ?? "");
+        const isFitter = Boolean(currentUser && (isFitterRole(currentUser.role) || isFieldRole(currentUser.role)));
         if (!currentUser || !isFitter) {
             if (watchIdRef.current !== null && "geolocation" in navigator) {
                 navigator.geolocation.clearWatch(watchIdRef.current);
@@ -254,7 +254,7 @@ function FitterGpsControl() {
     useEffect(() => {
         if (
             user &&
-            ["fitter", "field"].includes(user.role?.toLowerCase() ?? "") &&
+            (isFitterRole(user.role) || isFieldRole(user.role)) &&
             status === "idle" &&
             "geolocation" in navigator
         ) {
@@ -276,7 +276,7 @@ function FitterGpsControl() {
         if (!lastKnownFix) return;
 
         const currentUser = userRef.current;
-        const isFitter = currentUser && ["fitter", "field"].includes(currentUser.role?.toLowerCase() ?? "");
+        const isFitter = Boolean(currentUser && (isFitterRole(currentUser.role) || isFieldRole(currentUser.role)));
         if (!currentUser || !isFitter) {
             setErrorMessage("Session expired. Please sign in again.");
             logout("/login");
@@ -298,7 +298,7 @@ function FitterGpsControl() {
 
     function startTracking() {
         const currentUser = userRef.current;
-        const isFitter = currentUser && ["fitter", "field"].includes(currentUser.role?.toLowerCase() ?? "");
+        const isFitter = Boolean(currentUser && (isFitterRole(currentUser.role) || isFieldRole(currentUser.role)));
         if (!currentUser || !isFitter) {
             setStatus("error");
             setErrorMessage("You must be signed in as a fitter to share your location.");
@@ -324,7 +324,7 @@ function FitterGpsControl() {
         watchIdRef.current = navigator.geolocation.watchPosition(
             async (position) => {
                 const innerUser = userRef.current;
-                const isInnerFitter = innerUser && ["fitter", "field"].includes(innerUser.role?.toLowerCase() ?? "");
+                const isInnerFitter = Boolean(innerUser && (isFitterRole(innerUser.role) || isFieldRole(innerUser.role)));
                 if (!innerUser || !isInnerFitter) {
                     if (watchIdRef.current !== null) {
                         navigator.geolocation.clearWatch(watchIdRef.current);

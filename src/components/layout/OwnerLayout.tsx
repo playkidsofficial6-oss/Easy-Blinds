@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Menu } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/protected-route";
 import { useAuth } from "@/components/providers/auth-provider";
+import { UserRole } from "@/lib/auth";
 
 interface OwnerLayoutProps {
     children: React.ReactNode;
@@ -117,7 +118,7 @@ export function OwnerLayout({ children }: OwnerLayoutProps) {
     );
 
     return (
-        <ProtectedRoute allowedRoles={["owner"]}>
+        <ProtectedRoute allowedRoles={[UserRole.Owner]}>
         <div className="min-h-screen bg-neutral-50 flex">
             {/* Desktop Sidebar */}
             <aside className="hidden md:block w-72 border-r border-neutral-200 bg-neutral-900 fixed inset-y-0 z-50">

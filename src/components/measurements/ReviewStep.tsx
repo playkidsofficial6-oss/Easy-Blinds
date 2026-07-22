@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ClientDetails, Room } from "@/types/measurement";
 import { CheckCircle, MapPin, Phone, Calendar, Home } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { updateJob, getJob } from "@/lib/jobs";
+import { updateJob, getJob, JobStatus } from "@/lib/jobs";
 import { toast } from "sonner";
 
-import { saveMeasurementToBackend } from "@/lib/measurements";
+import { saveMeasurementToBackend, MeasurementStatus } from "@/lib/measurements";
 
 interface ReviewStepProps {
     clientDetails: Partial<ClientDetails>;
@@ -98,7 +98,7 @@ export function ReviewStep({
                 jobId,
                 assignedStaff: clientDetails.assignedStaff || "Salesman",
                 visitDate: clientDetails.visitDate ? new Date(clientDetails.visitDate).toISOString() : new Date().toISOString(),
-                status: (status === "Completed" ? "COMPLETED" : "PENDING") as "COMPLETED" | "PENDING",
+                status: status === "Completed" ? MeasurementStatus.Completed : MeasurementStatus.Pending,
                 rooms: backendRooms
             };
 
@@ -140,7 +140,7 @@ export function ReviewStep({
 
             // Also keep job notes & status updated for backwards compatibility with a concise note
             await updateJob(jobId, {
-                status: status === "Completed" ? "in_progress" : "scheduled",
+                status: status === "Completed" ? JobStatus.InProgress : JobStatus.Scheduled,
                 notes: [originalNotes, appendedNotes].filter(Boolean).join("\n"),
             });
         }

@@ -36,20 +36,21 @@ import {
 import { useAuth } from "@/components/providers/auth-provider";
 import { FitterList } from "@/components/tracking/FitterList";
 import { getUsers, type UserRecord, extractLatLng } from "@/lib/users";
-import { getJobs, updateJob, type Job, getJobErrorMessage } from "@/lib/jobs";
+import { getJobs, updateJob, type Job, getJobErrorMessage, JobStatus, JobPriority } from "@/lib/jobs";
 import { isAssignedToFitter, type Fitter, type FitterJob } from "@/lib/live-store";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Dynamically import map with no SSR
+import { isFieldRole, isSalesmanRole } from "@/lib/auth";
+
 const SalesmanMap = dynamic(() => import("@/components/tracking/SalesmanMap"), {
     ssr: false,
     loading: () => <div className="h-[500px] w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-[0.2em]">LOADING LIVE MAP...</div>
 });
 
 function isSalesman(user: UserRecord) {
-    const role = user.role?.toLowerCase() ?? "";
-    return role === "salesman" || role === "sales_man" || role === "field";
+    return isSalesmanRole(user.role) || isFieldRole(user.role);
 }
 
 function toDisplayTime(value?: string) {
@@ -78,7 +79,7 @@ function toFitterJob(job: Job): FitterJob {
         address: job.address,
         time: toDisplayTime(job.scheduledAt),
         endTime: toDisplayEndTime(job.scheduledAt),
-        status: job.status === "completed" ? "Done" : job.status === "in_progress" ? "In Progress" : "Pending",
+        status: job.status === JobStatus.Completed ? "Done" : job.status === JobStatus.InProgress ? "In Progress" : "Pending",
         value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
         email: job.customerEmail,
         phone: job.customerPhone,
@@ -86,7 +87,7 @@ function toFitterJob(job: Job): FitterJob {
         brand: "Easy Blinds",
         property: `Qty ${job.quantity ?? 1}`,
         productType: (job.productType as any) ?? "Blinds",
-        priority: job.priority === "high" ? "High" : job.priority === "medium" ? "Medium" : "Low",
+        priority: job.priority === JobPriority.High ? "High" : job.priority === JobPriority.Medium ? "Medium" : "Low",
     };
 }
 
@@ -99,12 +100,16 @@ function isJobForDate(job: Job, date: Date) {
     }
 }
 
+function getUnassignedJobsForDate(jobs: Job[], date: Date) {
+    return jobs.filter((job) => !job.assignedTo && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled));
+}
+
 function isAssignedToSalesman(job: Job, salesman: UserRecord) {
     return isAssignedToFitter(job, salesman);
 }
 
 function getUnassignedJobs(jobs: Job[]) {
-    return jobs.filter((job) => !job.assignedTo && (job.status === "pending" || job.status === "scheduled"));
+    return jobs.filter((job) => !job.assignedTo && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled));
 }
 
 function getStatusVariant(status: string) {
@@ -211,12 +216,12 @@ export default function SalesmenPage() {
         const tomorrow = addDays(today, 1);
 
         return salesmen.map((salesman) => {
-            const assignedJobs = jobs.filter((job) => ["pending", "scheduled", "in_progress", "completed"].includes(job.status) && isAssignedToSalesman(job, salesman));
+            const assignedJobs = jobs.filter((job) => [JobStatus.Pending, JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status) && isAssignedToSalesman(job, salesman));
             const todayJobs = assignedJobs.filter((job) => isJobForDate(job, today)).map(toFitterJob);
             const tomorrowJobs = assignedJobs.filter((job) => isJobForDate(job, tomorrow)).map(toFitterJob);
             const upcomingJobs = assignedJobs.filter((job) => job.scheduledAt && !isJobForDate(job, today) && !isJobForDate(job, tomorrow)).map(toFitterJob);
             
-            const activeAssignedJobs = assignedJobs.filter(j => j.status !== "completed");
+            const activeAssignedJobs = assignedJobs.filter(j => j.status !== JobStatus.Completed);
             // Set max to 999 to hide the denominator as requested
             const maxCapacity = 999;
             const currentCapacity = activeAssignedJobs.length;
@@ -278,7 +283,7 @@ export default function SalesmenPage() {
             const updatedJob = await updateJob(selectedJobId, {
                 assignedTo: salesman._id,
                 assignedBy: user?.name ?? user?._id,
-                status: "scheduled",
+                status: JobStatus.Scheduled,
                 notes: [
                     selectedJob?.notes,
                     `Assigned to salesman ${salesman.name}`,
@@ -344,7 +349,7 @@ export default function SalesmenPage() {
                 assignedTo: fitter._id,
                 assignedSalesman: assignFitterQuote.salesmanName ?? "",
                 assignedBy: user?.name ?? user?._id ?? "Sales Manager",
-                status: "scheduled",
+                status: JobStatus.Scheduled,
                 scheduledAt,
                 notes: `Assigned to fitter ${fitter.name} by Sales Manager${scheduledDate ? ` for ${scheduledDate} at ${scheduledTime || "09:00"}` : ""}.`,
             });

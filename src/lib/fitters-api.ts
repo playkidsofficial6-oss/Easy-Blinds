@@ -1,7 +1,12 @@
 import { api } from "./api";
 import type { UserRecord, UserLocation } from "./users";
 
-export type FitterProfileStatus = "available" | "on_the_way" | "in_progress" | "fully_booked";
+export enum FitterProfileStatus {
+  Available = "Available",
+  OnTheWay = "On The Way",
+  InProgress = "In Progress",
+  FullyBooked = "Fully Booked",
+}
 
 export interface FitterProfileRecord {
   _id?: string;

@@ -1,8 +1,21 @@
 import { api } from "./api";
 
+export enum OpeningType {
+  Window = "WINDOW",
+  Door = "DOOR",
+  Custom = "CUSTOM",
+}
+
+export enum MeasurementStatus {
+  Pending = "PENDING",
+  InProgress = "IN_PROGRESS",
+  Completed = "COMPLETED",
+  Cancelled = "CANCELLED",
+}
+
 export interface OpeningInput {
   id: string;
-  type: "WINDOW" | "DOOR" | "CUSTOM";
+  type: OpeningType | "WINDOW" | "DOOR" | "CUSTOM";
   name: string;
   width: number;
   height: number;
@@ -29,7 +42,7 @@ export interface CreateMeasurementInput {
   jobId: string;
   assignedStaff: string;
   visitDate: string;
-  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+  status: MeasurementStatus;
   rooms: RoomInput[];
 }
 
