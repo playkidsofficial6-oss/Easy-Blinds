@@ -143,7 +143,7 @@ export default function NewQuotePage() {
             };
 
             await updateJob(jobId, {
-                status: JobStatus.Completed,
+                status: JobStatus.ReadyForFitting,
                 notes: [originalJobNotes, notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
                 quotation,
             });

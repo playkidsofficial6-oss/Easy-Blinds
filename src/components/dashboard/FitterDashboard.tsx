@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { format, parse, isPast } from "date-fns";
 import { MapPin, Navigation, CheckCircle, Clock, ArrowLeft, Camera, Ruler, ClipboardList, Info, AlertCircle, X, Check, Timer, Wallet, AlertTriangle, LogOut } from "lucide-react";
-import { useLiveFitters, FitterJob, FitterStatus } from "@/lib/live-store";
+import { useLiveFitters, FitterJob, FitterStatus, isJobOnTheWay, isJobInFitting, isJobCompleted, isJobPendingOrAssigned, getFitterJobStatusLabel } from "@/lib/live-store";
 import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
@@ -11,6 +11,8 @@ import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic 
 import { useRouter } from "next/navigation";
 
 import { isFieldRole, isFitterRole } from "@/lib/auth";
+import { toast } from "sonner";
+import { startFitterTravel, startFitterFitting, completeFitterWorkflow, getJobErrorMessage, JobStatus } from "@/lib/jobs";
 
 const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
     ssr: false,
@@ -62,15 +64,28 @@ export default function FitterPage() {
 
     const jobs = getJobsForTab(activeTab);
 
-    const handleUpdateStatus = (status: "On the way" | "In progress" | "Completed") => {
+    const handleUpdateStatus = async (status: "On the way" | "In progress" | "Completed") => {
         if (!selectedJob) return;
         updateFitterStatus(currentFitter.id, status as FitterStatus);
-        const displayStatus =
-            status === "Completed"   ? "Done"        :
-            status === "In progress" ? "In Progress" :
-            status === "On the way"  ? "On the way"  :
-            "Pending";
-        setSelectedJob(prev => prev ? { ...prev, status: displayStatus } : null);
+        const updatedStatus =
+            status === "Completed"   ? JobStatus.Completed   :
+            status === "In progress" ? JobStatus.Fitting     :
+            JobStatus.FitterOnTheWay;
+        setSelectedJob(prev => prev ? { ...prev, status: updatedStatus } : null);
+
+        try {
+            if (status === "On the way") {
+                await startFitterTravel(selectedJob.id, { fitterId: currentFitter.id });
+            } else if (status === "In progress") {
+                await startFitterFitting(selectedJob.id, { fitterId: currentFitter.id });
+            } else if (status === "Completed") {
+                await completeFitterWorkflow(selectedJob.id, { fitterId: currentFitter.id });
+            }
+            toast.success(`Job status updated to ${status}`);
+        } catch (err) {
+            console.error("Failed to update fitter job status on backend", err);
+            toast.error(getJobErrorMessage(err, "Failed to update status on server"));
+        }
     };
 
     return (
@@ -483,17 +498,18 @@ function JobCard({ job, onSelect, isSelected }: { job: FitterJob; onSelect: () =
             <div className="flex justify-between items-start mb-3">
                 <span className={cn(
                     "px-2 py-1 text-[10px] uppercase tracking-[0.15em] font-bold rounded-sm border",
-                    job.status === "Done" ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
-                        job.status === "In Progress" ? "bg-blue-100 text-blue-800 border-blue-200" :
-                            isLate ? "bg-red-100 text-red-800 border-red-200" : // Late badge style
-                                "bg-amber-100 text-amber-800 border-amber-200"
+                    isJobCompleted(job.status) ? "bg-emerald-100 text-emerald-800 border-emerald-200" :
+                        isJobInFitting(job.status) ? "bg-blue-100 text-blue-800 border-blue-200" :
+                            isJobOnTheWay(job.status) ? "bg-amber-100 text-amber-900 border-amber-300" :
+                                isLate ? "bg-red-100 text-red-800 border-red-200" :
+                                    "bg-amber-100 text-amber-800 border-amber-200"
                 )}>
-                    {isLate && job.status === "Pending" ? (
+                    {isLate && isJobPendingOrAssigned(job.status) ? (
                         <span className="flex items-center gap-1">
                             <AlertCircle className="w-3 h-3" />
                             LATE
                         </span>
-                    ) : job.status}
+                    ) : getFitterJobStatusLabel(job.status)}
                 </span>
 
                 <div className={cn(
@@ -531,7 +547,7 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
     const isLate = calculateIsLate(job.time, job.status, job.date);
 
     useEffect(() => {
-        if (job.status !== "In Progress" || !jobStartTime) {
+        if (!isJobInFitting(job.status) || !jobStartTime) {
             setElapsedTime("00:00:00");
             return;
         }
@@ -616,12 +632,12 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                         </div>
                         <div className="font-light text-slate-900 font-mono text-sm mt-1">{job.id}</div>
                     </div>
-                    <div className={cn("bg-white p-6 border-t-4 shadow-sm", job.status === "Done" ? "border-emerald-500" : job.status === "In Progress" ? "border-blue-600" : "border-amber-500")}>
+                    <div className={cn("bg-white p-6 border-t-4 shadow-sm", isJobCompleted(job.status) ? "border-emerald-500" : isJobInFitting(job.status) ? "border-blue-600" : isJobOnTheWay(job.status) ? "border-amber-500" : "border-amber-500")}>
                         <div className="text-[10px] text-slate-400 uppercase font-bold tracking-[0.2em] mb-2 flex items-center gap-2">
-                            <Info className={cn("w-3 h-3", job.status === "Done" ? "text-emerald-500" : job.status === "In Progress" ? "text-blue-600" : "text-amber-500")} /> Status
+                            <Info className={cn("w-3 h-3", isJobCompleted(job.status) ? "text-emerald-500" : isJobInFitting(job.status) ? "text-blue-600" : "text-amber-500")} /> Status
                         </div>
-                        <div className={cn("text-xl font-light", job.status === "Done" ? "text-emerald-600" : job.status === "In Progress" ? "text-blue-600" : "text-amber-600")}>
-                            {job.status}
+                        <div className={cn("text-xl font-light", isJobCompleted(job.status) ? "text-emerald-600" : isJobInFitting(job.status) ? "text-blue-600" : "text-amber-600")}>
+                            {getFitterJobStatusLabel(job.status)}
                         </div>
                     </div>
                 </div>
@@ -689,60 +705,60 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
             </div>
 
             {/* Floating Action Dock */}
-            {job.status !== "Done" && (
+            {!isJobCompleted(job.status) && (
                 <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-6 md:px-12 shadow-[0_-4px_30px_rgba(0,0,0,0.1)] z-50">
                     <div className="max-w-4xl mx-auto grid grid-cols-3 gap-6">
                         <button
                             onClick={() => onStatusChange("On the way")}
-                            disabled={job.status !== "Pending"}
+                            disabled={!isJobPendingOrAssigned(job.status)}
                             className={cn(
                                 "flex flex-col items-center justify-center py-4 gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md",
-                                job.status === "Pending"
+                                isJobPendingOrAssigned(job.status)
                                     ? "bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50"
                                     : "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed"
                             )}
                         >
-                            <Navigation className={cn("w-5 h-5 stroke-2", job.status === "Pending" ? "text-amber-600" : "text-slate-400")} />
-                            <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", job.status === "Pending" ? "text-amber-900" : "text-slate-400")}>On my way</span>
+                            <Navigation className={cn("w-5 h-5 stroke-2", isJobPendingOrAssigned(job.status) ? "text-amber-600" : "text-slate-400")} />
+                            <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", isJobPendingOrAssigned(job.status) ? "text-amber-900" : "text-slate-400")}>On my way</span>
                         </button>
 
                         <button
                             onClick={() => onStatusChange("In progress")}
-                            disabled={job.status !== "In Progress" && currentGlobalStatus !== "On the way"}
+                            disabled={!isJobInFitting(job.status) && !isJobOnTheWay(job.status) && currentGlobalStatus !== "On the way"}
                             className={cn(
                                 "flex flex-col items-center justify-center py-4 gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md",
-                                job.status === "In Progress"
+                                isJobInFitting(job.status)
                                     ? "bg-blue-50 border-blue-200"
-                                    : (currentGlobalStatus === "On the way"
+                                    : (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way"
                                         ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700 shadow-blue-200"
                                         : "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed")
                             )}
                         >
-                            {job.status === "In Progress" ? (
+                            {isJobInFitting(job.status) ? (
                                 <>
                                     <div className="text-2xl font-light tracking-widest text-blue-900">{elapsedTime}</div>
                                     <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-500 animate-pulse">Running</span>
                                 </>
                             ) : (
                                 <>
-                                    <Clock className={cn("w-5 h-5 stroke-2", currentGlobalStatus === "On the way" ? "text-white" : "text-slate-400")} />
-                                    <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", currentGlobalStatus === "On the way" ? "text-white" : "text-slate-400")}>Start Job</span>
+                                    <Clock className={cn("w-5 h-5 stroke-2", (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way") ? "text-white" : "text-slate-400")} />
+                                    <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way") ? "text-white" : "text-slate-400")}>Start Job</span>
                                 </>
                             )}
                         </button>
 
                         <button
                             onClick={() => setIsCompletionModalOpen(true)}
-                            disabled={job.status !== "In Progress"}
+                            disabled={!isJobInFitting(job.status)}
                             className={cn(
                                 "flex flex-col items-center justify-center py-4 gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md",
-                                job.status === "In Progress"
+                                isJobInFitting(job.status)
                                     ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200"
                                     : "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed"
                             )}
                         >
-                            <CheckCircle className={cn("w-5 h-5 stroke-2", job.status === "In Progress" ? "text-white" : "text-slate-400")} />
-                            <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", job.status === "In Progress" ? "text-white" : "text-slate-400")}>Complete</span>
+                            <CheckCircle className={cn("w-5 h-5 stroke-2", isJobInFitting(job.status) ? "text-white" : "text-slate-400")} />
+                            <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", isJobInFitting(job.status) ? "text-white" : "text-slate-400")}>Complete</span>
                         </button>
                     </div>
                 </div>

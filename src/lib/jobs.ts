@@ -3,10 +3,26 @@ import { api } from "./api";
 
 export enum JobStatus {
   Pending = "Pending",
-  Scheduled = "Scheduled",
-  InProgress = "In Progress",
+  SalesmanScheduled = "Salesman Scheduled",
+  SalesmanOnTheWay = "Salesman On The Way",
+  SalesmanReached = "Salesman Reached",
+  SalesmanCancelled = "Salesman Cancelled",
+  Measuring = "Measuring",
+  Quoting = "Quoting",
+  ReadyForFitting = "Ready for Fitting",
+  FitterAssigned = "Fitter Assigned",
+  FitterOnTheWay = "Fitter On The Way",
+  FitterReached = "Fitter Reached",
+  FitterCancelled = "Fitter Cancelled",
+  Fitting = "Fitting",
+  TakingPhotos = "Taking Photos",
   Completed = "Completed",
   Cancelled = "Cancelled",
+  Dropped = "Dropped",
+
+  // Legacy compatibility
+  Scheduled = "Scheduled",
+  InProgress = "In Progress",
 }
 
 export enum JobPriority {
@@ -15,12 +31,8 @@ export enum JobPriority {
   High = "High",
 }
 
-export enum SalesmanWorkflowStatus {
-  NotStarted = "Not Started",
-  Travelling = "Travelling",
-  Measuring = "Measuring",
-  Completed = "Completed",
-}
+
+
 
 export interface Job {
   _id: string;
@@ -40,12 +52,16 @@ export interface Job {
   notes?: string;
   scheduledAt?: string;
   timerStartedAt?: string;
-  salesmanWorkflowStatus?: SalesmanWorkflowStatus;
+  fittingPhotos?: string[];
+  fittingNotes?: string;
   activeSalesmanId?: string;
   activeSalesmanName?: string;
   travelStartedAt?: string;
   measurementStartedAt?: string;
   measurementCompletedAt?: string;
+  fitterTravelStartedAt?: string;
+  fittingStartedAt?: string;
+  fittingCompletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
   assignedTo?: any;
@@ -61,6 +77,7 @@ export interface Job {
     status: 'pending' | 'resolved';
     requestedAt: string;
   };
+  cancelReason?: string;
 }
 
 export function isAssignedToUser(job: Job, user?: { _id?: string; name?: string; email?: string } | null): boolean {
@@ -117,7 +134,6 @@ export interface CreateJobInput {
   notes?: string;
   scheduledAt?: string;
   timerStartedAt?: string;
-  salesmanWorkflowStatus?: SalesmanWorkflowStatus;
   activeSalesmanId?: string;
   activeSalesmanName?: string;
   travelStartedAt?: string;
@@ -209,6 +225,29 @@ export async function startSalesmanMeasuring(id: string, input: SalesmanWorkflow
 
 export async function completeSalesmanWorkflow(id: string, input: SalesmanWorkflowInput = {}): Promise<Job> {
   const { data } = await api.patch<Job>(`/jobs/${id}/salesman-complete`, input);
+  return data;
+}
+
+export async function assignFitter(id: string, fitterId: string): Promise<Job> {
+  const { data } = await api.patch<Job>(`/jobs/${id}/assign-fitter`, { fitterId });
+  return data;
+}
+
+export async function startFitterTravel(id: string, input: { fitterId?: string; notes?: string } = {}): Promise<Job> {
+  const { data } = await api.patch<Job>(`/jobs/${id}/fitter-travel`, input);
+  return data;
+}
+
+export async function startFitterFitting(id: string, input: { fitterId?: string; notes?: string } = {}): Promise<Job> {
+  const { data } = await api.patch<Job>(`/jobs/${id}/fitter-fitting`, input);
+  return data;
+}
+
+export async function completeFitterWorkflow(
+  id: string,
+  input: { fitterId?: string; notes?: string; photos?: string[] } = {},
+): Promise<Job> {
+  const { data } = await api.patch<Job>(`/jobs/${id}/fitter-complete`, input);
   return data;
 }
 

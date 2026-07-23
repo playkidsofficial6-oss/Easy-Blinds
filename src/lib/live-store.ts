@@ -41,7 +41,7 @@ export interface FitterJob {
   endTime: string;
   scheduledAt?: string;
   date?: string;
-  status: "Pending" | "On the way" | "In Progress" | "Done";
+  status: JobStatus | "Pending" | "On the way" | "In Progress" | "Done" | string;
   fabric?: string;
   rooms?: string[];
   coordinates?: [number, number];
@@ -67,6 +67,7 @@ export interface Fitter {
   role?: "Fitter" | "Salesman";
   jobRef: string;
   status: FitterStatus;
+  checkedIn?: boolean;
   location?: [number, number];
   locationLabel?: string;
   lastUpdated: string;
@@ -169,6 +170,37 @@ function toDisplayEndTime(value?: string) {
   }
 }
 
+export function isJobOnTheWay(status?: JobStatus | string): boolean {
+  return status === JobStatus.FitterOnTheWay || status === JobStatus.FitterReached || status === JobStatus.SalesmanOnTheWay || status === "On the way";
+}
+
+export function isJobInFitting(status?: JobStatus | string): boolean {
+  return status === JobStatus.Fitting || status === JobStatus.TakingPhotos || status === JobStatus.InProgress || status === JobStatus.Measuring || status === "In progress" || status === "In Progress";
+}
+
+export function isJobCompleted(status?: JobStatus | string): boolean {
+  return status === JobStatus.Completed || status === "Done";
+}
+
+export function isJobPendingOrAssigned(status?: JobStatus | string): boolean {
+  return !isJobOnTheWay(status) && !isJobInFitting(status) && !isJobCompleted(status);
+}
+
+export function getFitterJobStatusLabel(status?: JobStatus | string): string {
+  if (isJobCompleted(status)) return "Completed";
+  if (isJobInFitting(status)) return "In Progress";
+  if (isJobOnTheWay(status)) return "On the way";
+  return "Pending";
+}
+
+export function toFitterJobStatus(jobStatus?: JobStatus | string): "Pending" | "On the way" | "In Progress" | "Done" {
+  if (!jobStatus) return "Pending";
+  if (isJobCompleted(jobStatus)) return "Done";
+  if (isJobInFitting(jobStatus)) return "In Progress";
+  if (isJobOnTheWay(jobStatus)) return "On the way";
+  return "Pending";
+}
+
 function toFitterJob(job: Job): FitterJob {
   const ll = extractLatLng(job.location as any);
   return {
@@ -181,7 +213,7 @@ function toFitterJob(job: Job): FitterJob {
     scheduledAt: job.scheduledAt,
     date: job.scheduledAt ? format(parseISO(job.scheduledAt), "yyyy-MM-dd") : undefined,
     timerStartedAt: job.timerStartedAt,
-    status: job.status === JobStatus.Completed ? "Done" : job.status === JobStatus.InProgress ? "In Progress" : "Pending",
+    status: toFitterJobStatus(job.status),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
     phone: job.customerPhone,
@@ -254,7 +286,7 @@ function getStatus(
   if (liveLocation && !liveLocation.isOnline) return "Offline";
   if (capacityRemaining <= 0) return "Fully Booked";
   if (todayJobs.some((job) => job.status === "In Progress")) return "In progress";
-  if (todayJobs.some((job) => job.status === "Pending")) return "On the way";
+  if (todayJobs.some((job) => job.status === "On the way")) return "On the way";
   if (profile.user.liveStatus === "Offline") return "Offline";
   if (profile.user.liveStatus === "Completed") return "Completed";
   return toLiveStatus(profile.status);
@@ -279,7 +311,7 @@ function buildFitter(
   const user = profile.user;
   const today = new Date();
   const tomorrow = addDays(today, 1);
-  const assignedJobs = jobs.filter((job) => [JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status) && isAssignedToFitter(job, user));
+  const assignedJobs = jobs.filter((job) => ![JobStatus.Cancelled, JobStatus.Dropped].includes(job.status) && isAssignedToFitter(job, user));
   const todayJobs = assignedJobs.filter((job) => isJobForDate(job, today)).map(toFitterJob);
   const tomorrowJobs = assignedJobs.filter((job) => isJobForDate(job, tomorrow)).map(toFitterJob);
   const upcomingJobs = assignedJobs
@@ -301,6 +333,7 @@ function buildFitter(
     role: UserRole.Fitter,
     jobRef: activeJob?.id ?? "--",
     status: getStatus(profile, todayJobs, remainingCapacity, liveLocation),
+    checkedIn: user.checkedIn ?? true,
     location,
     locationLabel: profile.location?.address,
     lastUpdated: getLastUpdated(profile, liveLocation),

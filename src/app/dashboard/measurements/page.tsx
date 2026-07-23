@@ -86,7 +86,7 @@ export default function MeasurementsPage() {
                     <h1 className="text-3xl font-bold text-stone-900">Measurements</h1>
                     <p className="text-stone-500">Manage all client measurements and site visits</p>
                 </div>
-                <Link href="/salesman/measurements/new">
+                <Link href="/dashboard/measurements/new">
                     <Button className="bg-stone-900 hover:bg-stone-800 text-white">
                         <Plus className="w-4 h-4 mr-2" />
                         New Measurement
@@ -148,11 +148,11 @@ export default function MeasurementsPage() {
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        <Link href={`/salesman/measurements/${measurement.id}`}>
+                                        <Link href={`/dashboard/measurements/${measurement.id}`}>
                                             <Button variant="outline" size="sm">View Details</Button>
                                         </Link>
                                         {measurement.status === 'Completed' && (
-                                            <Link href={`/salesman/quotes/new?measurementId=${measurement.id}`}>
+                                            <Link href={`/dashboard/quotes/new?measurementId=${measurement.id}`}>
                                                 <Button size="sm" className="bg-stone-900 hover:bg-stone-800">
                                                     Create Quote
                                                 </Button>

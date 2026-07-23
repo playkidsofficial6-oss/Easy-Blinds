@@ -58,11 +58,14 @@ export function ReviewStep({
         if (jobId) {
             // Map frontend structures to the strict backend opening schemas
             const backendRooms = rooms.map(room => ({
-                id: room.id,
-                name: room.name,
+                id: room.id || `room_${Math.random().toString(36).substring(2, 9)}`,
+                name: room.name || "Room",
                 category: room.type || "Other",
                 openings: (room.windows || []).map(w => {
-                    const type = w.productType === "Custom Item" ? "CUSTOM" : "WINDOW";
+                    const rawProduct = (w.productType || "").toLowerCase();
+                    const type = w.productType === "Custom Item" 
+                        ? "Custom" 
+                        : (rawProduct.includes("door") ? "Door" : "Window");
                     
                     // Format custom material & fabric selection
                     const materialType = w.fabricSelection === "CUSTOM" ? "custom" : "standard";
@@ -71,24 +74,24 @@ export function ReviewStep({
                         : (FABRICS.find(f => f.id === w.fabricSelection)?.name || w.fabricSelection || "None");
 
                     return {
-                        id: w.id,
-                        type: type as "WINDOW" | "DOOR" | "CUSTOM",
-                        name: w.name,
-                        width: Number(w.width || 0),
-                        height: Number(w.height || 0),
+                        id: w.id || `win_${Math.random().toString(36).substring(2, 9)}`,
+                        type,
+                        name: w.name || "Window 1",
+                        width: Number(w.width) > 0 ? Number(w.width) : 100,
+                        height: Number(w.height) > 0 ? Number(w.height) : 100,
                         measurementUnit: "cm",
                         mountType: w.mountType || "Wall",
                         openingDirection: w.openingDirection || "Split",
-                        productType: w.productType === "Custom Item" ? (w.customProductName || "Custom Item") : w.productType,
+                        productType: w.productType === "Custom Item" ? (w.customProductName || "Custom Item") : (w.productType || "Curtains"),
                         materialType,
                         customMaterial,
                         motorType: w.motorType || "Manual",
                         notes: w.notes || "",
                         images: w.photos || [],
                         metadata: {
-                            fabricSelection: w.fabricSelection,
-                            customFabricName: w.customFabricName,
-                            customProductName: w.customProductName
+                            fabricSelection: w.fabricSelection || "standard",
+                            customFabricName: w.customFabricName || "",
+                            customProductName: w.customProductName || ""
                         }
                     };
                 })
@@ -98,7 +101,7 @@ export function ReviewStep({
                 jobId,
                 assignedStaff: clientDetails.assignedStaff || "Salesman",
                 visitDate: clientDetails.visitDate ? new Date(clientDetails.visitDate).toISOString() : new Date().toISOString(),
-                status: status === "Completed" ? MeasurementStatus.Completed : MeasurementStatus.Pending,
+                status: status === "Completed" ? "Completed" : "Pending",
                 rooms: backendRooms
             };
 
@@ -150,7 +153,7 @@ export function ReviewStep({
         try {
             await persistMeasurement("Draft");
             toast.success("Measurement saved as draft");
-            router.push("/salesman/measurements");
+            router.push("/dashboard/measurements");
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Unable to save measurement");
         }
@@ -160,7 +163,7 @@ export function ReviewStep({
         try {
             await persistMeasurement("Completed");
             toast.success("Measurement completed successfully!");
-            router.push(jobId ? `/salesman/quotes/new?jobId=${jobId}` : "/salesman/measurements");
+            router.push(jobId ? `/dashboard/quotes/new?jobId=${jobId}` : "/dashboard/measurements");
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Unable to complete measurement");
         }

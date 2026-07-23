@@ -1,21 +1,22 @@
 import { api } from "./api";
 
 export enum OpeningType {
-  Window = "WINDOW",
-  Door = "DOOR",
-  Custom = "CUSTOM",
+  Window = "Window",
+  Door = "Door",
+  Custom = "Custom",
 }
 
 export enum MeasurementStatus {
-  Pending = "PENDING",
-  InProgress = "IN_PROGRESS",
-  Completed = "COMPLETED",
-  Cancelled = "CANCELLED",
+  Pending = "Pending",
+  InProgress = "In Progress",
+  Completed = "Completed",
+  Cancelled = "Cancelled",
+  Draft = "Draft",
 }
 
 export interface OpeningInput {
   id: string;
-  type: OpeningType | "WINDOW" | "DOOR" | "CUSTOM";
+  type: OpeningType | "Window" | "Door" | "Custom" | "WINDOW" | "DOOR" | "CUSTOM" | string;
   name: string;
   width: number;
   height: number;
@@ -42,7 +43,7 @@ export interface CreateMeasurementInput {
   jobId: string;
   assignedStaff: string;
   visitDate: string;
-  status: MeasurementStatus;
+  status: MeasurementStatus | "Pending" | "In Progress" | "Completed" | "Cancelled" | "Draft" | string;
   rooms: RoomInput[];
 }
 

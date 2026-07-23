@@ -16,11 +16,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JobCard, type UnifiedJob } from "@/components/common/JobCard";
 import { useAuth } from "@/components/providers/auth-provider";
 import { FilterSortBar } from "@/components/common/FilterSortBar";
-import { cn } from "@/lib/utils";
-import { isSalesmanRole, UserRole } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { isFitterRole, isSalesmanRole, UserRole } from "@/lib/auth";
 import { getJobErrorMessage, getJobs, JobPriority, JobStatus, updateJob, type Job } from "@/lib/jobs";
-import { useLiveFitters, type Fitter, type FitterJob } from "@/lib/live-store";
+import { useLiveFitters, toFitterJobStatus, type Fitter, type FitterJob } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
+import { JobDetailSheet } from "@/components/tracking/JobDetailSheet";
+import { cn } from "@/lib/utils";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
   ssr: false,
@@ -117,7 +119,7 @@ function toFitterJob(job: Job): FitterJob {
     address: job.address,
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
     endTime: "",
-    status: job.status === JobStatus.InProgress ? "In Progress" : job.status === JobStatus.Completed ? "Done" : "Pending",
+    status: toFitterJobStatus(job.status),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
     phone: job.customerPhone,
@@ -199,6 +201,14 @@ function toReadableLastUpdated(source?: string) {
 
 export default function SmartAssignmentsPage() {
   const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && isFitterRole(user.role)) {
+      router.replace("/dashboard");
+    }
+  }, [user, router]);
+
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
@@ -297,13 +307,17 @@ export default function SmartAssignmentsPage() {
   const fitters = useMemo<Fitter[]>(() => {
     return baseFitters.map((fitter) => {
       const assignedJobs = jobs.filter((job) => {
-        if (![JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status)) {
+        if ([JobStatus.Cancelled, JobStatus.Dropped].includes(job.status)) {
           return false;
         }
         // Match by userId (new) or name (legacy)
         if (job.assignedTo) {
-          if (job.assignedTo === fitter.id) return true;
-          if (job.assignedTo.toLowerCase() === fitter.name.toLowerCase()) return true;
+          const ref = job.assignedTo;
+          if (typeof ref === "object" && ref !== null) {
+            return (ref as any)._id === fitter.id || (ref as any).name?.toLowerCase() === fitter.name.toLowerCase();
+          }
+          if (ref === fitter.id) return true;
+          if (typeof ref === "string" && ref.toLowerCase() === fitter.name.toLowerCase()) return true;
           return false;
         }
         const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
@@ -375,7 +389,7 @@ export default function SmartAssignmentsPage() {
 
   const resolveUnifiedJob = useCallback((job: Job): UnifiedJob => {
     const raw = toUnifiedJob(job);
-    
+
     const resolveRefName = (ref: any): string | undefined => {
       if (!ref) return undefined;
       if (typeof ref === "object" && ref !== null && typeof ref.name === "string") {
@@ -403,12 +417,12 @@ export default function SmartAssignmentsPage() {
     }
 
     const assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
-    
-    return { 
-      ...raw, 
-      team: teamName, 
-      assignedFitterName, 
-      assignedSalesmanName, 
+
+    return {
+      ...raw,
+      team: teamName,
+      assignedFitterName,
+      assignedSalesmanName,
       assignedBy,
       assignedSalesman: job.assignedSalesman,
       assignedTo: job.assignedTo,
@@ -416,19 +430,60 @@ export default function SmartAssignmentsPage() {
     };
   }, [userNameById]);
 
-  const pendingJobs = useMemo(() => sortUnifiedJobs(jobs.filter((job) => job.status === JobStatus.Pending && !!job.assignedFitter).map(resolveUnifiedJob), sortKey), [jobs, sortKey, resolveUnifiedJob]);
+  const pendingJobs = useMemo(
+    () =>
+      sortUnifiedJobs(
+        jobs
+          .filter((job) => {
+            if (
+              job.status === JobStatus.Completed ||
+              job.status === JobStatus.Cancelled ||
+              job.status === JobStatus.Dropped
+            ) {
+              return false;
+            }
+            // Jobs ready for fitting or pending fitter assignment
+            if (job.status === JobStatus.ReadyForFitting) return true;
+            if (!job.assignedFitter && job.status === JobStatus.Pending) return true;
+            return false;
+          })
+          .map(resolveUnifiedJob),
+        sortKey
+      ),
+    [jobs, sortKey, resolveUnifiedJob]
+  );
+
   const activeJobs = useMemo(
-    () => sortUnifiedJobs(
-      jobs.filter((job) => {
-        if (![JobStatus.Scheduled, JobStatus.InProgress].includes(job.status)) return false;
-        // Always show jobs assigned to a fitter (regardless of date)
-        if (job.assignedFitter) return true;
-        // Also show date-filtered jobs assigned via legacy assignedTo
-        return isJobForDate(job, viewDate);
-      }).map(resolveUnifiedJob),
-      sortKey
-    ),
-    [jobs, sortKey, viewDate, resolveUnifiedJob],
+    () =>
+      sortUnifiedJobs(
+        jobs
+          .filter((job) => {
+            if (
+              job.status === JobStatus.Completed ||
+              job.status === JobStatus.Cancelled ||
+              job.status === JobStatus.Dropped
+            ) {
+              return false;
+            }
+            if (
+              [
+                JobStatus.FitterAssigned,
+                JobStatus.FitterOnTheWay,
+                JobStatus.FitterReached,
+                JobStatus.Fitting,
+                JobStatus.TakingPhotos,
+                JobStatus.Scheduled,
+                JobStatus.InProgress,
+              ].includes(job.status)
+            ) {
+              return true;
+            }
+            return Boolean(job.assignedFitter);
+          })
+          .map(resolveUnifiedJob),
+        sortKey
+      ),
+    [jobs, sortKey, resolveUnifiedJob]
   );
 
   const recommendedFitters = useMemo(() => {
@@ -528,6 +583,8 @@ export default function SmartAssignmentsPage() {
     }
   };
 
+  const [inspectJobId, setInspectJobId] = useState<string | null>(null);
+
   const handleUnassign = async () => {
     if (!dialogState) return;
 
@@ -550,6 +607,9 @@ export default function SmartAssignmentsPage() {
 
   return (
     <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-white">
+      {inspectJobId && (
+        <JobDetailSheet jobId={inspectJobId} onClose={() => setInspectJobId(null)} />
+      )}
       <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl">
         <div className="p-8 border-b border-slate-100 flex-shrink-0">
           <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
@@ -740,11 +800,11 @@ export default function SmartAssignmentsPage() {
                 {dialogState?.type === "edit" ? "Reschedule" : "Confirm Dispatch"}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                  {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient} (Currently ${dialogState.currentSlot} with ${dialogState.fitterName})` : `Assigning ${dialogState?.jobClient} to ${dialogState?.fitterName}`}
+                {dialogState?.type === "edit" ? `Moving ${dialogState.jobClient} (Currently ${dialogState.currentSlot} with ${dialogState.fitterName})` : `Assigning ${dialogState?.jobClient} to ${dialogState?.fitterName}`}
               </DialogDescription>
             </DialogHeader>
 
-              <div className="flex-1 flex flex-col gap-4">
+            <div className="flex-1 flex flex-col gap-4">
               <div>
                 <label className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2 block">1. Select Service Date</label>
                 <div className="border border-slate-200 rounded-lg bg-white overflow-hidden p-2 flex justify-center">

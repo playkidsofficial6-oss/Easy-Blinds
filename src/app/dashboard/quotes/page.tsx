@@ -98,7 +98,7 @@ export default function QuotesPage() {
                         <span className="block font-semibold mt-1">Quotes</span>
                     </h1>
                 </div>
-                <Link href="/salesman/quotes/new">
+                <Link href="/dashboard/quotes/new">
                     <Button className="h-14 px-8 bg-neutral-900 hover:bg-neutral-800 text-white border-0 font-medium uppercase tracking-wide">
                         <Plus className="w-5 h-5 mr-2" />
                         New Quote
@@ -197,7 +197,7 @@ export default function QuotesPage() {
                                 </div>
                             </div>
                             <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Link href={`/salesman/quotes/${quote.id}`}>
+                                <Link href={`/dashboard/quotes/${quote.id}`}>
                                     <Button variant="outline" size="sm" className="h-12 px-6 border-2">
                                         <FileText className="w-4 h-4 mr-2" />
                                         View

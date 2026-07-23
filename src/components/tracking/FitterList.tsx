@@ -211,7 +211,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                         <p className="font-semibold text-base truncate text-slate-900 group-hover:text-emerald-700 transition-colors">{fitter.name}</p>
                                                         <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{fitter.role || "Fitter"}</span>
                                                     </div>
-                                                    <div className="flex flex-col items-end">
+                                                    <div className="flex flex-col items-end gap-1">
                                                         {hasLateJob ? (
                                                             <Badge variant="destructive" className="text-[9px] h-5 px-1.5 rounded-md animate-pulse">LATE</Badge>
                                                         ) : (
@@ -222,6 +222,11 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                                 {fitter.status}
                                                             </span>
                                                         )}
+                                                        <span className={cn("text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full border",
+                                                            fitter.checkedIn !== false ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
+                                                        )}>
+                                                            {fitter.checkedIn !== false ? "Checked In" : "Checked Out"}
+                                                        </span>
                                                     </div>
                                                 </div>
 
@@ -268,6 +273,11 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                         selectedFitter.status === "Offline" ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-700"
                                                 )}>
                                                     {selectedFitter.status}
+                                                </Badge>
+                                                <Badge variant="outline" className={cn("text-[10px] uppercase tracking-wider font-bold px-2",
+                                                    selectedFitter.checkedIn !== false ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-100 text-slate-500 border-slate-200"
+                                                )}>
+                                                    {selectedFitter.checkedIn !== false ? "Checked In" : "Checked Out"}
                                                 </Badge>
                                                 <span className="text-[10px] uppercase tracking-wider text-slate-400 font-medium">• {selectedFitter.role || "Fitter"}</span>
                                             </div>

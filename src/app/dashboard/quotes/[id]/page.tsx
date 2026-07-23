@@ -96,7 +96,7 @@ export default function ViewQuotePage({ params }: { params: Promise<{ id: string
                 <div className="flex flex-col items-center justify-center h-64 gap-4">
                     <XCircle className="w-12 h-12 text-neutral-300" />
                     <h2 className="text-2xl font-light text-neutral-700">Quote Not Found</h2>
-                    <Link href="/salesman/quotes">
+                    <Link href="/dashboard/quotes">
                         <Button variant="outline">Back to Quotes</Button>
                     </Link>
                 </div>
@@ -105,7 +105,7 @@ export default function ViewQuotePage({ params }: { params: Promise<{ id: string
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Link href="/salesman/quotes">
+                    <Link href="/dashboard/quotes">
                         <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100">
                             <ArrowLeft className="w-5 h-5" />
                         </Button>

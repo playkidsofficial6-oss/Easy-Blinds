@@ -105,7 +105,8 @@ function LiveCountdown({ startedAt }: { startedAt: string }) {
 }
 
 export function JobCard({ job, isSelected, onSelect, onAction, variant = "assignment", showEditDelete = false }: JobCardProps) {
-    const statusLabel = variant === "schedule" ? (job.status || "SCHEDULED").toUpperCase() : (job.status || "PENDING").toUpperCase();
+    const rawStatus = (job.status || "PENDING").replace(/_/g, " ");
+    const statusLabel = rawStatus.toUpperCase();
     const firstRecommendation = job.recommendedFitters?.[0];
     
     const resolveName = (ref: any): string | undefined => {
@@ -133,7 +134,15 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
     const representativeInitials = initialsFromName(representativeName);
     const distanceLabel = typeof firstRecommendation?.dist === "number" ? `${firstRecommendation.dist.toFixed(1)} km` : "Not Started";
     const etaLabel = typeof firstRecommendation?.duration === "number" ? formatDuration(firstRecommendation.duration) : "Not Available";
-    const statusIsPending = statusLabel.includes("PENDING") || variant === "assignment";
+
+    const getStatusStyle = (status: string) => {
+        const s = status.toUpperCase();
+        if (s.includes("COMPLETED")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (s.includes("READY FOR FITTING") || s.includes("FITTING")) return "bg-amber-50 text-amber-700 border-amber-200";
+        if (s.includes("MEASURING") || s.includes("QUOTING") || s.includes("WAY")) return "bg-blue-50 text-blue-700 border-blue-200";
+        if (s.includes("CANCEL") || s.includes("DROP")) return "bg-red-50 text-red-700 border-red-200";
+        return "bg-slate-100 text-slate-700 border-slate-200";
+    };
 
     return (
         <div
@@ -158,8 +167,8 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                 </span>
                 <div className="flex items-center gap-2">
                     <span className={cn(
-                        "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] shadow-sm",
-                        statusIsPending ? "bg-slate-50 text-slate-800" : "bg-emerald-50 text-emerald-700"
+                        "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] shadow-sm border",
+                        getStatusStyle(statusLabel)
                     )}>
                         {statusLabel}
                     </span>

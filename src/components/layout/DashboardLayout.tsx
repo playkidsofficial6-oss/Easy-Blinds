@@ -82,7 +82,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                 { name: "Salesman Assignments", href: "/dashboard/salesman-assignments", icon: ClipboardList },
                 { name: "Fitter Assignments", href: "/dashboard/assignments", icon: ClipboardList },
                 { name: "Salesmen", href: "/dashboard/salesmen", icon: UserCheck },
-                { name: "Fitters", href: "/dashboard/tracking", icon: NavigationIcon },
+                { name: "Fitters", href: "/dashboard/fitter", icon: NavigationIcon },
                 { name: "Fittings Analytics", href: "/dashboard/analytics", icon: LineChart },
                 { name: "Fitter Performance", href: "/dashboard/performance", icon: BarChart3 },
                 { name: "Review Tracking", href: "/dashboard/reviews", icon: Star },
@@ -111,8 +111,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
         }
         if (isFitterRole(role)) {
             return [
-                { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-                { name: "My Assignments", href: "/dashboard/assignments", icon: ClipboardList },
+                { name: "My Tasks", href: "/dashboard", icon: ClipboardList },
             ];
         }
         return [

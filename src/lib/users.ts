@@ -50,11 +50,12 @@ export interface UserRecord {
   liveStatus?: LiveUserStatus;
   location?: UserLocation;
   maxDailyJobs?: number;
+  checkedIn?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "phone" | "avatar" | "liveStatus" | "location" | "maxDailyJobs">> & {
+export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "phone" | "avatar" | "liveStatus" | "location" | "maxDailyJobs" | "checkedIn">> & {
   password?: string;
 };
 
@@ -73,9 +74,28 @@ export async function getUsers(): Promise<UserRecord[]> {
   return normalizeUsersPayload(data);
 }
 
-export async function updateUser(id: string, input: UpdateUserInput): Promise<UserRecord> {
-  const { data } = await api.patch<UserRecord>(`/users/${id}`, input);
-  return data;
+export async function getUserById(id: string): Promise<UserRecord> {
+  const { data } = await api.get<UserRecord | { user?: UserRecord; data?: UserRecord }>(`/users/${id}`);
+  if ("user" in data && data.user) return data.user;
+  if ("data" in data && data.data) return data.data;
+  return data as UserRecord;
+}
+
+export async function updateUser(id: string, payload: UpdateUserInput): Promise<UserRecord> {
+  const { data } = await api.patch<UserRecord | { user?: UserRecord; data?: UserRecord }>(`/users/${id}`, payload);
+  if ("user" in data && data.user) return data.user;
+  if ("data" in data && data.data) return data.data;
+  return data as UserRecord;
+}
+
+export async function checkInUser(userId?: string): Promise<UserRecord> {
+  const { data } = await api.post<UserRecord | { data: UserRecord }>("/users/checkin", userId ? { userId } : {});
+  return (data as any).data || data;
+}
+
+export async function checkOutUser(userId?: string): Promise<UserRecord> {
+  const { data } = await api.post<UserRecord | { data: UserRecord }>("/users/checkout", userId ? { userId } : {});
+  return (data as any).data || data;
 }
 
 export function getUserErrorMessage(error: unknown, fallback = "Unable to load users from backend."): string {

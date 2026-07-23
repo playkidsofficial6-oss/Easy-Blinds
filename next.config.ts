@@ -10,6 +10,14 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   /* config options here */
   turbopack: {},
+  async rewrites() {
+    return [
+      {
+        source: "/salesman/:path*",
+        destination: "/dashboard/:path*",
+      },
+    ];
+  },
 };
 
 export default withPWA(nextConfig);

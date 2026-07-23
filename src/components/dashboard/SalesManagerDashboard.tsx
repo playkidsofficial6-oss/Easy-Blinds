@@ -10,10 +10,13 @@ import { getJobErrorMessage, getJobs, JobStatus, type Job } from "@/lib/jobs";
 import { getUsers, type UserRecord } from "@/lib/users";
 import { isFitterRole, isSalesmanRole } from "@/lib/auth";
 
+import { JobDetailSheet } from "@/components/tracking/JobDetailSheet";
+
 export default function SalesManagerDashboard() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -79,10 +82,14 @@ export default function SalesManagerDashboard() {
     },
   ];
 
-  const recentJobs = jobs.slice(0, 3);
+  const recentJobs = jobs.slice(0, 5);
 
   return (
     <div className="px-8 py-8 space-y-12">
+      {selectedJobId && (
+        <JobDetailSheet jobId={selectedJobId} onClose={() => setSelectedJobId(null)} />
+      )}
+
       {/* Header */}
       <div className="flex items-end justify-between">
         <div className="space-y-3">
@@ -114,21 +121,9 @@ export default function SalesManagerDashboard() {
                 </div>
                 <div className="text-[11px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400 mb-2 font-semibold">{stat.title}</div>
                 <div className="text-5xl font-light text-neutral-900 dark:text-white mb-3">{stat.value}</div>
-                {/* <div className={`flex items-center gap-1 text-xs ${stat.trendColor}`}>
-                  <ArrowUp className="w-3 h-3" />
-                  <span>{stat.trend}</span>
-                </div> */}
               </CardContent>
             </Card>
           );
-
-          // if (stat.title === "Unassigned Jobs") {
-          //   return (
-          //     <Link key={stat.title} href="/sales-manager/assignments" className="contents">
-          //        {content}
-          //     </Link>
-          //   );
-          // }
 
           return (
             <div key={`${stat.title}-${index}`} className="contents">
@@ -156,15 +151,21 @@ export default function SalesManagerDashboard() {
           {!isLoading && recentJobs.map((job) => (
             <div
               key={job._id}
-              className="bg-white dark:bg-neutral-900 px-8 py-5 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between"
+              onClick={() => setSelectedJobId(job._id)}
+              className="bg-white dark:bg-neutral-900 px-8 py-5 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between cursor-pointer"
             >
               <div>
                 <p className="text-base font-medium text-neutral-900 dark:text-white mb-0.5">{job.customerName}</p>
                 <p className="text-sm text-neutral-500 dark:text-neutral-400">{job.address}</p>
               </div>
-              <span className="text-xs font-semibold text-neutral-400 uppercase tracking-widest">
-                {job.status.replace("_", " ")}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-widest">
+                  {job.status.replace("_", " ")}
+                </span>
+                <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded border border-amber-200">
+                  View Details
+                </span>
+              </div>
             </div>
           ))}
         </div>

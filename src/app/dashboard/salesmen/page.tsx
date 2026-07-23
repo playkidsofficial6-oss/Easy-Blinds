@@ -101,7 +101,7 @@ function isJobForDate(job: Job, date: Date) {
 }
 
 function getUnassignedJobsForDate(jobs: Job[], date: Date) {
-    return jobs.filter((job) => !job.assignedTo && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled));
+    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled || job.status === JobStatus.SalesmanScheduled));
 }
 
 function isAssignedToSalesman(job: Job, salesman: UserRecord) {
@@ -109,7 +109,7 @@ function isAssignedToSalesman(job: Job, salesman: UserRecord) {
 }
 
 function getUnassignedJobs(jobs: Job[]) {
-    return jobs.filter((job) => !job.assignedTo && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled));
+    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled || job.status === JobStatus.SalesmanScheduled));
 }
 
 function getStatusVariant(status: string) {
@@ -245,6 +245,7 @@ export default function SalesmenPage() {
                 role: "Salesman",
                 jobRef: activeJob?.id ?? "--",
                 status,
+                checkedIn: salesman.checkedIn ?? true,
                 location: (() => { const ll = extractLatLng(salesman.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
                 locationLabel: salesman.location?.address,
                 lastUpdated: (() => { const u = salesman.location?.updatedAt; if (!u) return "Not updated"; try { return format(typeof u === "string" ? parseISO(u) : new Date(u), "MMM d, HH:mm"); } catch { return "Not updated"; } })(),

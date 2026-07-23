@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
-import { getJob, updateJob, type Job, JobStatus } from "@/lib/jobs";
+import { getJob, assignFitter, type Job, JobStatus } from "@/lib/jobs";
 import { getUsers, type UserRecord } from "@/lib/users";
 import { isFitterRole } from "@/lib/auth";
 import { toast } from "sonner";
 import {
     X, Ruler, FileText, UserCheck, ChevronDown, ChevronUp,
     Loader2, Edit3, Save, CheckCircle, Phone, MapPin, Home,
-    Package, DoorOpen, Wrench, AlertCircle
+    Package, DoorOpen, Wrench, AlertCircle, Camera, Image as ImageIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ interface JobDetailSheetProps {
     onClose: () => void;
 }
 
-type TabKey = "measurements" | "quotation" | "assign";
+type TabKey = "measurements" | "quotation" | "assign" | "photos";
 
 export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
     const [job, setJob] = useState<Job | null>(null);
@@ -75,11 +75,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
         if (!job || !selectedFitter) return;
         setIsAssigning(true);
         try {
-            await updateJob(job._id, {
-                assignedFitter: selectedFitter,
-                assignedTo: selectedFitter,
-                status: JobStatus.Scheduled,
-            });
+            await assignFitter(job._id, selectedFitter);
             toast.success("Job successfully assigned to fitter!");
             await load();
         } catch {
@@ -89,26 +85,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
         }
     };
 
-    const handleSaveQuote = async () => {
-        if (!job) return;
-        setIsSavingQuote(true);
-        try {
-            await updateJob(job._id, {
-                quotation: {
-                    ...job.quotation,
-                    notes: quoteNotes,
-                    status: quoteStatus,
-                },
-            });
-            toast.success("Quotation updated.");
-            setEditingQuote(false);
-            await load();
-        } catch {
-            toast.error("Failed to save quotation.");
-        } finally {
-            setIsSavingQuote(false);
-        }
-    };
+
 
     if (!jobId) return null;
 
@@ -116,6 +93,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
         { key: "measurements", label: "Measurements", icon: <Ruler className="w-3.5 h-3.5" /> },
         { key: "quotation", label: "Quotation", icon: <FileText className="w-3.5 h-3.5" /> },
         { key: "assign", label: "Assign Fitter", icon: <UserCheck className="w-3.5 h-3.5" /> },
+        { key: "photos", label: "Fitting Photos", icon: <Camera className="w-3.5 h-3.5" /> },
     ];
 
     const quote = job?.quotation;
@@ -449,6 +427,60 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                 <><UserCheck className="w-4 h-4" /> Confirm Assignment</>
                                             )}
                                         </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── FITTING PHOTOS TAB ── */}
+                            {activeTab === "photos" && (
+                                <div className="p-6 space-y-4">
+                                    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Current Job Status</p>
+                                                <p className="text-sm font-semibold text-slate-800">{job?.status || "Pending"}</p>
+                                            </div>
+                                            {job?.status === JobStatus.Completed && (
+                                                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold uppercase">
+                                                    <CheckCircle className="w-3 h-3 mr-1" /> Completed
+                                                </Badge>
+                                            )}
+                                        </div>
+
+                                        {job?.fittingNotes && (
+                                            <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 space-y-1">
+                                                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Fitter Notes</p>
+                                                <p className="text-xs text-slate-700">{job.fittingNotes}</p>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-3">Uploaded Photos</p>
+                                            {!job?.fittingPhotos || job.fittingPhotos.length === 0 ? (
+                                                <div className="py-12 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400">
+                                                    <ImageIcon className="w-8 h-8 stroke-[1.5]" />
+                                                    <p className="text-xs font-medium">No fitting photos uploaded yet.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {job.fittingPhotos.map((url, idx) => (
+                                                        <a
+                                                            key={idx}
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 block"
+                                                        >
+                                                            <img
+                                                                src={url}
+                                                                alt={`Fitting photo ${idx + 1}`}
+                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                            />
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}

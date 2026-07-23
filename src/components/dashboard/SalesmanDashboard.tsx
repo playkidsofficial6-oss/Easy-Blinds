@@ -18,7 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
-import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, getJobErrorMessage, isAssignedToUser, JobStatus, SalesmanWorkflowStatus, JobPriority, type Job } from "@/lib/jobs";
+import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, getJobErrorMessage, isAssignedToUser, JobStatus, JobPriority, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import { updateUser } from "@/lib/users";
 import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
@@ -48,7 +48,6 @@ type SalesmanScheduleJob = {
   fabric: string;
   notes?: string;
   assignedBy?: string;
-  salesmanWorkflowStatus?: Job["salesmanWorkflowStatus"];
   activeSalesmanId?: string;
   activeSalesmanName?: string;
   travelStartedAt?: string;
@@ -69,13 +68,27 @@ const EMPTY_SALESMAN_SCHEDULE: SalesmanSchedule = {
   completed: [],
 };
 
+function isSalesmanWorkFinished(status: JobStatus | string): boolean {
+  return (
+    status === JobStatus.ReadyForFitting ||
+    status === JobStatus.FitterAssigned ||
+    status === JobStatus.FitterOnTheWay ||
+    status === JobStatus.FitterReached ||
+    status === JobStatus.FitterCancelled ||
+    status === JobStatus.Fitting ||
+    status === JobStatus.TakingPhotos ||
+    status === JobStatus.Completed ||
+    status === JobStatus.Cancelled ||
+    status === JobStatus.SalesmanCancelled ||
+    status === JobStatus.Dropped ||
+    status === "Done"
+  );
+}
+
 function toScheduleStatus(job: Job) {
-  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Travelling) return "On the way";
-  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Measuring) return "In Progress";
-  if (job.salesmanWorkflowStatus === SalesmanWorkflowStatus.Completed) return "Done";
-  if (job.status === JobStatus.InProgress) return "In Progress";
-  if (job.status === JobStatus.Completed) return "Done";
-  if (job.status === JobStatus.Cancelled) return "Completed";
+  if (job.status === JobStatus.SalesmanOnTheWay) return "On the way";
+  if (job.status === JobStatus.Measuring || job.status === JobStatus.Quoting || job.status === JobStatus.InProgress) return "In Progress";
+  if (isSalesmanWorkFinished(job.status)) return "Done";
   return "Pending";
 }
 
@@ -124,7 +137,6 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     fabric: job.productType || "Curtains",
     notes: job.notes,
     assignedBy: job.assignedBy,
-    salesmanWorkflowStatus: job.salesmanWorkflowStatus,
     activeSalesmanId: job.activeSalesmanId,
     activeSalesmanName: job.activeSalesmanName,
     travelStartedAt: job.travelStartedAt,
@@ -149,7 +161,7 @@ function compareScheduleJobs(a: SalesmanScheduleJob, b: SalesmanScheduleJob) {
 function groupJobsBySchedule(jobs: Job[]): SalesmanSchedule {
   return jobs.reduce<SalesmanSchedule>((schedule, job) => {
     const scheduleJob = toScheduleJob(job);
-    if (job.status === JobStatus.Completed || job.status === JobStatus.Cancelled) {
+    if (isSalesmanWorkFinished(job.status)) {
       schedule.completed.push(scheduleJob);
       return schedule;
     }
@@ -349,7 +361,7 @@ function SalesmanPageContent() {
         }
 
         if (!found) {
-          if (job.status === JobStatus.Completed || job.status === JobStatus.Cancelled) {
+          if (isSalesmanWorkFinished(job.status)) {
             updated.completed = [scheduleJob, ...updated.completed];
           } else if (job.scheduledAt) {
             const date = new Date(job.scheduledAt);
@@ -499,7 +511,6 @@ function SalesmanPageContent() {
             return {
               ...j,
               status: "Pending",
-              salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
               activeSalesmanId: undefined,
               activeSalesmanName: undefined,
             };
@@ -534,7 +545,6 @@ function SalesmanPageContent() {
         if (displayStatus === "Pending") {
           return updateJob(id, {
             status: JobStatus.Scheduled,
-            salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
             activeSalesmanId: undefined,
             activeSalesmanName: undefined,
             travelStartedAt: undefined,
@@ -560,7 +570,6 @@ function SalesmanPageContent() {
                 ...j,
                 status: savedDisplayStatus,
                 notes: savedJob.notes || j.notes,
-                salesmanWorkflowStatus: savedJob.salesmanWorkflowStatus,
                 activeSalesmanId: savedJob.activeSalesmanId,
                 activeSalesmanName: savedJob.activeSalesmanName,
                 travelStartedAt: savedJob.travelStartedAt,
@@ -572,7 +581,6 @@ function SalesmanPageContent() {
               return {
                 ...j,
                 status: "Pending",
-                salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
                 activeSalesmanId: undefined,
                 activeSalesmanName: undefined,
               };
@@ -587,7 +595,6 @@ function SalesmanPageContent() {
           ...prev,
           status: savedDisplayStatus,
           notes: savedJob.notes || prev.notes,
-          salesmanWorkflowStatus: savedJob.salesmanWorkflowStatus,
           activeSalesmanId: savedJob.activeSalesmanId,
           activeSalesmanName: savedJob.activeSalesmanName,
           travelStartedAt: savedJob.travelStartedAt,
@@ -599,7 +606,6 @@ function SalesmanPageContent() {
         void Promise.allSettled(
           otherRouteJobsToReset.map((routeJob) => updateJob(routeJob.id, {
             status: JobStatus.Scheduled,
-            salesmanWorkflowStatus: SalesmanWorkflowStatus.NotStarted,
             activeSalesmanId: undefined,
             activeSalesmanName: undefined,
           }))
@@ -1220,7 +1226,7 @@ function JobDetailView({
                       <p className="text-xs text-stone-400">Captured rooms and opening dimensions</p>
                     </div>
                   </div>
-                  <Link href={`/salesman/measurements/new?jobId=${job.id}`}>
+                  <Link href={`/dashboard/measurements/new?jobId=${job.id}`}>
                     <Button variant="outline" size="sm" className="text-xs text-neutral-900 border-neutral-300">
                       Edit Measurements
                     </Button>
@@ -1283,7 +1289,7 @@ function JobDetailView({
                       <p className="text-xs text-stone-400">Total pricing breakdown and line items</p>
                     </div>
                   </div>
-                  <Link href={`/salesman/quotes/new?jobId=${job.id}`}>
+                  <Link href={`/dashboard/quotes/new?jobId=${job.id}`}>
                     <Button variant="outline" size="sm" className="text-xs text-neutral-900 border-neutral-300">
                       Edit Quotation
                     </Button>
@@ -1429,7 +1435,7 @@ function JobDetailView({
                   variant="blue"
                   onClick={() => {
                     onStatusChange("In progress");
-                    router.push(`/salesman/measurements/new?jobId=${job.id}`);
+                    router.push(`/dashboard/measurements/new?jobId=${job.id}`);
                   }}
                 />
                 <div className="flex-[1.5] group">
@@ -1444,7 +1450,7 @@ function JobDetailView({
                     onClick={async (e) => {
                       e.preventDefault();
                       await onStatusChange("Completed");
-                      router.push(`/salesman/quotes/new?jobId=${job.id}`);
+                      router.push(`/dashboard/quotes/new?jobId=${job.id}`);
                     }}
                   >
                     <FileText className="w-4 h-4" />
