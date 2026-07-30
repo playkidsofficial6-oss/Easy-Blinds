@@ -61,12 +61,6 @@ export interface RegisterPayload extends LoginPayload {
   role?: UserRole;
 }
 
-export interface UpdateProfilePayload {
-  name?: string;
-  email?: string;
-  password?: string;
-  role?: UserRole;
-}
 
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
   const { data } = await api.post<AuthResponse>("/auth/login", payload);
@@ -85,9 +79,3 @@ export async function getProfile(): Promise<AuthUser> {
   return data;
 }
 
-export async function updateProfile(
-  payload: UpdateProfilePayload,
-): Promise<AuthUser> {
-  const { data } = await api.patch<AuthUser>("/auth/profile", payload);
-  return data;
-}
