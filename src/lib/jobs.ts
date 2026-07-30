@@ -19,10 +19,6 @@ export enum JobStatus {
   Completed = "Completed",
   Cancelled = "Cancelled",
   Dropped = "Dropped",
-
-  // Legacy compatibility
-  Scheduled = "Scheduled",
-  InProgress = "In Progress",
 }
 
 export enum JobPriority {

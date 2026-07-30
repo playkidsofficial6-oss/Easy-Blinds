@@ -472,8 +472,6 @@ export default function SmartAssignmentsPage() {
                 JobStatus.FitterReached,
                 JobStatus.Fitting,
                 JobStatus.TakingPhotos,
-                JobStatus.Scheduled,
-                JobStatus.InProgress,
               ].includes(job.status)
             ) {
               return true;
@@ -567,7 +565,7 @@ export default function SmartAssignmentsPage() {
 
     try {
       const updated = await updateJob(dialogState.jobId, {
-        status: JobStatus.Scheduled,
+        status: JobStatus.FitterAssigned,
         scheduledAt,
         assignedTo: dialogState.fitterId,
         assignedBy: user?._id || user?.name || "Sales Manager",

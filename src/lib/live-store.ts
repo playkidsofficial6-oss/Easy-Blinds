@@ -175,7 +175,7 @@ export function isJobOnTheWay(status?: JobStatus | string): boolean {
 }
 
 export function isJobInFitting(status?: JobStatus | string): boolean {
-  return status === JobStatus.Fitting || status === JobStatus.TakingPhotos || status === JobStatus.InProgress || status === JobStatus.Measuring || status === "In progress" || status === "In Progress";
+  return status === JobStatus.Fitting || status === JobStatus.TakingPhotos || status === JobStatus.Measuring || status === "In progress" || status === "In Progress";
 }
 
 export function isJobCompleted(status?: JobStatus | string): boolean {
@@ -293,7 +293,7 @@ function getStatus(
 }
 
 function getCurrentJobStartTime(jobs: Job[]) {
-  const activeJob = jobs.find((job) => job.status === JobStatus.InProgress && job.scheduledAt);
+  const activeJob = jobs.find((job) => (job.status === JobStatus.Fitting || job.status === JobStatus.Measuring) && job.scheduledAt);
   if (!activeJob?.scheduledAt) return null;
 
   try {

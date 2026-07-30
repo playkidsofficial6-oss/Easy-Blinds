@@ -87,7 +87,7 @@ function isSalesmanWorkFinished(status: JobStatus | string): boolean {
 
 function toScheduleStatus(job: Job) {
   if (job.status === JobStatus.SalesmanOnTheWay) return "On the way";
-  if (job.status === JobStatus.Measuring || job.status === JobStatus.Quoting || job.status === JobStatus.InProgress) return "In Progress";
+  if (job.status === JobStatus.Measuring || job.status === JobStatus.Quoting) return "In Progress";
   if (isSalesmanWorkFinished(job.status)) return "Done";
   return "Pending";
 }
@@ -544,7 +544,7 @@ function SalesmanPageContent() {
         }
         if (displayStatus === "Pending") {
           return updateJob(id, {
-            status: JobStatus.Scheduled,
+            status: JobStatus.SalesmanScheduled,
             activeSalesmanId: undefined,
             activeSalesmanName: undefined,
             travelStartedAt: undefined,
@@ -605,7 +605,7 @@ function SalesmanPageContent() {
       if (otherRouteJobsToReset.length > 0) {
         void Promise.allSettled(
           otherRouteJobsToReset.map((routeJob) => updateJob(routeJob.id, {
-            status: JobStatus.Scheduled,
+            status: JobStatus.SalesmanScheduled,
             activeSalesmanId: undefined,
             activeSalesmanName: undefined,
           }))

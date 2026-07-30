@@ -434,13 +434,11 @@ function isSalesmanPhaseJob(status: JobStatus): boolean {
   return [
     JobStatus.Pending,
     JobStatus.SalesmanScheduled,
-    JobStatus.Scheduled,
     JobStatus.SalesmanOnTheWay,
     JobStatus.SalesmanReached,
     JobStatus.SalesmanCancelled,
     JobStatus.Measuring,
     JobStatus.Quoting,
-    JobStatus.InProgress,
   ].includes(status);
 }
 
@@ -457,7 +455,6 @@ function getSalesmanWorkflowDisplayStatus(job: Job): FitterJob["status"] | strin
   ) {
     return job.status;
   }
-  if (job.status === JobStatus.InProgress) return "In Progress";
   return "Pending";
 }
 
@@ -1632,7 +1629,7 @@ export default function SmartSalesmanAssignmentsPage() {
       const sourceJob = jobs.find((item) => item._id === dialogState.jobId);
 
       const updated = await updateJob(dialogState.jobId, {
-        status: JobStatus.Scheduled,
+        status: JobStatus.SalesmanScheduled,
         scheduledAt,
         assignedTo: assignedToId,
         assignedFitter: dialogState.fitterId,
@@ -1683,7 +1680,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
   // 1. Appointments Data
   const filteredAppointments = useMemo(() => {
-    let list = jobs.filter(job => [JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status));
+    let list = jobs.filter(job => [JobStatus.SalesmanScheduled, JobStatus.Measuring, JobStatus.Completed].includes(job.status));
     const today = new Date();
     const tomorrow = addDays(today, 1);
     
@@ -1725,7 +1722,7 @@ export default function SmartSalesmanAssignmentsPage() {
       if (leadFilter === "pending") {
         return job.status === JobStatus.Pending;
       } else {
-        return job.status === JobStatus.Scheduled && !job.assignedSalesman && !job.assignedTo;
+        return job.status === JobStatus.SalesmanScheduled && !job.assignedSalesman && !job.assignedTo;
       }
     });
 
@@ -1763,7 +1760,7 @@ export default function SmartSalesmanAssignmentsPage() {
     const total = jobs.length;
     const completed = jobs.filter(j => j.status === JobStatus.Completed).length;
     const pending = jobs.filter(j => j.status === JobStatus.Pending).length;
-    const scheduled = jobs.filter(j => j.status === JobStatus.Scheduled || j.status === JobStatus.InProgress).length;
+    const scheduled = jobs.filter(j => j.status === JobStatus.SalesmanScheduled || j.status === JobStatus.Measuring).length;
     const conversionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
     const revenue = jobs.reduce((sum, j) => sum + (j.projectValue || 0), 0);
     
@@ -2617,7 +2614,7 @@ export default function SmartSalesmanAssignmentsPage() {
                   <div className="bg-slate-50 border border-slate-200/50 rounded-xl p-2">
                     <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Visits</span>
                     <span className="text-lg font-bold text-slate-700">
-                      {jobs.filter(j => [JobStatus.Scheduled, JobStatus.InProgress].includes(j.status)).length}
+                      {jobs.filter(j => [JobStatus.SalesmanScheduled, JobStatus.Measuring].includes(j.status)).length}
                     </span>
                   </div>
                 </div>
@@ -3125,8 +3122,8 @@ export default function SmartSalesmanAssignmentsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={JobStatus.Pending}>Pending</SelectItem>
-                    <SelectItem value={JobStatus.Scheduled}>Scheduled</SelectItem>
-                    <SelectItem value={JobStatus.InProgress}>In Progress</SelectItem>
+                    <SelectItem value={JobStatus.SalesmanScheduled}>Salesman Scheduled</SelectItem>
+                    <SelectItem value={JobStatus.Measuring}>Measuring</SelectItem>
                     <SelectItem value={JobStatus.Completed}>Completed</SelectItem>
                     <SelectItem value={JobStatus.Cancelled}>Cancelled</SelectItem>
                   </SelectContent>
@@ -3190,7 +3187,7 @@ export default function SmartSalesmanAssignmentsPage() {
               </div>
 
               {/* Safety active warning */}
-              {deleteJobTarget && [JobStatus.SalesmanOnTheWay, JobStatus.Measuring, JobStatus.InProgress].includes(deleteJobTarget.status) ? (
+              {deleteJobTarget && [JobStatus.SalesmanOnTheWay, JobStatus.Measuring].includes(deleteJobTarget.status) ? (
                 <div className="bg-red-50 border border-red-200 text-red-800 p-3.5 rounded-xl text-xs flex gap-2.5">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <div>
@@ -3203,7 +3200,7 @@ export default function SmartSalesmanAssignmentsPage() {
               ) : null}
 
               {/* Explicit confirmation checkbox if job is active */}
-              {deleteJobTarget && [JobStatus.SalesmanOnTheWay, JobStatus.Measuring, JobStatus.InProgress].includes(deleteJobTarget.status) ? (
+              {deleteJobTarget && [JobStatus.SalesmanOnTheWay, JobStatus.Measuring].includes(deleteJobTarget.status) ? (
                 <div className="flex items-center gap-2 px-1">
                   <input
                     type="checkbox"
@@ -3226,7 +3223,7 @@ export default function SmartSalesmanAssignmentsPage() {
               onClick={handleConfirmDelete}
               disabled={
                 !!(deleteJobTarget &&
-                [JobStatus.SalesmanOnTheWay, JobStatus.Measuring, JobStatus.InProgress].includes(deleteJobTarget.status) &&
+                [JobStatus.SalesmanOnTheWay, JobStatus.Measuring].includes(deleteJobTarget.status) &&
                 !confirmActiveDelete)
               }
               className="bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-600/10 rounded-xl"

@@ -33,6 +33,6 @@ function normalizeFittersPayload(payload: FittersListPayload): FitterProfileReco
 }
 
 export async function getFitters(): Promise<FitterProfileRecord[]> {
-  const { data } = await api.get<FittersListPayload>("/fitters");
+  const { data } = await api.get<FittersListPayload>("/users/fitters");
   return normalizeFittersPayload(data);
 }

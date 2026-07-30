@@ -79,7 +79,7 @@ function toFitterJob(job: Job): FitterJob {
         address: job.address,
         time: toDisplayTime(job.scheduledAt),
         endTime: toDisplayEndTime(job.scheduledAt),
-        status: job.status === JobStatus.Completed ? "Done" : job.status === JobStatus.InProgress ? "In Progress" : "Pending",
+        status: job.status === JobStatus.Completed ? "Done" : (job.status === JobStatus.Measuring || job.status === JobStatus.SalesmanOnTheWay) ? "In Progress" : "Pending",
         value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
         email: job.customerEmail,
         phone: job.customerPhone,
@@ -101,7 +101,7 @@ function isJobForDate(job: Job, date: Date) {
 }
 
 function getUnassignedJobsForDate(jobs: Job[], date: Date) {
-    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled || job.status === JobStatus.SalesmanScheduled));
+    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
 }
 
 function isAssignedToSalesman(job: Job, salesman: UserRecord) {
@@ -109,7 +109,7 @@ function isAssignedToSalesman(job: Job, salesman: UserRecord) {
 }
 
 function getUnassignedJobs(jobs: Job[]) {
-    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.Scheduled || job.status === JobStatus.SalesmanScheduled));
+    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
 }
 
 function getStatusVariant(status: string) {
@@ -216,7 +216,7 @@ export default function SalesmenPage() {
         const tomorrow = addDays(today, 1);
 
         return salesmen.map((salesman) => {
-            const assignedJobs = jobs.filter((job) => [JobStatus.Pending, JobStatus.Scheduled, JobStatus.InProgress, JobStatus.Completed].includes(job.status) && isAssignedToSalesman(job, salesman));
+            const assignedJobs = jobs.filter((job) => [JobStatus.Pending, JobStatus.SalesmanScheduled, JobStatus.SalesmanOnTheWay, JobStatus.Measuring, JobStatus.Completed].includes(job.status) && isAssignedToSalesman(job, salesman));
             const todayJobs = assignedJobs.filter((job) => isJobForDate(job, today)).map(toFitterJob);
             const tomorrowJobs = assignedJobs.filter((job) => isJobForDate(job, tomorrow)).map(toFitterJob);
             const upcomingJobs = assignedJobs.filter((job) => job.scheduledAt && !isJobForDate(job, today) && !isJobForDate(job, tomorrow)).map(toFitterJob);
@@ -284,7 +284,7 @@ export default function SalesmenPage() {
             const updatedJob = await updateJob(selectedJobId, {
                 assignedTo: salesman._id,
                 assignedBy: user?.name ?? user?._id,
-                status: JobStatus.Scheduled,
+                status: JobStatus.SalesmanScheduled,
                 notes: [
                     selectedJob?.notes,
                     `Assigned to salesman ${salesman.name}`,
@@ -350,7 +350,7 @@ export default function SalesmenPage() {
                 assignedTo: fitter._id,
                 assignedSalesman: assignFitterQuote.salesmanName ?? "",
                 assignedBy: user?.name ?? user?._id ?? "Sales Manager",
-                status: JobStatus.Scheduled,
+                status: JobStatus.FitterAssigned,
                 scheduledAt,
                 notes: `Assigned to fitter ${fitter.name} by Sales Manager${scheduledDate ? ` for ${scheduledDate} at ${scheduledTime || "09:00"}` : ""}.`,
             });

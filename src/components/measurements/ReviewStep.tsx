@@ -143,7 +143,7 @@ export function ReviewStep({
 
             // Also keep job notes & status updated for backwards compatibility with a concise note
             await updateJob(jobId, {
-                status: status === "Completed" ? JobStatus.InProgress : JobStatus.Scheduled,
+                status: status === "Completed" ? JobStatus.ReadyForFitting : JobStatus.SalesmanScheduled,
                 notes: [originalNotes, appendedNotes].filter(Boolean).join("\n"),
             });
         }

@@ -39,7 +39,7 @@ export default function SalesManagerDashboard() {
   }, []);
 
   const unassignedJobs = useMemo(() => jobs.filter((job) => job.status === JobStatus.Pending).length, [jobs]);
-  const scheduledJobs = useMemo(() => jobs.filter((job) => job.status === JobStatus.Scheduled).length, [jobs]);
+  const scheduledJobs = useMemo(() => jobs.filter((job) => job.status === JobStatus.SalesmanScheduled || job.status === JobStatus.FitterAssigned).length, [jobs]);
   const completedThisMonth = useMemo(() => {
     const now = new Date();
     return jobs.filter((job) => {
