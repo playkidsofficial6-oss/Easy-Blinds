@@ -456,14 +456,16 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
 
                                         <div>
                                             <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-3">Uploaded Photos</p>
-                                            {!job?.fittingPhotos || job.fittingPhotos.length === 0 ? (
-                                                <div className="py-12 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400">
-                                                    <ImageIcon className="w-8 h-8 stroke-[1.5]" />
-                                                    <p className="text-xs font-medium">No fitting photos uploaded yet.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    {job.fittingPhotos.map((url, idx) => (
+                                            {(() => {
+                                                const photosList = job?.photos || job?.fittingPhotos || [];
+                                                return photosList.length === 0 ? (
+                                                    <div className="py-12 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400">
+                                                        <ImageIcon className="w-8 h-8 stroke-[1.5]" />
+                                                        <p className="text-xs font-medium">No photos uploaded yet.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {photosList.map((url, idx) => (
                                                         <a
                                                             key={idx}
                                                             href={url}
@@ -479,7 +481,8 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                         </a>
                                                     ))}
                                                 </div>
-                                            )}
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>

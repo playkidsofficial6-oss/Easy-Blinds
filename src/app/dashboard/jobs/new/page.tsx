@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { createJob, getJobErrorMessage, JobPriority, JobStatus } from "@/lib/jobs";
+import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 
 const AddressPickerMap = dynamic(() => import("@/components/common/AddressPickerMap"), {
@@ -337,6 +338,7 @@ const isValidLocalPhoneNumber = (phone: string, countryCode: string): boolean =>
 
 export default function NewJobPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const addressInputRef = useRef<HTMLInputElement>(null);
 
@@ -580,6 +582,7 @@ export default function NewJobPage() {
         status: JobStatus.Pending,
         scheduledAt,
         notes: appendedNotes || undefined,
+        assignedSalesManager: user?._id,
         location: mapCoords
           ? {
               type: "Point",

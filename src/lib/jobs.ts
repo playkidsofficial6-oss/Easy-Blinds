@@ -48,6 +48,7 @@ export interface Job {
   notes?: string;
   scheduledAt?: string;
   timerStartedAt?: string;
+  photos?: string[];
   fittingPhotos?: string[];
   fittingNotes?: string;
   travelStartedAt?: string;
