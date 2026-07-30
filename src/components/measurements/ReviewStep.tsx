@@ -63,14 +63,14 @@ export function ReviewStep({
                 category: room.type || "Other",
                 openings: (room.windows || []).map(w => {
                     const rawProduct = (w.productType || "").toLowerCase();
-                    const type = w.productType === "Custom Item" 
-                        ? "Custom" 
+                    const type = w.productType === "Custom Item"
+                        ? "Custom"
                         : (rawProduct.includes("door") ? "Door" : "Window");
-                    
+
                     // Format custom material & fabric selection
                     const materialType = w.fabricSelection === "CUSTOM" ? "custom" : "standard";
-                    const customMaterial = w.fabricSelection === "CUSTOM" 
-                        ? (w.customFabricName || "Custom Fabric") 
+                    const customMaterial = w.fabricSelection === "CUSTOM"
+                        ? (w.customFabricName || "Custom Fabric")
                         : (FABRICS.find(f => f.id === w.fabricSelection)?.name || w.fabricSelection || "None");
 
                     return {
@@ -99,7 +99,6 @@ export function ReviewStep({
 
             const backendPayload = {
                 jobId,
-                assignedStaff: clientDetails.assignedStaff || "Salesman",
                 visitDate: clientDetails.visitDate ? new Date(clientDetails.visitDate).toISOString() : new Date().toISOString(),
                 status: status === "Completed" ? "Completed" : "Pending",
                 rooms: backendRooms
@@ -116,7 +115,7 @@ export function ReviewStep({
                     measSecs = Math.floor((Date.now() - Number(measStart)) / 1000);
                 }
                 const travelSecs = localStorage.getItem(`eb_travel_secs_${jobId}`);
-                
+
                 const formatSecs = (s: number) => {
                     const h = Math.floor(s / 3600);
                     const m = Math.floor((s % 3600) / 60);

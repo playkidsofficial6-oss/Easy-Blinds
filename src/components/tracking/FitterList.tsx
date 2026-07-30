@@ -129,15 +129,13 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
             const updates: any = {
                 status: "scheduled",
                 scheduledAt,
-                assignedBy: user?.name || user?._id || "Sales Manager",
+                assignedSalesManager: user?._id || user?.name || "Sales Manager",
             };
 
             if (variant === "salesman") {
                 updates.assignedSalesman = dialogState.fitterId;
-                updates.assignedTo = dialogState.fitterId; // keep assignedTo in sync for filtering
                 updates.notes = `Reassigned to salesman ${dialogState.fitterName} @ ${timeSlot} on ${serviceDate}.`;
             } else {
-                updates.assignedTo = dialogState.fitterId;
                 updates.assignedFitter = dialogState.fitterId;
                 updates.notes = `Rescheduled to fitter ${dialogState.fitterName} @ ${timeSlot} on ${serviceDate}.`;
             }

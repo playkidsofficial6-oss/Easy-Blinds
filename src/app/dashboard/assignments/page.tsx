@@ -66,14 +66,11 @@ function toDisplayTime(value?: string) {
 // Returns the display name of the assigned fitter.
 // Prefers looking up fitterId in the lookup map; falls back to legacy note-parsing.
 function resolveAssignedFitterName(job: Job, fitterNameById: Map<string, string>): string {
-  if (job.assignedTo) {
-    // New format: assignedTo is a userId
-    const name = fitterNameById.get(job.assignedTo);
+  if (job.assignedFitter) {
+    const name = fitterNameById.get(job.assignedFitter);
     if (name) return name;
-    // Legacy fallback: assignedTo might still be a name string
-    return job.assignedTo;
+    return job.assignedFitter;
   }
-  // Oldest legacy: name embedded in notes
   const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
   return match?.[1]?.trim() || "Assigned Team";
 }
@@ -101,11 +98,10 @@ function toUnifiedJob(job: Job): UnifiedJob {
     status: statusLabel,
     time: toDisplayTime(job.scheduledAt),
     endTime: undefined,
-    team: typeof job.assignedTo === "object" && job.assignedTo !== null ? (job.assignedTo as any).name : job.assignedTo,
+    team: typeof job.assignedFitter === "object" && job.assignedFitter !== null ? (job.assignedFitter as any).name : (typeof job.assignedSalesman === "object" && job.assignedSalesman !== null ? (job.assignedSalesman as any).name : undefined),
+    assignedSalesManager: job.assignedSalesManager,
     assignedSalesman: job.assignedSalesman,
-    assignedTo: job.assignedTo,
     assignedFitter: job.assignedFitter,
-    assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     createdAt: job.createdAt,
   };
@@ -416,16 +412,15 @@ export default function SmartAssignmentsPage() {
       teamName = parts.join(" & ");
     }
 
-    const assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
+    const assignedSalesManager = resolveRefName(raw.assignedSalesManager) || raw.assignedSalesManager;
 
     return {
       ...raw,
       team: teamName,
       assignedFitterName,
       assignedSalesmanName,
-      assignedBy,
+      assignedSalesManager,
       assignedSalesman: job.assignedSalesman,
-      assignedTo: job.assignedTo,
       assignedFitter: job.assignedFitter,
     };
   }, [userNameById]);
@@ -539,7 +534,7 @@ export default function SmartAssignmentsPage() {
 
   const openRescheduleForJob = (job: UnifiedJob) => {
     const sourceJob = jobs.find((item) => item._id === job.id);
-    const assignedFitter = sourceJob?.assignedTo ?? job.team ?? "";
+    const assignedFitter = (typeof sourceJob?.assignedFitter === "object" ? sourceJob?.assignedFitter?._id : sourceJob?.assignedFitter) ?? job.team ?? "";
     const scheduledTime = job.time ?? toDisplayTime(sourceJob?.scheduledAt) ?? "08:00";
 
     setSelectedJobId(job.id);
@@ -567,8 +562,8 @@ export default function SmartAssignmentsPage() {
       const updated = await updateJob(dialogState.jobId, {
         status: JobStatus.FitterAssigned,
         scheduledAt,
-        assignedTo: dialogState.fitterId,
-        assignedBy: user?._id || user?.name || "Sales Manager",
+        assignedFitter: dialogState.fitterId,
+        assignedSalesManager: user?._id || user?.name || "Sales Manager",
         notes: `Assigned to ${dialogState.fitterName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
@@ -589,8 +584,8 @@ export default function SmartAssignmentsPage() {
     try {
       const updated = await updateJob(dialogState.jobId, {
         status: JobStatus.Pending,
-        assignedTo: "",
-        assignedBy: "",
+        assignedFitter: undefined,
+        assignedSalesManager: undefined,
         notes: "Returned to pending queue from Smart Dispatch.",
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));

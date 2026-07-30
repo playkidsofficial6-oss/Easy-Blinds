@@ -92,13 +92,10 @@ export default function StaffRequestsPage() {
     if (roleMode === "fitter") {
       initialStaffId =
         (typeof job.assignedFitter === "object" ? job.assignedFitter?._id : job.assignedFitter) ||
-        (typeof job.assignedTo === "object" ? job.assignedTo?._id : job.assignedTo) ||
         "";
     } else {
       initialStaffId =
-        job.activeSalesmanId ||
         (typeof job.assignedSalesman === "object" ? job.assignedSalesman?._id : job.assignedSalesman) ||
-        (typeof job.assignedTo === "object" ? job.assignedTo?._id : job.assignedTo) ||
         "";
     }
     setSelectedStaffId(initialStaffId);
@@ -154,18 +151,10 @@ export default function StaffRequestsPage() {
       if (staffRole === "salesman") {
         if (selectedUser) {
           updatePayload.assignedSalesman = selectedUser._id;
-          updatePayload.assignedTo = selectedUser._id;
-          updatePayload.activeSalesmanId = selectedUser._id;
-          updatePayload.activeSalesmanName = selectedUser.name;
-          updatePayload.assignedFitter = null;
         }
       } else {
         if (selectedUser) {
           updatePayload.assignedFitter = selectedUser._id;
-          updatePayload.assignedTo = selectedUser._id;
-          updatePayload.assignedSalesman = null;
-          updatePayload.activeSalesmanId = null;
-          updatePayload.activeSalesmanName = null;
         }
       }
 
@@ -228,8 +217,7 @@ export default function StaffRequestsPage() {
                     </TableCell>
                     <TableCell>{job.customerName}</TableCell>
                     <TableCell>
-                      {job.activeSalesmanName ||
-                        (typeof job.assignedSalesman === "object" ? job.assignedSalesman?.name : job.assignedSalesman) ||
+                      {(typeof job.assignedSalesman === "object" ? job.assignedSalesman?.name : job.assignedSalesman) ||
                         (typeof job.assignedFitter === "object" ? job.assignedFitter?.name : job.assignedFitter) ||
                         "Unknown"}
                     </TableCell>

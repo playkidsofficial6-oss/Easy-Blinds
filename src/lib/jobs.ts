@@ -50,8 +50,6 @@ export interface Job {
   timerStartedAt?: string;
   fittingPhotos?: string[];
   fittingNotes?: string;
-  activeSalesmanId?: string;
-  activeSalesmanName?: string;
   travelStartedAt?: string;
   measurementStartedAt?: string;
   measurementCompletedAt?: string;
@@ -60,8 +58,7 @@ export interface Job {
   fittingCompletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
-  assignedTo?: any;
-  assignedBy?: any;
+  assignedSalesManager?: any;
   assignedSalesman?: any;
   assignedFitter?: any;
   quotation?: any;
@@ -100,7 +97,7 @@ export function isAssignedToUser(job: Job, user?: { _id?: string; name?: string;
     return false;
   };
 
-  if (checkRef(job.assignedTo) || checkRef(job.assignedSalesman) || checkRef(job.assignedFitter) || checkRef(job.activeSalesmanId)) {
+  if (checkRef(job.assignedSalesManager) || checkRef(job.assignedSalesman) || checkRef(job.assignedFitter)) {
     return true;
   }
 
@@ -130,13 +127,10 @@ export interface CreateJobInput {
   notes?: string;
   scheduledAt?: string;
   timerStartedAt?: string;
-  activeSalesmanId?: string;
-  activeSalesmanName?: string;
   travelStartedAt?: string;
   measurementStartedAt?: string;
   measurementCompletedAt?: string;
-  assignedTo?: string;
-  assignedBy?: string;
+  assignedSalesManager?: string;
   assignedSalesman?: string;
   assignedFitter?: string;
   quotation?: any;

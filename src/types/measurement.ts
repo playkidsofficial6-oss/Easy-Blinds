@@ -36,7 +36,6 @@ export interface ClientDetails {
     area: string; // e.g. Marina, Downtown
     propertyType: PropertyType;
     visitDate: Date;
-    assignedStaff: string;
 }
 
 export interface MeasurementJob {

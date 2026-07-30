@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, FileText, Download, Send, CheckCircle, Clock, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { getJobs, updateJob } from "@/lib/jobs";
+import { getJobs, isAssignedToUser, updateJob } from "@/lib/jobs";
 import { useAuth } from "@/components/providers/auth-provider";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ export default function QuotesPage() {
             try {
                 const response = await getJobs({ limit: 100 });
                 const assignedJobs = response.items.filter((job) =>
-                    job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email
+                    isAssignedToUser(job, user)
                 );
                 
                 // Extract quotations from jobs

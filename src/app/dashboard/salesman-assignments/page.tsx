@@ -400,7 +400,7 @@ function resolveAssignedFitterName(job: Job, fitterNameById: Map<string, string>
     return undefined;
   };
 
-  const resolved = resolveRef(job.assignedSalesman) || resolveRef(job.assignedTo) || resolveRef(job.assignedFitter);
+  const resolved = resolveRef(job.assignedSalesman) || resolveRef(job.assignedFitter) || resolveRef(job.assignedSalesManager);
   if (resolved) return resolved;
 
   // Oldest legacy: name embedded in notes
@@ -494,11 +494,10 @@ function toUnifiedJob(job: Job): UnifiedJob {
     time: toDisplayTime(job.scheduledAt),
     requestedDate: getRequestedDateDisplay(job),
     endTime: undefined,
-    team: typeof job.assignedTo === "object" && job.assignedTo !== null ? (job.assignedTo as any).name : job.assignedTo,
+    team: typeof job.assignedSalesman === "object" && job.assignedSalesman !== null ? (job.assignedSalesman as any).name : (typeof job.assignedFitter === "object" && job.assignedFitter !== null ? (job.assignedFitter as any).name : undefined),
+    assignedSalesManager: job.assignedSalesManager,
     assignedSalesman: job.assignedSalesman,
-    assignedTo: job.assignedTo,
     assignedFitter: job.assignedFitter,
-    assignedBy: job.assignedBy,
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     createdAt: job.createdAt,
   };
@@ -871,7 +870,6 @@ export default function SmartSalesmanAssignmentsPage() {
         scheduledAt,
         priority,
         assignedSalesman: assignedToId,
-        assignedTo: assignedToId,
         projectValue: projectValue ? Number(projectValue) : undefined,
         notes: notes.trim(),
         status,
@@ -898,7 +896,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
     try {
       const id = deleteJobTarget._id;
-      const originalAssignedTo = deleteJobTarget.assignedSalesman || deleteJobTarget.assignedTo;
+      const originalAssignedSalesman = deleteJobTarget.assignedSalesman;
 
       await deleteJob(id);
 
@@ -912,7 +910,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
       const socket = getLiveLocationSocket();
       if (socket?.connected) {
-        socket.emit("job:deleted", { id, assignedTo: originalAssignedTo });
+        socket.emit("job:deleted", { id, assignedSalesman: originalAssignedSalesman });
       }
     } catch (error) {
       toast.error(getJobErrorMessage(error, "Failed to delete job."));
@@ -1195,7 +1193,7 @@ export default function SmartSalesmanAssignmentsPage() {
     };
 
     const assignedFitterName = resolveRefName(job.assignedFitter);
-    const assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
+    const assignedSalesmanName = resolveRefName(job.assignedSalesman);
 
     let teamName = "Assigned Team";
     if (!assignedFitterName && !assignedSalesmanName) {
@@ -1207,16 +1205,15 @@ export default function SmartSalesmanAssignmentsPage() {
       teamName = parts.join(" & ");
     }
 
-    const assignedBy = resolveRefName(raw.assignedBy) || raw.assignedBy;
+    const assignedSalesManager = resolveRefName(raw.assignedSalesManager) || raw.assignedSalesManager;
 
     return { 
       ...raw, 
       team: teamName, 
       assignedFitterName, 
       assignedSalesmanName, 
-      assignedBy,
+      assignedSalesManager,
       assignedSalesman: job.assignedSalesman,
-      assignedTo: job.assignedTo,
       assignedFitter: job.assignedFitter,
     };
   }, [userNameById]);
@@ -1631,10 +1628,9 @@ export default function SmartSalesmanAssignmentsPage() {
       const updated = await updateJob(dialogState.jobId, {
         status: JobStatus.SalesmanScheduled,
         scheduledAt,
-        assignedTo: assignedToId,
         assignedFitter: dialogState.fitterId,
         assignedSalesman: dialogState.salesmanId,
-        assignedBy: user?._id || user?.name || "Sales Manager",
+        assignedSalesManager: user?._id || user?.name || "Sales Manager",
         notes: `${sourceJob?.notes ? sourceJob.notes + '\n\n' : ''}Assigned to ${assignedName} @ ${timeSlot}. Scheduled by ${user?.name || "Sales Manager"} from Smart Dispatch.`,
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
@@ -1653,10 +1649,9 @@ export default function SmartSalesmanAssignmentsPage() {
     try {
       const updated = await updateJob(dialogState.jobId, {
         status: JobStatus.Pending,
-        assignedTo: "",
-        assignedFitter: "",
-        assignedSalesman: "",
-        assignedBy: "",
+        assignedFitter: undefined,
+        assignedSalesman: undefined,
+        assignedSalesManager: undefined,
         notes: "Returned to pending queue from Smart Dispatch.",
       });
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
@@ -1722,7 +1717,7 @@ export default function SmartSalesmanAssignmentsPage() {
       if (leadFilter === "pending") {
         return job.status === JobStatus.Pending;
       } else {
-        return job.status === JobStatus.SalesmanScheduled && !job.assignedSalesman && !job.assignedTo;
+        return job.status === JobStatus.SalesmanScheduled && !job.assignedSalesman;
       }
     });
 
@@ -1773,7 +1768,7 @@ export default function SmartSalesmanAssignmentsPage() {
     });
 
     jobs.forEach(j => {
-      const salesmanId = j.assignedTo || j.activeSalesmanId;
+      const salesmanId = typeof j.assignedSalesman === "object" ? (j.assignedSalesman as any)?._id : j.assignedSalesman;
       if (salesmanId && salesmanJobs[salesmanId]) {
         salesmanJobs[salesmanId].total += 1;
         if (j.status === JobStatus.Completed) {
@@ -2431,7 +2426,7 @@ export default function SmartSalesmanAssignmentsPage() {
                     address: j.address ?? "",
                     status: j.status ?? "",
                     location: ll ? { lat: ll.lat, lng: ll.lng } : { lat: 10.8505, lng: 76.2711 },
-                    assignedSalesmanId: rawJob?.assignedSalesman || rawJob?.assignedTo || ""
+                    assignedSalesmanId: (typeof rawJob?.assignedSalesman === "object" ? (rawJob?.assignedSalesman as any)?._id : rawJob?.assignedSalesman) || ""
                   };
                 })}
                 hideStatusPanel={true}

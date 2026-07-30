@@ -95,11 +95,11 @@ const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
 function extractAssignedFitter(job: Job) {
-  if (job.assignedTo) {
-    if (typeof job.assignedTo === "object" && job.assignedTo !== null) {
-      return (job.assignedTo as any).name || (job.assignedTo as any)._id;
+  if (job.assignedFitter) {
+    if (typeof job.assignedFitter === "object" && job.assignedFitter !== null) {
+      return (job.assignedFitter as any).name || (job.assignedFitter as any)._id;
     }
-    return job.assignedTo;
+    return job.assignedFitter;
   }
   if (job.assignedSalesman) {
     if (typeof job.assignedSalesman === "object" && job.assignedSalesman !== null) {
@@ -129,7 +129,7 @@ export function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name" | "
     return false;
   };
 
-  if (checkRef(job.assignedTo) || checkRef(job.assignedSalesman) || checkRef(job.assignedFitter)) {
+  if (checkRef(job.assignedFitter) || checkRef(job.assignedSalesman) || checkRef(job.assignedSalesManager)) {
     return true;
   }
 

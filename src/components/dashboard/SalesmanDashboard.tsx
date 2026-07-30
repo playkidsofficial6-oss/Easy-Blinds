@@ -47,9 +47,7 @@ type SalesmanScheduleJob = {
   status: string;
   fabric: string;
   notes?: string;
-  assignedBy?: string;
-  activeSalesmanId?: string;
-  activeSalesmanName?: string;
+  assignedSalesManager?: string;
   travelStartedAt?: string;
   measurementStartedAt?: string;
   measurementCompletedAt?: string;
@@ -136,9 +134,7 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     status: toScheduleStatus(job),
     fabric: job.productType || "Curtains",
     notes: job.notes,
-    assignedBy: job.assignedBy,
-    activeSalesmanId: job.activeSalesmanId,
-    activeSalesmanName: job.activeSalesmanName,
+    assignedSalesManager: job.assignedSalesManager,
     travelStartedAt: job.travelStartedAt,
     measurementStartedAt: job.measurementStartedAt,
     measurementCompletedAt: job.measurementCompletedAt,
@@ -511,8 +507,6 @@ function SalesmanPageContent() {
             return {
               ...j,
               status: "Pending",
-              activeSalesmanId: undefined,
-              activeSalesmanName: undefined,
             };
           }
           return j;
@@ -545,8 +539,6 @@ function SalesmanPageContent() {
         if (displayStatus === "Pending") {
           return updateJob(id, {
             status: JobStatus.SalesmanScheduled,
-            activeSalesmanId: undefined,
-            activeSalesmanName: undefined,
             travelStartedAt: undefined,
             measurementStartedAt: undefined,
             measurementCompletedAt: undefined,
@@ -570,8 +562,6 @@ function SalesmanPageContent() {
                 ...j,
                 status: savedDisplayStatus,
                 notes: savedJob.notes || j.notes,
-                activeSalesmanId: savedJob.activeSalesmanId,
-                activeSalesmanName: savedJob.activeSalesmanName,
                 travelStartedAt: savedJob.travelStartedAt,
                 measurementStartedAt: savedJob.measurementStartedAt,
                 measurementCompletedAt: savedJob.measurementCompletedAt,
@@ -581,8 +571,6 @@ function SalesmanPageContent() {
               return {
                 ...j,
                 status: "Pending",
-                activeSalesmanId: undefined,
-                activeSalesmanName: undefined,
               };
             }
             return j;
@@ -595,8 +583,6 @@ function SalesmanPageContent() {
           ...prev,
           status: savedDisplayStatus,
           notes: savedJob.notes || prev.notes,
-          activeSalesmanId: savedJob.activeSalesmanId,
-          activeSalesmanName: savedJob.activeSalesmanName,
           travelStartedAt: savedJob.travelStartedAt,
           measurementStartedAt: savedJob.measurementStartedAt,
           measurementCompletedAt: savedJob.measurementCompletedAt,
@@ -606,8 +592,6 @@ function SalesmanPageContent() {
         void Promise.allSettled(
           otherRouteJobsToReset.map((routeJob) => updateJob(routeJob.id, {
             status: JobStatus.SalesmanScheduled,
-            activeSalesmanId: undefined,
-            activeSalesmanName: undefined,
           }))
         ).then((results) => {
           const failedCount = results.filter((result) => result.status === "rejected").length;

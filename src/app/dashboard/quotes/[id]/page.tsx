@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Download, Send, Edit, Phone, Mail, Calendar, FileText, CheckCircle, Clock, XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getJobs } from "@/lib/jobs";
+import { getJobs, isAssignedToUser } from "@/lib/jobs";
 import { useAuth } from "@/components/providers/auth-provider";
 import { toast } from "sonner";
 
@@ -23,7 +23,7 @@ export default function ViewQuotePage({ params }: { params: Promise<{ id: string
             try {
                 const response = await getJobs({ limit: 100 });
                 const assignedJobs = response.items.filter((job) =>
-                    job.assignedTo === user._id || job.assignedTo === user.name || job.assignedTo === user.email
+                    isAssignedToUser(job, user)
                 );
                 
                 // Find the job containing this quotation ID

@@ -101,7 +101,7 @@ function isJobForDate(job: Job, date: Date) {
 }
 
 function getUnassignedJobsForDate(jobs: Job[], date: Date) {
-    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
+    return jobs.filter((job) => !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
 }
 
 function isAssignedToSalesman(job: Job, salesman: UserRecord) {
@@ -109,7 +109,7 @@ function isAssignedToSalesman(job: Job, salesman: UserRecord) {
 }
 
 function getUnassignedJobs(jobs: Job[]) {
-    return jobs.filter((job) => !job.assignedTo && !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
+    return jobs.filter((job) => !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
 }
 
 function getStatusVariant(status: string) {
@@ -282,8 +282,8 @@ export default function SalesmenPage() {
         try {
             const selectedJob = jobs.find((job) => job._id === selectedJobId);
             const updatedJob = await updateJob(selectedJobId, {
-                assignedTo: salesman._id,
-                assignedBy: user?.name ?? user?._id,
+                assignedSalesman: salesman._id,
+                assignedSalesManager: user?._id || user?.name || "Sales Manager",
                 status: JobStatus.SalesmanScheduled,
                 notes: [
                     selectedJob?.notes,
@@ -347,9 +347,7 @@ export default function SalesmenPage() {
             }
             const updatedJob = await updateJob(assignFitterQuote.jobId, {
                 assignedFitter: fitter._id,
-                assignedTo: fitter._id,
-                assignedSalesman: assignFitterQuote.salesmanName ?? "",
-                assignedBy: user?.name ?? user?._id ?? "Sales Manager",
+                assignedSalesManager: user?._id || user?.name || "Sales Manager",
                 status: JobStatus.FitterAssigned,
                 scheduledAt,
                 notes: `Assigned to fitter ${fitter.name} by Sales Manager${scheduledDate ? ` for ${scheduledDate} at ${scheduledTime || "09:00"}` : ""}.`,

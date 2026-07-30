@@ -67,10 +67,9 @@ export interface UnifiedJob {
     team?: string;
     assignedFitterName?: string;
     assignedSalesmanName?: string;
+    assignedSalesManager?: any;
     assignedSalesman?: any;
-    assignedTo?: any;
     assignedFitter?: any;
-    assignedBy?: any;
     createdAt?: string;
 }
 
@@ -122,8 +121,8 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
 
     const resolvedAssignedName =
         resolveName(job.assignedSalesman) ||
-        resolveName(job.assignedTo) ||
         resolveName(job.assignedFitter) ||
+        resolveName(job.assignedSalesManager) ||
         (typeof job.assignedSalesmanName === "string" ? job.assignedSalesmanName : undefined) ||
         (typeof job.assignedFitterName === "string" ? job.assignedFitterName : undefined);
 

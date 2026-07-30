@@ -11,12 +11,12 @@ import { Progress } from "@/components/ui/progress";
 import { getJob } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import type { ClientDetails, Room, RoomType, MountType, OpeningDirection, ProductType, MotorType } from "@/types/measurement";
- 
+
 function NewMeasurementForm() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const jobId = searchParams.get("jobId");
- 
+
     const [currentStep, setCurrentStep] = useState(1);
     const [clientDetails, setClientDetails] = useState<Partial<ClientDetails>>({});
     const [rooms, setRooms] = useState<Room[]>([]);
@@ -25,16 +25,16 @@ function NewMeasurementForm() {
     // Dynamic steps setup: if jobId is provided, skip the "Client Details" step
     const steps = jobId
         ? [
-              { id: 1, name: "Rooms", component: RoomManagementStep },
-              { id: 2, name: "Measurements", component: WindowMeasurementStep },
-              { id: 3, name: "Review", component: ReviewStep },
-          ]
+            { id: 1, name: "Rooms", component: RoomManagementStep },
+            { id: 2, name: "Measurements", component: WindowMeasurementStep },
+            { id: 3, name: "Review", component: ReviewStep },
+        ]
         : [
-              { id: 1, name: "Client Details", component: ClientDetailsStep },
-              { id: 2, name: "Rooms", component: RoomManagementStep },
-              { id: 3, name: "Measurements", component: WindowMeasurementStep },
-              { id: 4, name: "Review", component: ReviewStep },
-          ];
+            { id: 1, name: "Client Details", component: ClientDetailsStep },
+            { id: 2, name: "Rooms", component: RoomManagementStep },
+            { id: 3, name: "Measurements", component: WindowMeasurementStep },
+            { id: 4, name: "Review", component: ReviewStep },
+        ];
 
     // Automatically load customer details & saved measurement if jobId is in URL
     useEffect(() => {
@@ -51,7 +51,6 @@ function NewMeasurementForm() {
                     area: job.address.split(",")[0]?.trim() || "Dubai",
                     propertyType: (job.propertyType as any) || "Apartment",
                     visitDate: new Date(),
-                    assignedStaff: job.assignedSalesman || "Salesman",
                 });
 
                 // Fetch existing measurement from backend
@@ -120,7 +119,7 @@ function NewMeasurementForm() {
 
     if (isLoading) {
         return (
-            <div className="max-w-5xl mx-auto flex items-center justify-center min-h-[400px]">
+            <div className="max-w-5xl mx-auto flex items-center justify-center min-h-100">
                 <div className="flex flex-col items-center gap-3 text-stone-500">
                     <span className="h-8 w-8 animate-spin rounded-full border-4 border-stone-300 border-t-stone-900"></span>
                     <span className="font-light italic text-sm">Retrieving customer details...</span>
@@ -150,29 +149,26 @@ function NewMeasurementForm() {
                             <div key={step.id} className="flex-1 flex items-center">
                                 <div className="flex flex-col items-center flex-1">
                                     <div
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors ${
-                                            currentStep === step.id
-                                                ? "bg-stone-900 text-white"
-                                                : currentStep > step.id
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors ${currentStep === step.id
+                                            ? "bg-stone-900 text-white"
+                                            : currentStep > step.id
                                                 ? "bg-green-600 text-white"
                                                 : "bg-stone-200 text-stone-600"
-                                        }`}
+                                            }`}
                                     >
                                         {step.id}
                                     </div>
                                     <p
-                                        className={`text-sm mt-2 font-medium hidden md:block ${
-                                            currentStep === step.id ? "text-stone-900" : "text-stone-500"
-                                        }`}
+                                        className={`text-sm mt-2 font-medium hidden md:block ${currentStep === step.id ? "text-stone-900" : "text-stone-500"
+                                            }`}
                                     >
                                         {step.name}
                                     </p>
                                 </div>
                                 {index < steps.length - 1 && (
                                     <div
-                                        className={`h-1 flex-1 mx-2 ${
-                                            currentStep > step.id ? "bg-green-600" : "bg-stone-200"
-                                        }`}
+                                        className={`h-1 flex-1 mx-2 ${currentStep > step.id ? "bg-green-600" : "bg-stone-200"
+                                            }`}
                                     />
                                 )}
                             </div>
@@ -203,7 +199,7 @@ export default function NewMeasurementPage() {
     return (
         <Suspense
             fallback={
-                <div className="max-w-5xl mx-auto flex items-center justify-center min-h-[400px]">
+                <div className="max-w-5xl mx-auto flex items-center justify-center min-h-100">
                     <div className="flex flex-col items-center gap-3 text-stone-500">
                         <span className="h-8 w-8 animate-spin rounded-full border-4 border-stone-300 border-t-stone-900"></span>
                         <span className="font-light italic text-sm">Loading measurement form...</span>

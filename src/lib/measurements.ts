@@ -41,7 +41,6 @@ export interface RoomInput {
 
 export interface CreateMeasurementInput {
   jobId: string;
-  assignedStaff: string;
   visitDate: string;
   status: MeasurementStatus | "Pending" | "In Progress" | "Completed" | "Cancelled" | "Draft" | string;
   rooms: RoomInput[];
