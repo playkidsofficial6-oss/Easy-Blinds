@@ -511,7 +511,6 @@ function toFitterJob(job: Job): FitterJob {
     address: job.address,
     time: toDisplayTime(job.scheduledAt) ?? "08:00",
     endTime: "",
-    timerStartedAt: job.timerStartedAt,
     status: getSalesmanWorkflowDisplayStatus(job),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
@@ -1469,12 +1468,7 @@ export default function SmartSalesmanAssignmentsPage() {
         let countdownSecs = -1;
 
         if (isMeasuring) {
-          if (activeJob && activeJob.status === "In Progress" && activeJob.timerStartedAt) {
-            const elapsed = Math.floor((Date.now() - new Date(activeJob.timerStartedAt).getTime()) / 1000);
-            const remaining = (45 * 60) - elapsed;
-            countdownSecs = remaining > 0 ? remaining : 0;
-          }
-          measureTimeSecs = countdownSecs >= 0 ? countdownSecs : (45 * 60);
+          measureTimeSecs = 45 * 60;
         } else if (isOnTheWay) {
           measureTimeSecs = 45 * 60;
         }
@@ -1488,7 +1482,6 @@ export default function SmartSalesmanAssignmentsPage() {
           dist: distToNewJob,
           duration,
           countdownSecs,
-          timerStartedAt: activeJob?.timerStartedAt,
           isFree: member.status === "Available"
         };
       });
@@ -2237,15 +2230,9 @@ export default function SmartSalesmanAssignmentsPage() {
                     if (jobLatLng) {
                       const travelDist = distanceKm([11.2751, 76.2238], jobLatLng);
                       travelDistStr = `${travelDist.toFixed(travelDist >= 10 ? 0 : 1)} km`;
-                      if (rawJob?.travelStartedAt && rawJob?.measurementStartedAt) {
-                        const diffMs = new Date(rawJob.measurementStartedAt).getTime() - new Date(rawJob.travelStartedAt).getTime();
-                        const mins = Math.max(1, Math.round(diffMs / 60000));
-                        travelTimeStr = `${mins} min`;
-                      } else {
-                        travelTimeStr = `${Math.max(1, Math.round((travelDist / 32) * 60))} min`;
-                      }
+                      travelTimeStr = `${Math.max(1, Math.round((travelDist / 32) * 60))} min`;
                     }
-                    const measuringStartTimeStr = formatTimeSafe(rawJob?.measurementStartedAt);
+                    const measuringStartTimeStr = formatTimeSafe(rawJob?.createdAt || rawJob?.scheduledAt);
 
                     // COMPLETED calculations
                     let totalTravelDistStr = "--";
@@ -2254,11 +2241,7 @@ export default function SmartSalesmanAssignmentsPage() {
                       totalTravelDistStr = `${travelDist.toFixed(travelDist >= 10 ? 0 : 1)} km`;
                     }
                     let totalTravelTimeStr = "--";
-                    if (rawJob?.travelStartedAt && rawJob?.measurementStartedAt) {
-                      const diffMs = new Date(rawJob.measurementStartedAt).getTime() - new Date(rawJob.travelStartedAt).getTime();
-                      const mins = Math.max(1, Math.round(diffMs / 60000));
-                      totalTravelTimeStr = `${mins} min`;
-                    } else if (jobLatLng) {
+                    if (jobLatLng) {
                       const travelDist = distanceKm([11.2751, 76.2238], jobLatLng);
                       totalTravelTimeStr = `${Math.max(1, Math.round((travelDist / 32) * 60))} min`;
                     }
@@ -2348,14 +2331,6 @@ export default function SmartSalesmanAssignmentsPage() {
                               <div className="flex items-center justify-between">
                                 <span className="text-slate-400 font-medium">⏱ Travel Time:</span>
                                 <span className="font-semibold text-slate-700 font-mono">{travelTimeStr}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">📏 Start Time:</span>
-                                <span className="font-semibold text-slate-700 font-mono">{measuringStartTimeStr}</span>
-                              </div>
-                              <div className="flex items-center justify-between border-t border-slate-200/50 pt-1.5 mt-1">
-                                <span className="text-indigo-500 font-bold uppercase tracking-wider text-[10px]">⏱ Active Duration:</span>
-                                <ActiveTimer startTime={rawJob?.measurementStartedAt} />
                               </div>
                             </>
                           )}
@@ -2644,10 +2619,6 @@ export default function SmartSalesmanAssignmentsPage() {
                               <div>
                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">Client</span>
                                 <span className="font-bold text-slate-800">{activeJob.client}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">Elapsed Time</span>
-                                <ActiveTimer startTime={activeJob.timerStartedAt || new Date().toISOString()} />
                               </div>
                             </div>
                             <div>

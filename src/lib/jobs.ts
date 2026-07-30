@@ -47,12 +47,9 @@ export interface Job {
   priority: JobPriority;
   notes?: string;
   scheduledAt?: string;
-  timerStartedAt?: string;
   photos?: string[];
   fittingPhotos?: string[];
   fittingNotes?: string;
-  travelStartedAt?: string;
-  measurementStartedAt?: string;
   measurementCompletedAt?: string;
   fitterTravelStartedAt?: string;
   fittingStartedAt?: string;
@@ -127,9 +124,6 @@ export interface CreateJobInput {
   priority?: JobPriority;
   notes?: string;
   scheduledAt?: string;
-  timerStartedAt?: string;
-  travelStartedAt?: string;
-  measurementStartedAt?: string;
   measurementCompletedAt?: string;
   assignedSalesManager?: string;
   assignedSalesman?: string;

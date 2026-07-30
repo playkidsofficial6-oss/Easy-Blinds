@@ -63,7 +63,7 @@ export interface UnifiedJob {
     time?: string;
     endTime?: string;
     requestedDate?: string;
-    recommendedFitters?: Array<{ id: string; name: string; role?: string; dist?: number; duration?: number; countdownSecs?: number; isFree?: boolean; timerStartedAt?: string; }>;
+    recommendedFitters?: Array<{ id: string; name: string; role?: string; dist?: number; duration?: number; countdownSecs?: number; isFree?: boolean; }>;
     team?: string;
     assignedFitterName?: string;
     assignedSalesmanName?: string;
@@ -279,7 +279,7 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-black text-slate-800">{rec.name}</p>
                                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-500">
-                                            {rec.isFree ? <span className="text-emerald-600">Available Now</span> : rec.timerStartedAt ? <LiveCountdown startedAt={rec.timerStartedAt} /> : <span>Busy</span>}
+                                            {rec.isFree ? <span className="text-emerald-600">Available Now</span> : <span>Busy</span>}
                                             {typeof rec.dist === "number" && <span>{rec.dist < 1 ? "< 1" : rec.dist.toFixed(1)} km away</span>}
                                             {typeof rec.duration === "number" && <span>~{formatDuration(rec.duration)}</span>}
                                         </div>

@@ -188,50 +188,6 @@ export default function NewQuotePage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Main Form Area */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Client Details */}
-                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200">
-                        <CardHeader className="pb-4 border-b border-neutral-100">
-                            <CardTitle className="text-lg font-medium">Client Details</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="clientName">Client Name</Label>
-                                    <Input
-                                        id="clientName"
-                                        placeholder="e.g. Ahmed Al Mansoori"
-                                        value={clientName}
-                                        onChange={(e) => setClientName(e.target.value)}
-                                        className="h-11 bg-stone-50 text-stone-500 cursor-not-allowed"
-                                        readOnly
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="clientPhone">Phone Number</Label>
-                                    <Input
-                                        id="clientPhone"
-                                        placeholder="+971 50 123 4567"
-                                        value={clientPhone}
-                                        onChange={(e) => setClientPhone(e.target.value)}
-                                        className="h-11 bg-stone-50 text-stone-500 cursor-not-allowed"
-                                        readOnly
-                                    />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="clientEmail">Email Address</Label>
-                                <Input
-                                    id="clientEmail"
-                                    type="email"
-                                    placeholder="client@example.com"
-                                    value={clientEmail}
-                                    onChange={(e) => setClientEmail(e.target.value)}
-                                    className="h-11 bg-stone-50 text-stone-500 cursor-not-allowed"
-                                    readOnly
-                                 />
-                            </div>
-                        </CardContent>
-                    </Card>
 
                     {/* Line Items */}
                     <Card className="border-0 shadow-sm ring-1 ring-neutral-200">

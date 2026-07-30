@@ -48,8 +48,6 @@ type SalesmanScheduleJob = {
   fabric: string;
   notes?: string;
   assignedSalesManager?: string;
-  travelStartedAt?: string;
-  measurementStartedAt?: string;
   measurementCompletedAt?: string;
   coordinates: [number, number];
   date?: string;
@@ -135,8 +133,6 @@ function toScheduleJob(job: Job): SalesmanScheduleJob {
     fabric: job.productType || "Curtains",
     notes: job.notes,
     assignedSalesManager: job.assignedSalesManager,
-    travelStartedAt: job.travelStartedAt,
-    measurementStartedAt: job.measurementStartedAt,
     measurementCompletedAt: job.measurementCompletedAt,
     coordinates,
   };
@@ -539,8 +535,6 @@ function SalesmanPageContent() {
         if (displayStatus === "Pending") {
           return updateJob(id, {
             status: JobStatus.SalesmanScheduled,
-            travelStartedAt: undefined,
-            measurementStartedAt: undefined,
             measurementCompletedAt: undefined,
           });
         }
@@ -562,8 +556,6 @@ function SalesmanPageContent() {
                 ...j,
                 status: savedDisplayStatus,
                 notes: savedJob.notes || j.notes,
-                travelStartedAt: savedJob.travelStartedAt,
-                measurementStartedAt: savedJob.measurementStartedAt,
                 measurementCompletedAt: savedJob.measurementCompletedAt,
               };
             }
@@ -583,8 +575,6 @@ function SalesmanPageContent() {
           ...prev,
           status: savedDisplayStatus,
           notes: savedJob.notes || prev.notes,
-          travelStartedAt: savedJob.travelStartedAt,
-          measurementStartedAt: savedJob.measurementStartedAt,
           measurementCompletedAt: savedJob.measurementCompletedAt,
         } : prev);
       }

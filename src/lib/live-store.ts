@@ -45,7 +45,6 @@ export interface FitterJob {
   fabric?: string;
   rooms?: string[];
   coordinates?: [number, number];
-  timerStartedAt?: string;
   value?: number;
   email?: string;
   phone?: string;
@@ -212,7 +211,6 @@ function toFitterJob(job: Job): FitterJob {
     endTime: toDisplayEndTime(job.scheduledAt),
     scheduledAt: job.scheduledAt,
     date: job.scheduledAt ? format(parseISO(job.scheduledAt), "yyyy-MM-dd") : undefined,
-    timerStartedAt: job.timerStartedAt,
     status: toFitterJobStatus(job.status),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
