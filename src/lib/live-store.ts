@@ -367,8 +367,7 @@ function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
       phone: user.phone,
       location: user.location,
       status: FitterProfileStatus.Available,
-      capacity: user.maxDailyJobs || 5,
-      skills: [],
+      capacity: 5,
     }));
 }
 

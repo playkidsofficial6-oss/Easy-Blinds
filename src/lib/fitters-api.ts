@@ -16,7 +16,6 @@ export interface FitterProfileRecord {
   location?: UserLocation;
   status: FitterProfileStatus;
   capacity: number;
-  skills: string[];
   notes?: string;
   createdAt?: string;
   updatedAt?: string;

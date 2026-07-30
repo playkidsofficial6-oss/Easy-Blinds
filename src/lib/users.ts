@@ -49,13 +49,12 @@ export interface UserRecord {
   avatar?: string;
   liveStatus?: LiveUserStatus;
   location?: UserLocation;
-  maxDailyJobs?: number;
   checkedIn?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "phone" | "avatar" | "liveStatus" | "location" | "maxDailyJobs" | "checkedIn">> & {
+export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "liveStatus" | "location" | "checkedIn">> & {
   password?: string;
 };
 

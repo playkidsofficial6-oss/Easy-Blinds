@@ -574,9 +574,9 @@ function toSalesmanWorkforceMember(user: UserRecord): Fitter {
       upcoming: [],
     },
     capacity: {
-      max: user.maxDailyJobs || 5,
+      max: 5,
       current: 0,
-      remaining: user.maxDailyJobs || 5,
+      remaining: 5,
     },
     nextAvailableSlot: "Available",
   };
