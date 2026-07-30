@@ -307,8 +307,8 @@ export default function SmartAssignmentsPage() {
           return false;
         }
         // Match by userId (new) or name (legacy)
-        if (job.assignedTo) {
-          const ref = job.assignedTo;
+        if (job.assignedFitter) {
+          const ref = job.assignedFitter;
           if (typeof ref === "object" && ref !== null) {
             return (ref as any)._id === fitter.id || (ref as any).name?.toLowerCase() === fitter.name.toLowerCase();
           }
@@ -400,7 +400,7 @@ export default function SmartAssignmentsPage() {
     };
 
     const assignedFitterName = resolveRefName(job.assignedFitter);
-    const assignedSalesmanName = resolveRefName(job.assignedSalesman) || resolveRefName(job.assignedTo);
+    const assignedSalesmanName = resolveRefName(job.assignedSalesman);
 
     let teamName = "Assigned Team";
     if (!assignedFitterName && !assignedSalesmanName) {

@@ -810,7 +810,7 @@ export default function SmartSalesmanAssignmentsPage() {
         scheduledDate: rawJob.scheduledAt ? format(parseISO(rawJob.scheduledAt), "yyyy-MM-dd") : "",
         scheduledTime: rawJob.scheduledAt ? format(parseISO(rawJob.scheduledAt), "HH:mm") : "",
         priority: rawJob.priority || JobPriority.Medium,
-        assignedSalesman: rawJob.assignedSalesman || rawJob.assignedTo || "",
+        assignedSalesman: rawJob.assignedSalesman || "",
         projectValue: rawJob.projectValue !== undefined ? String(rawJob.projectValue) : "",
         notes: rawJob.notes || "",
         status: rawJob.status || JobStatus.Pending,
@@ -1041,14 +1041,6 @@ export default function SmartSalesmanAssignmentsPage() {
             return true;
           }
         }
-        if (job.assignedTo) {
-          const ref = job.assignedTo;
-          if (typeof ref === "object" && ref !== null) {
-            if ((ref as any)._id === fitter.id || (ref as any).name?.toLowerCase() === fitter.name.toLowerCase()) return true;
-          } else if (ref === fitter.id || (typeof ref === "string" && ref.toLowerCase() === fitter.name.toLowerCase())) {
-            return true;
-          }
-        }
 
         const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
         return match?.[1]?.trim().toLowerCase() === fitter.name.toLowerCase();
@@ -1259,7 +1251,7 @@ export default function SmartSalesmanAssignmentsPage() {
         address: job.address || "Scheduled Job Location",
         client: job.customerName || "Client",
         status: getSalesmanWorkflowDisplayStatus(job),
-        assignedSalesmanId: job.assignedSalesman || job.assignedTo,
+        assignedSalesmanId: job.assignedSalesman,
         value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
         time: toDisplayTime(job.scheduledAt) ?? "10:00",
         property: job.propertyType,
@@ -1574,9 +1566,9 @@ export default function SmartSalesmanAssignmentsPage() {
       type: "edit",
       jobId,
       jobClient,
-      fitterId: sourceJob?.assignedFitter || sourceJob?.assignedTo,
+      fitterId: sourceJob?.assignedFitter,
       salesmanId: sourceJob?.assignedSalesman,
-      originalFitterId: sourceJob?.assignedFitter || sourceJob?.assignedTo,
+      originalFitterId: sourceJob?.assignedFitter,
       originalSalesmanId: sourceJob?.assignedSalesman,
       currentSlot: jobTime,
       currentDate: viewDate,
