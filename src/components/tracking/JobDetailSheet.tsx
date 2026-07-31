@@ -107,7 +107,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
             <div className="relative z-10 w-full sm:w-[560px] h-full sm:h-[90vh] bg-white sm:rounded-l-3xl shadow-2xl flex flex-col animate-in slide-in-from-right-10 duration-300">
 
                 {/* Header */}
-                <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 sm:rounded-tl-3xl text-white flex-shrink-0">
+                <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 sm:rounded-tl-3xl text-white shrink-0">
                     <div className="flex items-start justify-between mb-4">
                         <div>
                             <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-1">Completed Job</p>
@@ -121,11 +121,11 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                     {job && (
                         <div className="grid grid-cols-2 gap-3">
                             <div className="flex items-center gap-2 text-sm text-slate-300">
-                                <Phone className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                                <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                                 <span className="truncate">{job.customerPhone}</span>
                             </div>
                             <div className="flex items-center gap-2 text-sm text-slate-300">
-                                <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                                <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                                 <span className="truncate">{job.address}</span>
                             </div>
                             <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-slate-100 bg-white flex-shrink-0">
+                <div className="flex border-b border-slate-100 bg-white shrink-0">
                     {tabs.map(tab => (
                         <button
                             key={tab.key}
@@ -405,7 +405,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                 ["Value", job?.projectValue ? `AED ${job.projectValue.toLocaleString()}` : undefined],
                                             ].filter(([, v]) => v).map(([k, v]) => (
                                                 <div key={String(k)} className="flex gap-2 text-xs">
-                                                    <span className="text-slate-400 font-bold uppercase w-14 flex-shrink-0">{k}</span>
+                                                    <span className="text-slate-400 font-bold uppercase w-14 shrink-0">{k}</span>
                                                     <span className="text-slate-700">{String(v)}</span>
                                                 </div>
                                             ))}

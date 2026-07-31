@@ -122,14 +122,14 @@ export default function StaffDirectoryPage() {
         password,
         role,
       };
-      
+
       // Directly call api.post so it does NOT override the current logged-in token
       const { data } = await api.post("/auth/register", payload);
-      
+
       toast.success("Staff member created successfully.");
       setUsers((prev) => [...prev, data.user]);
       setIsDialogOpen(false);
-      
+
       // Reset form
       setName("");
       setEmail("");
@@ -146,8 +146,8 @@ export default function StaffDirectoryPage() {
   const filteredUsers = users.filter(
     (u) => {
       const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            u.role.toLowerCase().includes(searchQuery.toLowerCase());
+        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.role.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesRole = selectedRoleFilter === "all" || u.role === selectedRoleFilter;
       return matchesSearch && matchesRole;
     }
@@ -172,7 +172,7 @@ export default function StaffDirectoryPage() {
               Add Staff Member
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-106.25">
             <DialogHeader>
               <DialogTitle>Create Staff Member</DialogTitle>
               <DialogDescription>
@@ -302,7 +302,7 @@ export default function StaffDirectoryPage() {
               <TabsTrigger value={UserRole.Owner} className="data-[state=active]:bg-white dark:data-[state=active]:bg-neutral-900 px-4">Owner</TabsTrigger>
             </TabsList>
           </Tabs>
-          
+
           <div className="relative w-full md:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
             <Input

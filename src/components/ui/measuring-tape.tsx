@@ -215,7 +215,7 @@ export function MeasuringTapeInput({
             </div>
 
             {/* Gradient Overlays for depth */}
-            <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-stone-50 to-transparent pointer-events-none" />
+            <div className="absolute inset-y-0 left-0 w-12 bg-linear-to-r from-stone-50 to-transparent pointer-events-none" />
             <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-stone-50 to-transparent pointer-events-none" />
         </div>
     );

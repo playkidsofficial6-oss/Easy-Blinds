@@ -6,7 +6,7 @@ export default function AnalyticsPage() {
         <div className="space-y-12">
             <div className="space-y-4">
                 <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-neutral-500 font-semibold">
-                    <div className="w-12 h-px bg-gradient-to-r from-transparent via-amber-600 to-transparent"></div>
+                    <div className="w-12 h-px bg-linear-to-r from-transparent via-amber-600 to-transparent"></div>
                     <span>Analytics</span>
                 </div>
                 <h1 className="text-6xl font-light tracking-tight text-neutral-900">
@@ -19,7 +19,7 @@ export default function AnalyticsPage() {
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <h2 className="text-3xl font-light text-neutral-900">Revenue Breakdown</h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-neutral-200 to-transparent"></div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-px bg-neutral-200">
@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <h2 className="text-3xl font-light text-neutral-900">Conversion Funnel</h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-neutral-200 to-transparent"></div>
                 </div>
 
                 <div className="space-y-px bg-neutral-200">
@@ -99,7 +99,7 @@ export default function AnalyticsPage() {
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <h2 className="text-3xl font-light text-neutral-900">Product Performance</h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-neutral-200 to-transparent"></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-px bg-neutral-200">

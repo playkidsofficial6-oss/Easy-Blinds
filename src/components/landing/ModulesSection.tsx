@@ -253,7 +253,7 @@ export function ModulesSection() {
                             <div className="lg:col-span-7 transform transition-all duration-700 group-hover:scale-105">
                                 {/* Analytics Dashboard Mock */}
                                 <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200 overflow-hidden relative">
-                                    <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                                    <div className="h-1 bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
                                     <div className="p-6">
                                         <div className="flex justify-between items-center mb-8">
                                             <h4 className="text-xl font-bold text-neutral-900">Revenue Overview</h4>

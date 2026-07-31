@@ -94,7 +94,7 @@ export default function SalesManagerDashboard() {
       <div className="flex items-end justify-between">
         <div className="space-y-3">
           <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-neutral-500 font-semibold">
-            <div className="w-12 h-px bg-gradient-to-r from-transparent via-amber-600 to-transparent" />
+            <div className="w-12 h-px bg-linear-to-r from-transparent via-amber-600 to-transparent" />
             <span>Operations Overview</span>
           </div>
           <h1 className="text-5xl font-light tracking-tight text-neutral-900 dark:text-white leading-tight">
@@ -137,7 +137,7 @@ export default function SalesManagerDashboard() {
       <div className="space-y-5">
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-light text-neutral-900 dark:text-white">Recent Jobs</h2>
-          <div className="h-px flex-1 bg-gradient-to-r from-neutral-300 dark:from-neutral-700 to-transparent" />
+          <div className="h-px flex-1 bg-linear-to-r from-neutral-300 dark:from-neutral-700 to-transparent" />
         </div>
         <div className="rounded-sm overflow-hidden border border-neutral-300 dark:border-neutral-700 divide-y divide-neutral-200 dark:divide-neutral-800">
           {isLoading && (

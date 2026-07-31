@@ -326,7 +326,7 @@ export default function SalesmenPage() {
 
     return (
         <div className="flex flex-col h-full overflow-y-auto bg-slate-50">
-            <div className="flex items-end justify-between px-8 py-6 flex-shrink-0 bg-white border-b border-slate-200">
+            <div className="flex items-end justify-between px-8 py-6 shrink-0 bg-white border-b border-slate-200">
                 <div className="space-y-4">
                     <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold">
                         <Link href="/sales-manager" className="hover:text-amber-600 transition-colors flex items-center gap-2">
@@ -344,9 +344,9 @@ export default function SalesmenPage() {
             </div>
 
             {/* Tracking Section */}
-            <div className="flex border-b border-slate-200 bg-white shadow-sm flex-shrink-0 overflow-hidden" style={{ height: "600px" }}>
+            <div className="flex border-b border-slate-200 bg-white shadow-sm shrink-0 overflow-hidden" style={{ height: "600px" }}>
                 {/* Sidebar — fixed width, clips horizontal overflow, allows vertical scroll inside ScrollArea */}
-                <div className="w-[400px] flex-shrink-0 border-r border-slate-200 bg-white flex flex-col h-full overflow-x-hidden">
+                <div className="w-[400px] shrink-0 border-r border-slate-200 bg-white flex flex-col h-full overflow-x-hidden">
                     <FitterList
                         fitters={mappedSalesmen}
                         selectedFitterId={selectedSalesmanId}
@@ -418,7 +418,7 @@ export default function SalesmenPage() {
                                         <div className="p-6 space-y-6 flex-1 overflow-y-auto">
                                             {fitter.locationLabel && (
                                                 <div className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                                    <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                                                    <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                                                     <div className="flex flex-col">
                                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Current Location</span>
                                                         <span className="leading-snug">{fitter.locationLabel}</span>
@@ -433,7 +433,7 @@ export default function SalesmenPage() {
                                                         ? "bg-amber-50/60 border-amber-100/80 text-amber-900"
                                                         : "bg-blue-50/60 border-blue-100/80 text-blue-900"
                                                 )}>
-                                                    <Clock className={cn("w-4.5 h-4.5 mt-0.5 flex-shrink-0", (fitter.status as string) === "On the way" ? "text-amber-500" : "text-blue-500")} />
+                                                    <Clock className={cn("w-4.5 h-4.5 mt-0.5 shrink-0", (fitter.status as string) === "On the way" ? "text-amber-500" : "text-blue-500")} />
                                                     <div className="flex flex-col min-w-0">
                                                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                                                             {(fitter.status as string) === "On the way" ? "Traveling To" : "Active Measure Job"}

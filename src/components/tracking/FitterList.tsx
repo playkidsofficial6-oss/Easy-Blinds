@@ -170,7 +170,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                                 hasLateJob ? "bg-red-50/50 border-red-200" : "bg-white border-slate-200 hover:border-amber-300"
                                             )}
                                         >
-                                            <div className="flex-shrink-0 relative">
+                                            <div className="shrink-0 relative">
                                                 <Avatar className="h-14 w-14 border-2 border-white shadow-sm rounded-full bg-slate-100">
                                                     <AvatarImage src={fitter.avatar} />
                                                     <AvatarFallback className="rounded-full text-slate-400 font-light">{fitter.name.substring(0, 2)}</AvatarFallback>
@@ -238,7 +238,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
                                 </button>
                                 <div className="flex flex-col gap-4 relative z-10">
                                     <div className="flex items-center gap-4">
-                                        <Avatar className="h-16 w-16 border-2 border-white shadow-md rounded-2xl bg-slate-50 flex-shrink-0">
+                                        <Avatar className="h-16 w-16 border-2 border-white shadow-md rounded-2xl bg-slate-50 shrink-0">
                                             <AvatarImage src={selectedFitter.avatar} className="object-cover" />
                                             <AvatarFallback className="rounded-2xl text-xl font-light text-slate-400">{selectedFitter.name.substring(0, 2)}</AvatarFallback>
                                         </Avatar>

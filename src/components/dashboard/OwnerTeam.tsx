@@ -43,7 +43,7 @@ export default function TeamPage() {
         <div className="space-y-12">
             <div className="space-y-4">
                 <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-neutral-500 font-semibold">
-                    <div className="w-12 h-px bg-gradient-to-r from-transparent via-amber-600 to-transparent"></div>
+                    <div className="w-12 h-px bg-linear-to-r from-transparent via-amber-600 to-transparent"></div>
                     <span>Team</span>
                 </div>
                 <h1 className="text-6xl font-light tracking-tight text-neutral-900 dark:text-white">
@@ -83,7 +83,7 @@ export default function TeamPage() {
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <h2 className="text-3xl font-light text-neutral-900 dark:text-white">Team Members</h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 dark:from-neutral-800 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-neutral-200 dark:from-neutral-800 to-transparent"></div>
                 </div>
 
                 <div className="space-y-px bg-neutral-200 dark:bg-neutral-800">
@@ -148,7 +148,7 @@ export default function TeamPage() {
             <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <h2 className="text-3xl font-light text-neutral-900 dark:text-white">Review Leaderboard</h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-neutral-200 dark:from-neutral-800 to-transparent"></div>
+                    <div className="h-px flex-1 bg-linear-to-r from-neutral-200 dark:from-neutral-800 to-transparent"></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-neutral-200 dark:bg-neutral-800">

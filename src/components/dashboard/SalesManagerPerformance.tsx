@@ -39,7 +39,7 @@ export default function FitterPerformancePage() {
             <div className="flex items-end justify-between">
                 <div className="space-y-4">
                     <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-neutral-500 font-semibold">
-                        <div className="w-12 h-px bg-gradient-to-r from-transparent via-amber-600 to-transparent"></div>
+                        <div className="w-12 h-px bg-linear-to-r from-transparent via-amber-600 to-transparent"></div>
                         <span>Team Standards</span>
                     </div>
                     <h1 className="text-6xl font-light tracking-tight text-neutral-900 dark:text-white">

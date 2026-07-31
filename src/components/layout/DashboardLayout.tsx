@@ -58,7 +58,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { selectedBrand, setSelectedBrand } = useBrand();
     const { user, logout } = useAuth();
-    
+
     const initials = user?.name
         ? user.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()
         : "EB";
@@ -154,7 +154,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-            
+
             <nav className="flex-1 overflow-y-auto px-4 py-8 space-y-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#525252 transparent" }}>
                 {navItems.map((item) => {
                     const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard');
@@ -170,7 +170,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                                     : "border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white"
                             )}
                         >
-                            <item.icon className="w-5 h-5 flex-shrink-0" />
+                            <item.icon className="w-5 h-5 shrink-0" />
                             <span>{item.name}</span>
                             {item.name === "Pending Reviews" && (
                                 <span className="ml-auto bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full leading-none">
@@ -187,12 +187,12 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                         onClick={() => setIsMobileOpen(false)}
                         className="flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white rounded-r-md"
                     >
-                        <PlusCircle className="w-5 h-5 flex-shrink-0" />
+                        <PlusCircle className="w-5 h-5 shrink-0" />
                         <span>New Job</span>
                     </Link>
                 )}
             </nav>
-            
+
             <div className="p-4 border-t border-neutral-800">
                 <div className="flex items-center gap-3 mb-4 px-2">
                     <Avatar className="h-10 w-10">

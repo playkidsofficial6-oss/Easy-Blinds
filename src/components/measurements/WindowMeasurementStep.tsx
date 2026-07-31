@@ -263,7 +263,7 @@ export function WindowMeasurementStep({
                                                         </div>
                                                         {(window.width < 80 || window.width > 400) && (
                                                             <div className="flex items-start gap-2 text-orange-600 text-sm">
-                                                                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                                                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                                                                 <span>Unusual width detected. Please verify.</span>
                                                             </div>
                                                         )}
@@ -300,7 +300,7 @@ export function WindowMeasurementStep({
                                                         </div>
                                                         {(window.height < 150 || window.height > 400) && (
                                                             <div className="flex items-start gap-2 text-orange-600 text-sm">
-                                                                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                                                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                                                                 <span>Unusual height detected. Please verify.</span>
                                                             </div>
                                                         )}

@@ -156,7 +156,7 @@ export default function CataloguePage() {
                             <span className="font-bold uppercase tracking-widest text-xs">Register Supplier</span>
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="sm:max-w-106.25">
                         <DialogHeader>
                             <DialogTitle>Register New Supplier</DialogTitle>
                             <DialogDescription>Add a new primary supplier to the database.</DialogDescription>
@@ -360,7 +360,7 @@ export default function CataloguePage() {
             {/* Management Dialogs */}
 
             <Dialog open={isAddCatalogueOpen} onOpenChange={setIsAddCatalogueOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-106.25">
                     <DialogHeader>
                         <DialogTitle>Add Collection</DialogTitle>
                         <DialogDescription>Create a new collection for this supplier.</DialogDescription>
@@ -380,7 +380,7 @@ export default function CataloguePage() {
             </Dialog>
 
             <Dialog open={isAddFabricOpen} onOpenChange={setIsAddFabricOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-106.25">
                     <DialogHeader>
                         <DialogTitle>Add Fabric Variant</DialogTitle>
                         <DialogDescription>Add a new fabric/color code to this collection.</DialogDescription>
@@ -412,7 +412,7 @@ export default function CataloguePage() {
             </Dialog>
 
             <Dialog open={isEditFabricOpen} onOpenChange={setIsEditFabricOpen}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-106.25">
                     <DialogHeader>
                         <DialogTitle>Edit Fabric Variant</DialogTitle>
                         <DialogDescription>Update fabric details for this collection.</DialogDescription>
