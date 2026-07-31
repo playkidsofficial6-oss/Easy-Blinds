@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, TrendingUp, DollarSign, Target } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 export default function AreasPage() {
     const areas = [

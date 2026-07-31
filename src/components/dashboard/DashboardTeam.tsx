@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, MapPin, CheckCircle, Clock, Phone } from "lucide-react";
+import { Calendar, Clock, Phone } from "lucide-react";
 
 export default function TeamPage() {
     const team = [

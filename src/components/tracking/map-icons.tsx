@@ -1,6 +1,5 @@
 import L from "leaflet";
 import { renderToStaticMarkup } from "react-dom/server";
-import { CarFront } from "lucide-react";
 
 export type LiveMarkerStatus = "Available" | "Working" | "On The Way" | "Offline" | "Measuring";
 export type LiveMarkerRole = "Salesman" | "Fitter";
@@ -35,10 +34,6 @@ interface LiveMarkerIconOptions {
   routeEtaText?: string;
 }
 
-function truncateName(text: string, maxLen: number = 10): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen) + "...";
-}
 
 export function createLiveMarkerIcon({
   status,

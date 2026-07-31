@@ -4,18 +4,10 @@ import { useState, useMemo } from "react";
 import {
     Plus,
     Search,
-    Filter,
-    Download,
     Trash2,
     Edit2,
-    ChevronDown,
-    ChevronRight,
-    ArrowUpDown,
-    X,
     PlusCircle,
     Package,
-    ShieldCheck,
-    Store,
     BookOpen,
     Copy,
 } from "lucide-react";
@@ -24,9 +16,6 @@ import { Input } from "@/components/ui/input";
 import {
     Card,
     CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card";
 import {
     Dialog,
@@ -35,15 +24,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-    DialogFooter,
 } from "@/components/ui/dialog";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { useCatalogue, SupplierGroup, CatalogueGroup, FabricEntry } from "@/lib/catalogue-store";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";

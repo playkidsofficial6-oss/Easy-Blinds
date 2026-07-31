@@ -93,8 +93,7 @@ export default function GalleryPage() {
         ? GALLERY_ITEMS
         : GALLERY_ITEMS.filter(item => item.area === selectedArea);
 
-    // Get areas that actually have items
-    const activeAreas = Array.from(new Set(GALLERY_ITEMS.map(item => item.area)));
+
 
     return (
         <div className="space-y-6">

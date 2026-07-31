@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Save, Plus } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { Product } from "@/types/product";
 

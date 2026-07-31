@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, TrendingUp, Users, ArrowRight, DollarSign, Filter } from "lucide-react";
-import Link from "next/link";
+import { BarChart3, TrendingUp, Users, DollarSign, } from "lucide-react";
 import { MOCK_TEAM } from "@/lib/data/team";
 import { MOCK_JOBS } from "@/lib/data/jobs";
 import { cn } from "@/lib/utils";

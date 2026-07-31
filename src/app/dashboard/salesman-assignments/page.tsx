@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { format, addDays, isSameDay, parseISO } from "date-fns";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { CalendarDays, Pencil, X, MapPin, Clock, Car, CalendarCheck, Target, Ruler, BarChart3, TrendingUp, CheckCircle2, AlertCircle, Search, Timer } from "lucide-react";
+import { CalendarDays, X, MapPin, AlertCircle } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,7 @@ function distanceKm(start: [number, number], end: [number, number]): number {
   return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function estimateEtaMinutes(distance: number): number {
-  return Math.max(1, Math.round((distance / 32) * 60));
-}
+
 
 type NominatimAddress = Record<string, string | undefined>;
 
@@ -334,11 +332,7 @@ const highlightSuggestionMatch = (text: string, query: string) => {
   );
 };
 
-function formatSpeed(speed?: number): string {
-  if (typeof speed !== "number" || Number.isNaN(speed)) return "0 km/h";
-  const kmh = speed > 45 ? speed : speed * 3.6;
-  return `${Math.max(0, kmh).toFixed(0)} km/h`;
-}
+
 
 function toReadableLastUpdated(source?: string) {
   if (!source) return "Not updated";
@@ -552,73 +546,8 @@ function isSalesmanUser(user: UserRecord) {
   return isSalesmanRole(user.role) || isFieldRole(user.role);
 }
 
-function toSalesmanWorkforceMember(user: UserRecord): Fitter {
-  return {
-    id: user._id,
-    name: user.name,
-    role: UserRole.Salesman,
-    jobRef: "--",
-    status: user.liveStatus ?? "Available",
-    location: (() => { const ll = extractLatLng(user.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
-    locationLabel: user.location?.address,
-    lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
-    avatar: user.avatar,
-    email: user.email,
-    phone: user.phone,
-    history: [],
-    schedule: {
-      yesterday: [],
-      today: [],
-      tomorrow: [],
-      upcoming: [],
-    },
-    capacity: {
-      max: 5,
-      current: 0,
-      remaining: 5,
-    },
-    nextAvailableSlot: "Available",
-  };
-}
 
-function ActiveTimer({ startTime }: { startTime?: string }) {
-  const [elapsed, setElapsed] = useState("");
 
-  useEffect(() => {
-    if (!startTime) {
-      setElapsed("--:--");
-      return;
-    }
-    const start = new Date(startTime).getTime();
-    
-    const update = () => {
-      const diffMs = Date.now() - start;
-      if (diffMs <= 0) {
-        setElapsed("0s");
-        return;
-      }
-      const mins = Math.floor(diffMs / 60000);
-      const secs = Math.floor((diffMs % 60000) / 1000);
-      
-      if (mins > 0) {
-        setElapsed(`${mins}m ${secs}s`);
-      } else {
-        setElapsed(`${secs}s`);
-      }
-    };
-
-    update();
-    const interval = setInterval(update, 1000);
-    return () => clearInterval(interval);
-  }, [startTime]);
-
-  return (
-    <span className="font-mono font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-md px-1.5 py-0.5 inline-flex items-center gap-1 shadow-sm">
-      <Timer className="w-3 h-3 text-indigo-500 animate-pulse" />
-      {elapsed}
-    </span>
-  );
-}
 
 export default function SmartSalesmanAssignmentsPage() {
   const { user } = useAuth();
@@ -876,7 +805,7 @@ export default function SmartSalesmanAssignmentsPage() {
       };
 
       const updated = await updateJob(id, payload);
-      
+
       setJobs((current) => current.map((item) => (item._id === updated._id ? updated : item)));
       toast.success("Job updated successfully!");
       setIsEditOpen(false);
@@ -927,7 +856,7 @@ export default function SmartSalesmanAssignmentsPage() {
       const jobDate = parseISO(scheduledAtStr);
       const today = new Date();
       const tomorrow = addDays(today, 1);
-      
+
       if (dateFilterType === "today") {
         return isSameDay(jobDate, today);
       }
@@ -1026,63 +955,20 @@ export default function SmartSalesmanAssignmentsPage() {
     return map;
   }, [baseFitters, allUsers]);
 
-  const fitters = useMemo<Fitter[]>(() => {
-    return baseFitters.map((fitter) => {
-      const assignedJobs = jobs.filter((job) => {
-        if ([JobStatus.Cancelled, JobStatus.Dropped].includes(job.status)) {
-          return false;
-        }
-        if (job.assignedFitter) {
-          const ref = job.assignedFitter;
-          if (typeof ref === "object" && ref !== null) {
-            if ((ref as any)._id === fitter.id || (ref as any).name?.toLowerCase() === fitter.name.toLowerCase()) return true;
-          } else if (ref === fitter.id || (typeof ref === "string" && ref.toLowerCase() === fitter.name.toLowerCase())) {
-            return true;
-          }
-        }
 
-        const match = job.notes?.match(/Assigned to ([^@.]+)(?: @|\.|$)/i);
-        return match?.[1]?.trim().toLowerCase() === fitter.name.toLowerCase();
-      });
-
-      const today = assignedJobs.filter((job) => isJobForDate(job, new Date())).map(toFitterJob);
-      const tomorrow = assignedJobs.filter((job) => isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob);
-      const current = isToday ? today.length : isTomorrow ? tomorrow.length : 0;
-      const remaining = Math.max(0, (fitter.capacity?.max || 5) - current);
-      const busySlots = isToday ? today.map((job) => job.time) : isTomorrow ? tomorrow.map((job) => job.time) : [];
-      const nextAvailableSlot = DAILY_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
-
-      return {
-        ...fitter,
-        status: remaining === 0 ? "Fully Booked" : fitter.status === "Fully Booked" ? "Available" : fitter.status,
-        schedule: {
-          yesterday: [],
-          today,
-          tomorrow,
-          upcoming: assignedJobs.filter((job) => job.scheduledAt && !isJobForDate(job, new Date()) && !isJobForDate(job, addDays(new Date(), 1))).map(toFitterJob),
-        },
-        capacity: {
-          max: fitter.capacity?.max || 5,
-          current,
-          remaining,
-        },
-        nextAvailableSlot,
-      };
-    });
-  }, [baseFitters, jobs, isToday, isTomorrow]);
 
   const selectedPendingJobForMap = useMemo(() => {
     if (!selectedJobId) return undefined;
     const job = jobs.find((j) => j._id === selectedJobId && j.status === JobStatus.Pending);
     if (!job) return undefined;
-    
+
     let lat = 10.8505;
     let lng = 76.2711;
     if (job.location?.coordinates && job.location.coordinates.length >= 2) {
       lng = job.location.coordinates[0];
       lat = job.location.coordinates[1];
     }
-    
+
     return {
       id: job._id,
       jobId: job.jobId,
@@ -1094,7 +980,6 @@ export default function SmartSalesmanAssignmentsPage() {
 
   const salesmen = useMemo<Fitter[]>(() => {
     return salesmanUsers.map((user) => {
-      const salesmanName = user.name;
       const assignedJobs = jobs.filter((job) => {
         if ([JobStatus.Cancelled, JobStatus.Dropped].includes(job.status)) {
           return false;
@@ -1122,25 +1007,25 @@ export default function SmartSalesmanAssignmentsPage() {
         status: remaining === 0 && maxCapacity !== 999
           ? "Fully Booked"
           : getSalesmanMapStatus(activeWorkflowJob, user.liveStatus ?? "Available"),
-        location: (() => { 
-            const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
-            if (liveLoc) {
-                return [liveLoc.lat, liveLoc.lng] as [number, number];
-            }
-            const ll = extractLatLng(user.location); 
-            if (ll) return [ll.lat, ll.lng] as [number, number];
-            if (selectedPendingJobForMap?.location) {
-                return [
-                    selectedPendingJobForMap.location.lat + (Math.random() - 0.5) * 0.05, 
-                    selectedPendingJobForMap.location.lng + (Math.random() - 0.5) * 0.05
-                ] as [number, number];
-            }
-            return [10.8505, 76.2711] as [number, number];
+        location: (() => {
+          const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
+          if (liveLoc) {
+            return [liveLoc.lat, liveLoc.lng] as [number, number];
+          }
+          const ll = extractLatLng(user.location);
+          if (ll) return [ll.lat, ll.lng] as [number, number];
+          if (selectedPendingJobForMap?.location) {
+            return [
+              selectedPendingJobForMap.location.lat + (Math.random() - 0.5) * 0.05,
+              selectedPendingJobForMap.location.lng + (Math.random() - 0.5) * 0.05
+            ] as [number, number];
+          }
+          return [10.8505, 76.2711] as [number, number];
         })(),
         locationLabel: (() => {
-            const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
-            if (liveLoc) return "Live GPS Tracking";
-            return user.location?.address || "Simulated Location";
+          const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
+          if (liveLoc) return "Live GPS Tracking";
+          return user.location?.address || "Simulated Location";
         })(),
         lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
         avatar: user.avatar,
@@ -1198,11 +1083,11 @@ export default function SmartSalesmanAssignmentsPage() {
 
     const assignedSalesManager = resolveRefName(raw.assignedSalesManager) || raw.assignedSalesManager;
 
-    return { 
-      ...raw, 
-      team: teamName, 
-      assignedFitterName, 
-      assignedSalesmanName, 
+    return {
+      ...raw,
+      team: teamName,
+      assignedFitterName,
+      assignedSalesmanName,
       assignedSalesManager,
       assignedSalesman: job.assignedSalesman,
       assignedFitter: job.assignedFitter,
@@ -1283,7 +1168,7 @@ export default function SmartSalesmanAssignmentsPage() {
       if (data.routes && data.routes.length > 0) {
         const dist = data.routes[0].distance / 1000; // in km
         const rawDuration = data.routes[0].duration; // in seconds
-        
+
         let trafficMultiplier = 1.25;
         if (dist < 10) {
           trafficMultiplier = 1.40;
@@ -1300,7 +1185,7 @@ export default function SmartSalesmanAssignmentsPage() {
     };
 
     const getFallbackRouteData = (start: [number, number], end: [number, number]) => {
-      const R = 6371; 
+      const R = 6371;
       const dLat = (end[0] - start[0]) * Math.PI / 180;
       const dLon = (end[1] - start[1]) * Math.PI / 180;
       const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(start[0] * Math.PI / 180) * Math.cos(end[0] * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -1317,9 +1202,9 @@ export default function SmartSalesmanAssignmentsPage() {
         distToActiveJob?: number;
         durationToActiveJob?: number;
       }> = {};
-      
+
       const membersToFetch = workforceMembers.filter(m => m.location && m.capacity.remaining > 0);
-      
+
       await Promise.all(
         membersToFetch.map(async (member) => {
           if (!member.location) return;
@@ -1422,7 +1307,7 @@ export default function SmartSalesmanAssignmentsPage() {
         const isOnTheWay = statusLower.includes("way");
 
         const getFallback = (start: [number, number], end: [number, number]) => {
-          const R = 6371; 
+          const R = 6371;
           const dLat = (end[0] - start[0]) * Math.PI / 180;
           const dLon = (end[1] - start[1]) * Math.PI / 180;
           const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(start[0] * Math.PI / 180) * Math.cos(end[0] * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -1464,7 +1349,7 @@ export default function SmartSalesmanAssignmentsPage() {
         }
 
         let measureTimeSecs = 0;
-        const activeJob = member.schedule.today.find(j => j.id === member.jobRef);
+
         let countdownSecs = -1;
 
         if (isMeasuring) {
@@ -1487,14 +1372,14 @@ export default function SmartSalesmanAssignmentsPage() {
       });
 
     return result.sort((a, b) => {
-       if (a.isFree && !b.isFree) return -1;
-       if (!a.isFree && b.isFree) return 1;
+      if (a.isFree && !b.isFree) return -1;
+      if (!a.isFree && b.isFree) return 1;
 
-       if (a.duration !== undefined && b.duration !== undefined) {
-          return a.duration - b.duration;
-       }
-       if (a.dist !== undefined && b.dist !== undefined) return a.dist - b.dist;
-       return 0;
+      if (a.duration !== undefined && b.duration !== undefined) {
+        return a.duration - b.duration;
+      }
+      if (a.dist !== undefined && b.dist !== undefined) return a.dist - b.dist;
+      return 0;
     });
   }, [selectedJobId, workforceMembers, selectedPendingJobForMap, roadData, jobs]);
 
@@ -1577,12 +1462,6 @@ export default function SmartSalesmanAssignmentsPage() {
     initiateEdit(job.id, scheduledTime, job.client);
   };
 
-  const handleDialogFitterChange = (fitterId: string) => {
-    setDialogState((current) => current ? {
-      ...current,
-      fitterId,
-    } : current);
-  };
 
   const handleDialogSalesmanChange = (salesmanId: string) => {
     setDialogState((current) => current ? {
@@ -1607,7 +1486,7 @@ export default function SmartSalesmanAssignmentsPage() {
         dialogState.salesmanId ? userNameById.get(dialogState.salesmanId) : null
       ].filter(Boolean).join(" & ");
 
-      const assignedToId = dialogState.salesmanId || dialogState.fitterId;
+
       const sourceJob = jobs.find((item) => item._id === dialogState.jobId);
 
       const updated = await updateJob(dialogState.jobId, {
@@ -1649,1114 +1528,315 @@ export default function SmartSalesmanAssignmentsPage() {
 
   const isLoading = !isLoaded || isLoadingJobs || isLoadingUsers;
 
-  // ── Tab System ──────────────────────────────────────────────────────────────
-  type DashTab = "fleet" | "appointments" | "leads" | "measuring" | "performance";
-  const [activeTab, setActiveTab] = useState<DashTab>("fleet");
-  const [apptFilter, setApptFilter] = useState<"today" | "tomorrow" | "upcoming" | "completed">("today");
-  const [tabSearch, setTabSearch] = useState("");
-  const [leadPriorityFilter, setLeadPriorityFilter] = useState<string>("all");
-  const [leadFilter, setLeadFilter] = useState<"pending" | "scheduled">("pending");
-  const [apptSortKey, setApptSortKey] = useState<string>("time");
 
-  // 1. Appointments Data
-  const filteredAppointments = useMemo(() => {
-    let list = jobs.filter(job => [JobStatus.SalesmanScheduled, JobStatus.Measuring, JobStatus.Completed].includes(job.status));
-    const today = new Date();
-    const tomorrow = addDays(today, 1);
-    
-    if (apptFilter === "today") {
-      list = list.filter(j => j.status !== JobStatus.Completed && j.scheduledAt && isSameDay(parseISO(j.scheduledAt), today));
-    } else if (apptFilter === "tomorrow") {
-      list = list.filter(j => j.status !== JobStatus.Completed && j.scheduledAt && isSameDay(parseISO(j.scheduledAt), tomorrow));
-    } else if (apptFilter === "upcoming") {
-      list = list.filter(j => j.status !== JobStatus.Completed && j.scheduledAt && parseISO(j.scheduledAt) > tomorrow);
-    } else if (apptFilter === "completed") {
-      list = list.filter(j => j.status === JobStatus.Completed);
-    }
 
-    if (tabSearch) {
-      const lower = tabSearch.toLowerCase();
-      list = list.filter(j => 
-        j.firstName.toLowerCase().includes(lower) || 
-        j.lastName.toLowerCase().includes(lower) || 
-        j.customerName.toLowerCase().includes(lower) || 
-        j.address.toLowerCase().includes(lower) ||
-        (j.jobId && j.jobId.toLowerCase().includes(lower))
-      );
-    }
-
-    // Sort key
-    if (apptSortKey === "time") {
-      list.sort((a, b) => (a.scheduledAt || "").localeCompare(b.scheduledAt || ""));
-    } else if (apptSortKey === "name") {
-      list.sort((a, b) => a.customerName.localeCompare(b.customerName));
-    } else if (apptSortKey === "value") {
-      list.sort((a, b) => (b.projectValue || 0) - (a.projectValue || 0));
-    }
-    return list.map(toUnifiedJob);
-  }, [jobs, apptFilter, tabSearch, apptSortKey]);
-
-  // 2. Unassigned Leads Data
-  const filteredUnassignedLeads = useMemo(() => {
-    let list = jobs.filter(job => {
-      if (leadFilter === "pending") {
-        return job.status === JobStatus.Pending;
-      } else {
-        return job.status === JobStatus.SalesmanScheduled && !job.assignedSalesman;
-      }
-    });
-
-    if (leadPriorityFilter !== "all") {
-      list = list.filter(j => j.priority === leadPriorityFilter);
-    }
-
-    if (tabSearch) {
-      const lower = tabSearch.toLowerCase();
-      list = list.filter(j => 
-        j.firstName.toLowerCase().includes(lower) || 
-        j.lastName.toLowerCase().includes(lower) || 
-        j.customerName.toLowerCase().includes(lower) || 
-        j.address.toLowerCase().includes(lower) ||
-        (j.jobId && j.jobId.toLowerCase().includes(lower))
-      );
-    }
-
-    const priorityWeight: Record<string, number> = { high: 3, medium: 2, low: 1 };
-    list.sort((a, b) => (priorityWeight[b.priority] || 0) - (priorityWeight[a.priority] || 0));
-    return list.map(toUnifiedJob);
-  }, [jobs, leadPriorityFilter, leadFilter, tabSearch]);
-
-  // 3. Measuring Data
-  const measuringSalesmen = useMemo(() => {
-    return workforceMembers.filter(f => 
-      (f.status as string) === "Measuring" || 
-      (f.status as string) === "Working" ||
-      f.schedule.today.some(j => j.status === "In Progress")
-    );
-  }, [workforceMembers]);
-
-  // 4. Performance Metrics
-  const performanceMetrics = useMemo(() => {
-    const total = jobs.length;
-    const completed = jobs.filter(j => j.status === JobStatus.Completed).length;
-    const pending = jobs.filter(j => j.status === JobStatus.Pending).length;
-    const scheduled = jobs.filter(j => j.status === JobStatus.SalesmanScheduled || j.status === JobStatus.Measuring).length;
-    const conversionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const revenue = jobs.reduce((sum, j) => sum + (j.projectValue || 0), 0);
-    
-    // Group jobs by salesman
-    const salesmanJobs: Record<string, { total: number; completed: number; revenue: number; name: string }> = {};
-    
-    // Seed with all current active salesmen to ensure they show up in analytics
-    workforceMembers.forEach(salesman => {
-      salesmanJobs[salesman.id] = { total: 0, completed: 0, revenue: 0, name: salesman.name };
-    });
-
-    jobs.forEach(j => {
-      const salesmanId = typeof j.assignedSalesman === "object" ? (j.assignedSalesman as any)?._id : j.assignedSalesman;
-      if (salesmanId && salesmanJobs[salesmanId]) {
-        salesmanJobs[salesmanId].total += 1;
-        if (j.status === JobStatus.Completed) {
-          salesmanJobs[salesmanId].completed += 1;
-          salesmanJobs[salesmanId].revenue += j.projectValue || 0;
-        }
-      }
-    });
-
-    return {
-      total,
-      completed,
-      pending,
-      scheduled,
-      conversionRate,
-      revenue,
-      salesmanLeaderboard: Object.entries(salesmanJobs).map(([id, stats]) => ({
-        id,
-        ...stats,
-        rate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
-      })).sort((a, b) => b.completed - a.completed),
-    };
-  }, [jobs, workforceMembers]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden bg-slate-50 w-full font-sans">
-     
+
 
       {/* ── Main Content Body Split ── */}
       <div className="flex-1 flex overflow-hidden">
         {/* VIEW 1: LIVE FLEET VIEW (Default Dispatch Side panel + Map) */}
-        {activeTab === "fleet" && (
-          <>
-            <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
-              <div className="p-8 border-b border-slate-100 shrink-0 bg-white">
-                <div>
-                  <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
-                    <div className="w-8 h-px bg-amber-600"></div>
-                    <span>Workforce Optimization</span>
-                  </div>
-                  <div className="flex justify-between items-end mb-6">
-                    <h2 className="text-3xl font-light text-slate-900 tracking-tight">Smart <span className="font-medium">Dispatch</span></h2>
-                  </div>
+
+        <>
+          <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
+            <div className="p-8 border-b border-slate-100 shrink-0 bg-white">
+              <div>
+                <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
+                  <div className="w-8 h-px bg-amber-600"></div>
+                  <span>Workforce Optimization</span>
                 </div>
-
-                {/* Date Filter Panel */}
-                <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                  <button
-                    onClick={() => {
-                      setDateFilterType("today");
-                      setViewDate(new Date());
-                    }}
-                    className={cn(
-                      "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
-                      dateFilterType === "today"
-                        ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                    )}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => {
-                      setDateFilterType("tomorrow");
-                      setViewDate(addDays(new Date(), 1));
-                    }}
-                    className={cn(
-                      "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
-                      dateFilterType === "tomorrow"
-                        ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                    )}
-                  >
-                    Tomorrow
-                  </button>
-
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <button
-                        className={cn(
-                          "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1 min-w-0",
-                          dateFilterType === "custom"
-                            ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
-                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                        )}
-                      >
-                        <CalendarDays className="w-3.5 h-3.5 shrink-0" />
-                        <span className="truncate">
-                          {dateFilterType === "custom" ? format(viewDate, "MMM do") : "Date"}
-                        </span>
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={viewDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setDateFilterType("custom");
-                            setViewDate(date);
-                          }
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                <div className="flex justify-between items-end mb-6">
+                  <h2 className="text-3xl font-light text-slate-900 tracking-tight">Smart <span className="font-medium">Dispatch</span></h2>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
-                <FilterSortBar
-                  onFilterClick={() => {
-                    toast.info("Showing today's live field list. Use date filters to check schedules.");
-                    loadJobs();
+              {/* Date Filter Panel */}
+              <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-100">
+                <button
+                  onClick={() => {
+                    setDateFilterType("today");
+                    setViewDate(new Date());
                   }}
-                  onSortChange={handleSortChange}
-                  currentSort={currentSortLabel}
-                  sortOptions={sortOptions}
-                  className="border-b border-slate-200/60"
-                />
+                  className={cn(
+                    "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
+                    dateFilterType === "today"
+                      ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                  )}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => {
+                    setDateFilterType("tomorrow");
+                    setViewDate(addDays(new Date(), 1));
+                  }}
+                  className={cn(
+                    "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
+                    dateFilterType === "tomorrow"
+                      ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                  )}
+                >
+                  Tomorrow
+                </button>
 
-                {(isLoading || loadError) && (
-                  <div className={cn("px-6 py-2 text-[10px] uppercase tracking-widest font-bold border-b", loadError ? "bg-red-50 text-red-600 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100")}>
-                    {loadError ?? "Updating live presence queue..."}
-                  </div>
-                )}
-
-                <Tabs defaultValue="pending" className="flex-1 flex flex-col min-h-0">
-                  <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
-                    <TabsList className="bg-slate-100 p-1 rounded-xl w-full flex h-auto gap-1">
-                      <TabsTrigger value="pending" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
-                        <span className="mr-2">Pending</span>
-                        {pendingJobs.length > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[9px]">{pendingJobs.length}</span>}
-                      </TabsTrigger>
-                      <TabsTrigger value="active" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
-                        <span className="mr-2">Scheduled</span>
-                        {activeJobs.length > 0 && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md text-[9px]">{activeJobs.length}</span>}
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-
-                  <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container min-h-0">
-                    <div className="space-y-3">
-                      {pendingJobs.map((job) => {
-                        const isSelected = selectedJobId === job.id;
-                        
-                        // Simple distance based suggested fitter
-                        const suggestedFitter = (() => {
-                          const available = workforceMembers.filter(f => f.location && f.status === "Available");
-                          if (available.length === 0) return null;
-                          const sourceJob = jobs.find(item => item._id === job.id);
-                          if (!sourceJob || !sourceJob.location?.coordinates) return null;
-                          const jobLatLng: [number, number] = [sourceJob.location.coordinates[1], sourceJob.location.coordinates[0]];
-                          const mapped = available.map(f => ({
-                            fitter: f,
-                            dist: distanceKm(f.location!, jobLatLng)
-                          }));
-                          mapped.sort((a, b) => a.dist - b.dist);
-                          return mapped[0];
-                        })();
-
-                        const cardRecommendedFitters = isSelected 
-                          ? recommendedFitters 
-                          : (suggestedFitter ? [{
-                              id: suggestedFitter.fitter.id,
-                              name: suggestedFitter.fitter.name,
-                              dist: suggestedFitter.dist,
-                              isFree: true
-                            }] : []);
-
-                        return (
-                          <JobCard
-                            key={job.id}
-                            job={{ ...job, recommendedFitters: cardRecommendedFitters }}
-                            isSelected={isSelected}
-                            onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
-                            onAction={(action, payload) => {
-                              if (action === "assign") {
-                                initiateAssignment(job.id, payload);
-                              } else {
-                                handleCardAction(action, job.id);
-                              }
-                            }}
-                            showEditDelete={isAuthorized}
-                            variant="assignment"
-                          />
-                        );
-                      })}
-                      {!isLoading && pendingJobs.length === 0 && <div className="text-center py-12 text-slate-400 text-xs italic">No pending leads remaining.</div>}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="active" className="flex-1 overflow-y-auto outline-none p-4 min-h-0">
-                    <div className="space-y-3">
-                      {activeJobs.map((job) => (
-                        <JobCard
-                          key={job.id}
-                          job={job}
-                          isSelected={selectedJobId === job.id}
-                          onSelect={() => openRescheduleForJob(job)}
-                          onAction={(action) => {
-                            if (action === "manage") {
-                              openRescheduleForJob(job);
-                            } else {
-                              handleCardAction(action, job.id);
-                            }
-                          }}
-                          showEditDelete={isAuthorized}
-                          variant="schedule"
-                        />
-                      ))}
-                      {!isLoading && activeJobs.length === 0 && <div className="text-center py-12 text-slate-400 text-xs italic">No appointments scheduled for this date.</div>}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1 min-w-0",
+                        dateFilterType === "custom"
+                          ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
+                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                      )}
+                    >
+                      <CalendarDays className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">
+                        {dateFilterType === "custom" ? format(viewDate, "MMM do") : "Date"}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={viewDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setDateFilterType("custom");
+                          setViewDate(date);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
-            {/* Right Map */}
-            <div className="flex-1 bg-slate-100 relative overflow-hidden">
-              <AssignmentMap
-                fitters={workforceMembers}
-                selectedFitterId={selectedMapFitter}
-                onSelectFitter={setSelectedMapFitter}
-                filterRole="Salesman"
-                selectedJob={selectedPendingJobForMap}
-                hideStatusPanel={false}
-                unassignedJobs={unassignedJobsForMap}
-                scheduledJobs={scheduledJobsForMap}
+            <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
+              <FilterSortBar
+                onFilterClick={() => {
+                  toast.info("Showing today's live field list. Use date filters to check schedules.");
+                  loadJobs();
+                }}
+                onSortChange={handleSortChange}
+                currentSort={currentSortLabel}
+                sortOptions={sortOptions}
+                className="border-b border-slate-200/60"
               />
-              {/* Legend Overlay */}
-              <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
-                <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
-                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700">
-                  <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available</div>
-                  <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Measuring</div>
-                  <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> On The Way</div>
-                  <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400"></span> Offline</div>
-                </div>
-              </div>
-              {/* Selected Salesman Details Card */}
-              {selectedMapFitter && (
-                <div className="absolute top-6 right-6 z-30 w-96 bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-10rem)] rounded-2xl overflow-hidden ring-1 ring-black/5">
-                  {(() => {
-                    const fitter = workforceMembers.find((item) => item.id === selectedMapFitter) || (() => {
-                      const userObj = allUsers.find(u => u._id === selectedMapFitter);
-                      if (!userObj) return null;
-                      const ll = extractLatLng(userObj.location);
-                      return {
-                        id: userObj._id,
-                        name: userObj.name,
-                        role: isSalesManagerRole(userObj.role) ? UserRole.SalesManager : (userObj.role || UserRole.Salesman),
-                        avatar: userObj.avatar,
-                        phone: userObj.phone,
-                        status: userObj.liveStatus || "Available",
-                        location: ll ? [ll.lat, ll.lng] as [number, number] : undefined,
-                        lastUpdated: "Not updated",
-                        schedule: { yesterday: [], today: [], tomorrow: [], upcoming: [] },
-                        capacity: { max: 5, current: 0, remaining: 5 },
-                        nextAvailableSlot: "08:00",
-                        jobRef: undefined,
-                        history: []
-                      } as unknown as Fitter;
-                    })();
-                    if (!fitter) return null;
-                    const activeSchedule = isToday ? fitter.schedule.today : isTomorrow ? fitter.schedule.tomorrow : [];
-                    const capacityPercent = (activeSchedule.length / fitter.capacity.max) * 100;
-                    const activeJobObj = fitter.schedule.today.find(j => j.id === fitter.jobRef) ?? 
-                                         fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ?? 
-                                         fitter.schedule.upcoming.find(j => j.id === fitter.jobRef);
-                    return (
-                      <>
-                        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-12 w-12 rounded-xl border border-white shadow bg-white"><AvatarImage src={fitter.avatar} /><AvatarFallback>{getInitials(fitter.name)}</AvatarFallback></Avatar>
-                            <div>
-                              <h3 className="text-sm font-bold text-slate-800 leading-snug">{fitter.name}</h3>
-                              <p className="text-[10px] text-slate-500 font-medium">Sales Representative • {fitter.status}</p>
-                            </div>
-                          </div>
-                          <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-4 h-4" /></button>
-                        </div>
-                        <div className="p-5 space-y-4 flex-1 overflow-y-auto">
-                          {fitter.locationLabel && (
-                            <div className="flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/50 rounded-xl p-3">
-                              <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                              <div className="flex flex-col">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Last Location</span>
-                                <span className="leading-snug text-slate-700">{fitter.locationLabel}</span>
-                                <span className="text-[9px] text-slate-400 mt-1 font-semibold">Updated {fitter.lastUpdated}</span>
-                              </div>
-                            </div>
-                          )}
 
-                          {activeJobObj && (
-                            <div className="bg-blue-50/40 border border-blue-100 rounded-xl p-3.5 space-y-2">
-                              <div className="flex justify-between items-center pb-1">
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Telemetry Info</span>
-                                <span className="text-[9px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
-                                  Current Job
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="col-span-2">
-                                  <span className="text-[9px] font-bold text-slate-400 block mb-0.5">CUSTOMER</span>
-                                  <span className="font-bold text-slate-800">{activeJobObj.client}</span>
-                                </div>
-                                <div className="col-span-2">
-                                  <span className="text-[9px] font-bold text-slate-400 block mb-0.5">ADDRESS</span>
-                                  <span className="text-slate-700 leading-normal">{activeJobObj.address}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] font-bold text-slate-400 block mb-0.5">JOB ID</span>
-                                  <span className="font-mono text-slate-800 font-bold">{activeJobObj.jobId || "N/A"}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] font-bold text-slate-400 block mb-0.5">WORK STATUS</span>
-                                  <span className="font-semibold text-indigo-600">{activeJobObj.status}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    );
-                  })()}
+              {(isLoading || loadError) && (
+                <div className={cn("px-6 py-2 text-[10px] uppercase tracking-widest font-bold border-b", loadError ? "bg-red-50 text-red-600 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100")}>
+                  {loadError ?? "Updating live presence queue..."}
                 </div>
               )}
-            </div>
-          </>
-        )}
 
-        {/* VIEW 2: APPOINTMENTS VIEW */}
-        {activeTab === "appointments" && (
-          <>
-            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
-              <div className="p-6 border-b border-slate-100 shrink-0 space-y-4 bg-white">
-                <div>
-                  <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1">
-                    <div className="w-6 h-px bg-blue-600"></div>
-                    <span>Customer Visits Schedule</span>
-                  </div>
-                  <h2 className="text-2xl font-light text-slate-800 tracking-tight">Active <span className="font-semibold text-slate-900">Appointments</span></h2>
+              <Tabs defaultValue="pending" className="flex-1 flex flex-col min-h-0">
+                <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
+                  <TabsList className="bg-slate-100 p-1 rounded-xl w-full flex h-auto gap-1">
+                    <TabsTrigger value="pending" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
+                      <span className="mr-2">Pending</span>
+                      {pendingJobs.length > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[9px]">{pendingJobs.length}</span>}
+                    </TabsTrigger>
+                    <TabsTrigger value="active" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
+                      <span className="mr-2">Scheduled</span>
+                      {activeJobs.length > 0 && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md text-[9px]">{activeJobs.length}</span>}
+                    </TabsTrigger>
+                  </TabsList>
                 </div>
 
-                {/* Sub-Filters: Today, Tomorrow, Upcoming, Completed */}
-                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/50 gap-0.5 w-full">
-                  <button
-                    onClick={() => setApptFilter("today")}
-                    className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                      apptFilter === "today" ? "bg-white text-blue-700 shadow-sm border border-slate-200/30" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => setApptFilter("tomorrow")}
-                    className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                      apptFilter === "tomorrow" ? "bg-white text-blue-700 shadow-sm border border-slate-200/30" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Tomorrow
-                  </button>
-                  <button
-                    onClick={() => setApptFilter("upcoming")}
-                    className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                      apptFilter === "upcoming" ? "bg-white text-blue-700 shadow-sm border border-slate-200/30" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Upcoming
-                  </button>
-                  {/* <button
-                    onClick={() => setApptFilter("completed")}
-                    className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all",
-                      apptFilter === "completed" ? "bg-white text-blue-700 shadow-sm border border-slate-200/30" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Completed
-                  </button> */}
-                </div>
+                <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container min-h-0">
+                  <div className="space-y-3">
+                    {pendingJobs.map((job) => {
+                      const isSelected = selectedJobId === job.id;
 
-                {/* Search & Sort controls */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search appointments..."
-                      value={tabSearch}
-                      onChange={(e) => setTabSearch(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-xs placeholder-slate-400 focus:outline-none focus:border-slate-300 focus:bg-white transition-all"
-                    />
-                  </div>
-                  <Select value={apptSortKey} onValueChange={setApptSortKey}>
-                    <SelectTrigger className="w-28 h-9 border-slate-200 bg-slate-50 text-xs rounded-xl font-semibold">
-                      <SelectValue placeholder="Sort" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="time">Time Slot</SelectItem>
-                      <SelectItem value="name">Client Name</SelectItem>
-                      <SelectItem value="value">Value</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                      // Simple distance based suggested fitter
+                      const suggestedFitter = (() => {
+                        const available = workforceMembers.filter(f => f.location && f.status === "Available");
+                        if (available.length === 0) return null;
+                        const sourceJob = jobs.find(item => item._id === job.id);
+                        if (!sourceJob || !sourceJob.location?.coordinates) return null;
+                        const jobLatLng: [number, number] = [sourceJob.location.coordinates[1], sourceJob.location.coordinates[0]];
+                        const mapped = available.map(f => ({
+                          fitter: f,
+                          dist: distanceKm(f.location!, jobLatLng)
+                        }));
+                        mapped.sort((a, b) => a.dist - b.dist);
+                        return mapped[0];
+                      })();
 
-              {/* Scrollable list */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
-                {filteredAppointments.length === 0 ? (
-                  <div className="text-center py-16 text-slate-400 text-xs italic">No matching appointments found.</div>
-                ) : (
-                  filteredAppointments.map((job) => {
-                    const assignedFitter = workforceMembers.find(f => f.id === job.team) || (() => {
-                      const userObj = allUsers.find(u => u._id === job.team);
-                      if (!userObj) return null;
-                      const ll = extractLatLng(userObj.location);
-                      return {
-                        id: userObj._id,
-                        name: userObj.name,
-                        role: isSalesManagerRole(userObj.role) ? UserRole.SalesManager : (userObj.role || UserRole.Fitter),
-                        avatar: userObj.avatar,
-                        phone: userObj.phone,
-                        status: userObj.liveStatus || "Available",
-                        location: ll ? [ll.lat, ll.lng] as [number, number] : undefined,
-                        lastUpdated: "Not updated",
-                        schedule: { yesterday: [], today: [], tomorrow: [], upcoming: [] },
-                        capacity: { max: 5, current: 0, remaining: 5 },
-                        nextAvailableSlot: "08:00",
-                        jobRef: undefined,
-                        history: []
-                      } as unknown as Fitter;
-                    })();
-                    const rawJob = jobs.find(item => item._id === job.id);
-                    const isTravelling = rawJob?.status === JobStatus.SalesmanOnTheWay;
-                    const isMeasuring = rawJob?.status === JobStatus.Measuring || rawJob?.status === JobStatus.Quoting;
-                    const isCompleted = rawJob?.status === JobStatus.ReadyForFitting || rawJob?.status === JobStatus.Completed;
-                    const isPending = !isTravelling && !isMeasuring && !isCompleted;
-
-                    const formatTimeSafe = (dateStr?: string) => {
-                      if (!dateStr) return "--";
-                      try {
-                        return format(parseISO(dateStr), "hh:mm a");
-                      } catch {
-                        return "--";
-                      }
-                    };
-
-                    const salesmanPosition = (() => {
-                      const liveLoc = liveLocations?.find(loc => loc.userId === assignedFitter?.id);
-                      if (liveLoc) return [liveLoc.lat, liveLoc.lng] as [number, number];
-                      return assignedFitter?.location;
-                    })();
-
-                    const jobLatLng = rawJob?.location?.coordinates && rawJob.location.coordinates.length >= 2
-                      ? [rawJob.location.coordinates[1], rawJob.location.coordinates[0]] as [number, number]
-                      : null;
-
-                    let distStr = "Not Started";
-                    let etaStr = "Not Available";
-                    if (salesmanPosition && jobLatLng) {
-                      const dist = distanceKm(salesmanPosition, jobLatLng);
-                      const eta = Math.max(1, Math.round((dist / 32) * 60));
-                      distStr = `${dist.toFixed(dist >= 10 ? 0 : 1)} km`;
-                      etaStr = `${eta} min`;
-                    }
-
-                    // MEASURING calculations
-                    let travelDistStr = "--";
-                    let travelTimeStr = "--";
-                    if (jobLatLng) {
-                      const travelDist = distanceKm([11.2751, 76.2238], jobLatLng);
-                      travelDistStr = `${travelDist.toFixed(travelDist >= 10 ? 0 : 1)} km`;
-                      travelTimeStr = `${Math.max(1, Math.round((travelDist / 32) * 60))} min`;
-                    }
-                    const measuringStartTimeStr = formatTimeSafe(rawJob?.createdAt || rawJob?.scheduledAt);
-
-                    // COMPLETED calculations
-                    let totalTravelDistStr = "--";
-                    if (jobLatLng) {
-                      const travelDist = distanceKm([11.2751, 76.2238], jobLatLng);
-                      totalTravelDistStr = `${travelDist.toFixed(travelDist >= 10 ? 0 : 1)} km`;
-                    }
-                    let totalTravelTimeStr = "--";
-                    if (jobLatLng) {
-                      const travelDist = distanceKm([11.2751, 76.2238], jobLatLng);
-                      totalTravelTimeStr = `${Math.max(1, Math.round((travelDist / 32) * 60))} min`;
-                    }
-
-                    return (
-                      <div
-                        key={job.id}
-                        onClick={() => {
-                          if (job.team) setSelectedMapFitter(job.team);
-                          setSelectedJobId(job.id);
-                        }}
-                        className={cn(
-                          "group border border-slate-100 hover:border-slate-200/80 rounded-xl p-4 bg-white hover:bg-slate-50/30 shadow-sm transition-all duration-150 cursor-pointer flex flex-col gap-2.5",
-                          selectedJobId === job.id && "ring-1 ring-blue-500 border-blue-500 shadow-md bg-blue-50/10"
-                        )}
-                      >
-                        {/* Header: Customer Name and Status Badge */}
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <span className="font-mono text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 leading-none">
-                              {job.jobId || "APP"}
-                            </span>
-                            <h3 className="text-sm font-bold text-slate-800 mt-1">{job.client}</h3>
-                          </div>
-                          <span className={cn(
-                            "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider",
-                            isCompleted ? "bg-emerald-100 text-emerald-800" :
-                            isMeasuring ? "bg-blue-100 text-blue-800 animate-pulse" :
-                            isTravelling ? "bg-amber-100 text-amber-800" :
-                            "bg-slate-100 text-slate-700"
-                          )}>
-                            {isCompleted ? "Completed" :
-                             isMeasuring ? "Measuring" :
-                             isTravelling ? "On The Way" :
-                             "Pending"}
-                          </span>
-                        </div>
-
-                        {/* Customer Address */}
-                        <p className="text-xs text-slate-500 leading-normal flex items-start gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                          <span>{job.address}</span>
-                        </p>
-
-                        {/* Assigned Representative */}
-                        <div className="flex items-center justify-between border-t border-b border-slate-100/80 py-2 my-0.5 text-xs">
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Representative</span>
-                          {assignedFitter ? (
-                            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/40 rounded-lg px-2.5 py-1">
-                              <Avatar className="h-5 w-5 rounded-full"><AvatarImage src={assignedFitter.avatar} /><AvatarFallback>{getInitials(assignedFitter.name)}</AvatarFallback></Avatar>
-                              <span className="font-bold text-slate-700">{assignedFitter.name}</span>
-                            </div>
-                          ) : (
-                            <span className="text-amber-600 font-bold">Unassigned</span>
-                          )}
-                        </div>
-
-                        {/* Operational Details Grid */}
-                        <div className="text-[11px] text-slate-600 space-y-1.5 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                          {isTravelling && (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">📍 Salesman Location:</span>
-                                <span className="text-slate-800 font-semibold truncate max-w-[200px]">{assignedFitter?.locationLabel || "GPS Active"}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">🚗 Distance:</span>
-                                <span className="font-bold text-blue-700 font-mono text-xs">{distStr}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">⏱ ETA:</span>
-                                <span className="font-bold text-blue-700 font-mono text-xs">{etaStr}</span>
-                              </div>
-                              <div className="flex items-center justify-between border-t border-slate-200/50 pt-1.5 mt-1 text-[10px]">
-                                <span className="text-slate-400 font-bold uppercase tracking-wider">🕘 Time Slot:</span>
-                                <span className="font-bold text-slate-700">{job.time || "Not specified"}</span>
-                              </div>
-                            </>
-                          )}
-
-                          {isMeasuring && (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">🚗 Travel Distance:</span>
-                                <span className="font-semibold text-slate-700 font-mono">{travelDistStr}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">⏱ Travel Time:</span>
-                                <span className="font-semibold text-slate-700 font-mono">{travelTimeStr}</span>
-                              </div>
-                            </>
-                          )}
-
-                          {isPending && (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">🚗 Distance:</span>
-                                <span className="text-slate-400 font-medium italic">Not Started</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">⏱ ETA:</span>
-                                <span className="text-slate-400 font-medium italic">Not Available</span>
-                              </div>
-                              <div className="flex items-center justify-between border-t border-slate-200/50 pt-1.5 mt-1 text-[10px]">
-                                <span className="text-slate-400 font-bold uppercase tracking-wider">🕘 Time Slot:</span>
-                                <span className="font-bold text-slate-700">{job.time || "Not specified"}</span>
-                              </div>
-                            </>
-                          )}
-
-                          {isCompleted && (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">✅ Completed:</span>
-                                <span className="font-bold text-emerald-700">{formatTimeSafe(rawJob?.measurementCompletedAt)}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">🚗 Total Distance:</span>
-                                <span className="font-semibold text-slate-700 font-mono">{totalTravelDistStr}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 font-medium">⏱ Total Travel Time:</span>
-                                <span className="font-semibold text-slate-700 font-mono">{totalTravelTimeStr}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Right Map */}
-            <div className="flex-1 bg-slate-100">
-              <AssignmentMap
-                fitters={workforceMembers}
-                selectedFitterId={selectedMapFitter}
-                onSelectFitter={setSelectedMapFitter}
-                filterRole="Salesman"
-                scheduledJobs={filteredAppointments.map(j => {
-                  const rawJob = jobs.find(item => item._id === j.id);
-                  const ll = extractLatLng(rawJob?.location as any);
-                  return {
-                    id: j.id,
-                    jobId: j.jobId,
-                    client: j.client,
-                    address: j.address ?? "",
-                    status: j.status ?? "",
-                    location: ll ? { lat: ll.lat, lng: ll.lng } : { lat: 10.8505, lng: 76.2711 },
-                    assignedSalesmanId: (typeof rawJob?.assignedSalesman === "object" ? (rawJob?.assignedSalesman as any)?._id : rawJob?.assignedSalesman) || ""
-                  };
-                })}
-                hideStatusPanel={true}
-              />
-            </div>
-          </>
-        )}
-
-        {/* VIEW 3: UNASSIGNED LEADS VIEW */}
-        {activeTab === "leads" && (
-          <>
-            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
-              <div className="p-6 border-b border-slate-100 shrink-0 space-y-4 bg-white">
-                <div>
-                  <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1">
-                    <div className="w-6 h-px bg-amber-600"></div>
-                    <span>Assign Leads Queue</span>
-                  </div>
-                  <h2 className="text-2xl font-light text-slate-800 tracking-tight">Unassigned <span className="font-semibold text-slate-900">Leads</span></h2>
-                </div>
-
-                {/* Pending / Scheduled Toggle */}
-                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200/50 gap-0.5 w-full">
-                  <button
-                    onClick={() => setLeadFilter("pending")}
-                    className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-center",
-                      leadFilter === "pending"
-                        ? "bg-white text-amber-700 shadow-sm border border-slate-200/30"
-                        : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Pending
-                  </button>
-                  <button
-                    onClick={() => setLeadFilter("scheduled")}
-                    className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all text-center",
-                      leadFilter === "scheduled"
-                        ? "bg-white text-amber-700 shadow-sm border border-slate-200/30"
-                        : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Scheduled
-                  </button>
-                </div>
-
-                {/* Priority Selection & Search */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search leads..."
-                      value={tabSearch}
-                      onChange={(e) => setTabSearch(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-xs placeholder-slate-400 focus:outline-none focus:border-slate-300 focus:bg-white transition-all"
-                    />
-                  </div>
-                  <Select value={leadPriorityFilter} onValueChange={setLeadPriorityFilter}>
-                    <SelectTrigger className="w-28 h-9 border-slate-200 bg-slate-50 text-xs rounded-xl font-semibold">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      <SelectItem value={JobPriority.High}>High</SelectItem>
-                      <SelectItem value={JobPriority.Medium}>Medium</SelectItem>
-                      <SelectItem value={JobPriority.Low}>Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Scrollable leads queue */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
-                {filteredUnassignedLeads.length === 0 ? (
-                  <div className="text-center py-16 text-slate-400 text-xs italic">No unassigned leads found.</div>
-                ) : (
-                  filteredUnassignedLeads.map((job) => {
-                    const isSelected = selectedJobId === job.id;
-                    
-                    // Simple distance based suggested fitter
-                    const suggestedFitter = (() => {
-                      const available = workforceMembers.filter(f => f.location && f.status === "Available");
-                      if (available.length === 0) return null;
-                      const sourceJob = jobs.find(item => item._id === job.id);
-                      if (!sourceJob || !sourceJob.location?.coordinates) return null;
-                      const jobLatLng: [number, number] = [sourceJob.location.coordinates[1], sourceJob.location.coordinates[0]];
-                      const mapped = available.map(f => ({
-                        fitter: f,
-                        dist: distanceKm(f.location!, jobLatLng)
-                      }));
-                      mapped.sort((a, b) => a.dist - b.dist);
-                      return mapped[0];
-                    })();
-
-                    const cardRecommendedFitters = isSelected 
-                      ? recommendedFitters 
-                      : (suggestedFitter ? [{
+                      const cardRecommendedFitters = isSelected
+                        ? recommendedFitters
+                        : (suggestedFitter ? [{
                           id: suggestedFitter.fitter.id,
                           name: suggestedFitter.fitter.name,
                           dist: suggestedFitter.dist,
                           isFree: true
                         }] : []);
 
-                    return (
+                      return (
+                        <JobCard
+                          key={job.id}
+                          job={{ ...job, recommendedFitters: cardRecommendedFitters }}
+                          isSelected={isSelected}
+                          onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
+                          onAction={(action, payload) => {
+                            if (action === "assign") {
+                              initiateAssignment(job.id, payload);
+                            } else {
+                              handleCardAction(action, job.id);
+                            }
+                          }}
+                          showEditDelete={isAuthorized}
+                          variant="assignment"
+                        />
+                      );
+                    })}
+                    {!isLoading && pendingJobs.length === 0 && <div className="text-center py-12 text-slate-400 text-xs italic">No pending leads remaining.</div>}
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="active" className="flex-1 overflow-y-auto outline-none p-4 min-h-0">
+                  <div className="space-y-3">
+                    {activeJobs.map((job) => (
                       <JobCard
                         key={job.id}
-                        job={{ ...job, recommendedFitters: cardRecommendedFitters }}
-                        isSelected={isSelected}
-                        onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
-                        onAction={(action, payload) => {
-                          if (action === "assign") {
-                            initiateAssignment(job.id, payload);
+                        job={job}
+                        isSelected={selectedJobId === job.id}
+                        onSelect={() => openRescheduleForJob(job)}
+                        onAction={(action) => {
+                          if (action === "manage") {
+                            openRescheduleForJob(job);
                           } else {
                             handleCardAction(action, job.id);
                           }
                         }}
                         showEditDelete={isAuthorized}
-                        variant="assignment"
+                        variant="schedule"
                       />
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Right Map */}
-            <div className="flex-1 bg-slate-100">
-              <AssignmentMap
-                fitters={workforceMembers}
-                selectedFitterId={selectedMapFitter}
-                onSelectFitter={setSelectedMapFitter}
-                filterRole="Salesman"
-                unassignedJobs={filteredUnassignedLeads.map(j => {
-                  const rawJob = jobs.find(item => item._id === j.id);
-                  const ll = extractLatLng(rawJob?.location as any);
-                  return {
-                    id: j.id,
-                    jobId: j.jobId,
-                    client: j.client,
-                    address: j.address ?? "",
-                    location: ll ? { lat: ll.lat, lng: ll.lng } : { lat: 10.8505, lng: 76.2711 }
-                  };
-                })}
-                selectedJob={selectedPendingJobForMap || null}
-                hideStatusPanel={true}
-              />
-            </div>
-          </>
-        )}
-
-        {/* VIEW 4: MEASURING VIEW */}
-        {activeTab === "measuring" && (
-          <>
-            <div className="w-full xl:w-[480px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
-              <div className="p-6 border-b border-slate-100 shrink-0 bg-white space-y-4">
-                <div>
-                  <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1">
-                    <div className="w-6 h-px bg-indigo-600"></div>
-                    <span>On-Site Client Measurements</span>
+                    ))}
+                    {!isLoading && activeJobs.length === 0 && <div className="text-center py-12 text-slate-400 text-xs italic">No appointments scheduled for this date.</div>}
                   </div>
-                  <h2 className="text-2xl font-light text-slate-800 tracking-tight">Measuring <span className="font-semibold text-slate-900">Queue</span></h2>
-                </div>
-
-                {/* Metrics Stats bar */}
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-indigo-50 border border-indigo-100/50 rounded-xl p-2">
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Measuring</span>
-                    <span className="text-lg font-bold text-indigo-700">
-                      {measuringSalesmen.length}
-                    </span>
-                  </div>
-                  <div className="bg-emerald-50 border border-emerald-100/50 rounded-xl p-2">
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Completed</span>
-                    <span className="text-lg font-bold text-emerald-700">
-                      {jobs.filter(j => j.status === JobStatus.ReadyForFitting || j.status === JobStatus.Completed).length}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 border border-slate-200/50 rounded-xl p-2">
-                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Visits</span>
-                    <span className="text-lg font-bold text-slate-700">
-                      {jobs.filter(j => [JobStatus.SalesmanScheduled, JobStatus.Measuring].includes(j.status)).length}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Measuring list */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50">
-                {measuringSalesmen.length === 0 ? (
-                  <div className="text-center py-16 text-slate-400 text-xs italic">No active measurements in progress right now.</div>
-                ) : (
-                  measuringSalesmen.map((salesman) => {
-                    const activeJob = salesman.schedule.today.find(j => j.id === salesman.jobRef) ??
-                                      salesman.schedule.today.find(j => j.status === "In Progress");
-
-                    return (
-                      <div
-                        key={salesman.id}
-                        onClick={() => setSelectedMapFitter(salesman.id)}
-                        className={cn(
-                          "border border-slate-100 hover:border-slate-200 rounded-xl p-4 bg-white shadow-sm transition-all duration-150 cursor-pointer flex flex-col gap-2",
-                          selectedMapFitter === salesman.id && "ring-1 ring-indigo-500 border-indigo-500 bg-indigo-50/5"
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-8 w-8 rounded-lg"><AvatarImage src={salesman.avatar} /><AvatarFallback>{getInitials(salesman.name)}</AvatarFallback></Avatar>
-                            <div>
-                              <h3 className="text-sm font-bold text-slate-800 leading-tight">{salesman.name}</h3>
-                              <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Representative</p>
-                            </div>
-                          </div>
-                          <span className="text-[9px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full animate-pulse">
-                            Measuring
-                          </span>
-                        </div>
-
-                        {activeJob ? (
-                          <div className="mt-1 space-y-2 border-t border-slate-100 pt-2.5">
-                            <div className="flex justify-between items-start text-xs">
-                              <div>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">Client</span>
-                                <span className="font-bold text-slate-800">{activeJob.client}</span>
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide block">Location</span>
-                              <span className="text-xs text-slate-600 leading-snug">{activeJob.address}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-xs italic text-slate-400 mt-2">Setting up measurement timer...</p>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Right Map */}
-            <div className="flex-1 bg-slate-100">
-              <AssignmentMap
-                fitters={workforceMembers}
-                selectedFitterId={selectedMapFitter}
-                onSelectFitter={setSelectedMapFitter}
-                filterRole="Salesman"
-                showOnlyMeasuring={true}
-                hideStatusPanel={true}
-              />
-            </div>
-          </>
-        )}
-
-        {/* VIEW 5: PERFORMANCE REPORT VIEW (Full Width Dashboard Analytics) */}
-        {activeTab === "performance" && (
-          <div className="flex-1 overflow-y-auto p-8 bg-slate-50/50 space-y-6">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <div>
-                <div className="flex items-center gap-2 text-[9px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-1">
-                  <div className="w-6 h-px bg-emerald-600"></div>
-                  <span>Operations & Conversion KPIs</span>
-                </div>
-                <h2 className="text-3xl font-light text-slate-800 tracking-tight">Workforce <span className="font-semibold text-slate-900">Performance</span></h2>
-              </div>
-            </div>
-
-            {/* Metric KPI cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-              <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Visits Managed</span>
-                <span className="text-3xl font-bold text-slate-800">{performanceMetrics.total}</span>
-              </div>
-              <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Completed Sales</span>
-                <span className="text-3xl font-bold text-emerald-600">{performanceMetrics.completed}</span>
-              </div>
-              <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Avg Success Rate</span>
-                <span className="text-3xl font-bold text-indigo-600">{performanceMetrics.conversionRate}%</span>
-              </div>
-              <div className="bg-white border border-slate-200/60 rounded-2xl p-5 shadow-sm">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Dispatch Value</span>
-                <span className="text-3xl font-bold text-slate-800">₹{performanceMetrics.revenue.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Leaderboard Table & Trends layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Leaderboard */}
-              <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm lg:col-span-2">
-                <h3 className="text-sm font-bold text-slate-800 mb-4 uppercase tracking-wider">Representative Leaderboard</h3>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                        <th className="pb-3 font-semibold">Salesperson</th>
-                        <th className="pb-3 text-center font-semibold">Assigned Visits</th>
-                        <th className="pb-3 text-center font-semibold">Completed Visits</th>
-                        <th className="pb-3 text-center font-semibold">Conversion Rate</th>
-                        <th className="pb-3 text-right font-semibold">Est Revenue</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50 font-semibold text-slate-700">
-                      {performanceMetrics.salesmanLeaderboard.map((row) => (
-                        <tr key={row.id} className="hover:bg-slate-50/40">
-                          <td className="py-3.5 flex items-center gap-2 text-slate-800 font-bold">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            {row.name}
-                          </td>
-                          <td className="py-3.5 text-center">{row.total}</td>
-                          <td className="py-3.5 text-center text-emerald-600 font-bold">{row.completed}</td>
-                          <td className="py-3.5 text-center">
-                            <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">{row.rate}%</span>
-                          </td>
-                          <td className="py-3.5 text-right font-bold text-slate-800">₹{row.revenue.toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* SVG Trend chart card */}
-              <div className="bg-white border border-slate-200/60 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-1 uppercase tracking-wider">Weekly Conversion Trend</h3>
-                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-6">Last 7 days</p>
-                  
-                  {/* SVG line chart */}
-                  <div className="h-32 w-full flex items-end">
-                    <svg className="w-full h-full overflow-visible" viewBox="0 0 100 40">
-                      <path
-                        d="M 5,30 Q 20,20 35,28 T 65,12 T 95,8"
-                        fill="none"
-                        stroke="#10b981"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                      />
-                      <circle cx="5" cy="30" r="2.5" fill="#10b981" />
-                      <circle cx="35" cy="28" r="2.5" fill="#10b981" />
-                      <circle cx="65" cy="12" r="2.5" fill="#10b981" />
-                      <circle cx="95" cy="8" r="2.5" fill="#10b981" />
-                    </svg>
-                  </div>
-                  <div className="flex justify-between text-[9px] text-slate-400 font-bold uppercase tracking-wider mt-4">
-                    <span>Mon</span>
-                    <span>Wed</span>
-                    <span>Fri</span>
-                    <span>Sun</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-100 pt-4 mt-6 flex items-center justify-between text-xs font-semibold text-slate-600">
-                  <span>Weekly Target Achievement</span>
-                  <span className="text-emerald-600 font-bold">114% achieved</span>
-                </div>
-              </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
-        )}
+
+          {/* Right Map */}
+          <div className="flex-1 bg-slate-100 relative overflow-hidden">
+            <AssignmentMap
+              fitters={workforceMembers}
+              selectedFitterId={selectedMapFitter}
+              onSelectFitter={setSelectedMapFitter}
+              filterRole="Salesman"
+              selectedJob={selectedPendingJobForMap}
+              hideStatusPanel={false}
+              unassignedJobs={unassignedJobsForMap}
+              scheduledJobs={scheduledJobsForMap}
+            />
+            {/* Legend Overlay */}
+            <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
+              <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
+              <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-semibold text-slate-700">
+                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Available</div>
+                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Measuring</div>
+                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> On The Way</div>
+                <div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-slate-400"></span> Offline</div>
+              </div>
+            </div>
+            {/* Selected Salesman Details Card */}
+            {selectedMapFitter && (
+              <div className="absolute top-6 right-6 z-30 w-96 bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-10rem)] rounded-2xl overflow-hidden ring-1 ring-black/5">
+                {(() => {
+                  const fitter = workforceMembers.find((item) => item.id === selectedMapFitter) || (() => {
+                    const userObj = allUsers.find(u => u._id === selectedMapFitter);
+                    if (!userObj) return null;
+                    const ll = extractLatLng(userObj.location);
+                    return {
+                      id: userObj._id,
+                      name: userObj.name,
+                      role: isSalesManagerRole(userObj.role) ? UserRole.SalesManager : (userObj.role || UserRole.Salesman),
+                      avatar: userObj.avatar,
+                      phone: userObj.phone,
+                      status: userObj.liveStatus || "Available",
+                      location: ll ? [ll.lat, ll.lng] as [number, number] : undefined,
+                      lastUpdated: "Not updated",
+                      schedule: { yesterday: [], today: [], tomorrow: [], upcoming: [] },
+                      capacity: { max: 5, current: 0, remaining: 5 },
+                      nextAvailableSlot: "08:00",
+                      jobRef: undefined,
+                      history: []
+                    } as unknown as Fitter;
+                  })();
+                  if (!fitter) return null;
+
+                  const activeJobObj = fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
+                    fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
+                    fitter.schedule.upcoming.find(j => j.id === fitter.jobRef);
+                  return (
+                    <>
+                      <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12 rounded-xl border border-white shadow bg-white"><AvatarImage src={fitter.avatar} /><AvatarFallback>{getInitials(fitter.name)}</AvatarFallback></Avatar>
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-800 leading-snug">{fitter.name}</h3>
+                            <p className="text-[10px] text-slate-500 font-medium">Sales Representative • {fitter.status}</p>
+                          </div>
+                        </div>
+                        <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-4 h-4" /></button>
+                      </div>
+                      <div className="p-5 space-y-4 flex-1 overflow-y-auto">
+                        {fitter.locationLabel && (
+                          <div className="flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/50 rounded-xl p-3">
+                            <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                            <div className="flex flex-col">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Last Location</span>
+                              <span className="leading-snug text-slate-700">{fitter.locationLabel}</span>
+                              <span className="text-[9px] text-slate-400 mt-1 font-semibold">Updated {fitter.lastUpdated}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {activeJobObj && (
+                          <div className="bg-blue-50/40 border border-blue-100 rounded-xl p-3.5 space-y-2">
+                            <div className="flex justify-between items-center pb-1">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Telemetry Info</span>
+                              <span className="text-[9px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                                Current Job
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="col-span-2">
+                                <span className="text-[9px] font-bold text-slate-400 block mb-0.5">CUSTOMER</span>
+                                <span className="font-bold text-slate-800">{activeJobObj.client}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-[9px] font-bold text-slate-400 block mb-0.5">ADDRESS</span>
+                                <span className="text-slate-700 leading-normal">{activeJobObj.address}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-bold text-slate-400 block mb-0.5">JOB ID</span>
+                                <span className="font-mono text-slate-800 font-bold">{activeJobObj.jobId || "N/A"}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-bold text-slate-400 block mb-0.5">WORK STATUS</span>
+                                <span className="font-semibold text-indigo-600">{activeJobObj.status}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        </>
+
       </div>
 
       <Dialog open={!!dialogState} onOpenChange={(open) => !open && setDialogState(null)}>
@@ -2948,7 +2028,7 @@ export default function SmartSalesmanAssignmentsPage() {
                   onFocus={() => setShowSuggestions(true)}
                   className="h-9 text-xs rounded-xl border-slate-200 bg-white"
                 />
-                
+
                 {showSuggestions && (addressValue.trim().length >= 2) && (
                   <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950">
                     <div className="border-b border-slate-100 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:border-slate-800">
@@ -3003,7 +2083,7 @@ export default function SmartSalesmanAssignmentsPage() {
                     ))}
                   </div>
                 )}
-                
+
                 <div className="mt-2">
                   <AddressPickerMap onAddressSelect={handleAddressSelect} externalCoords={mapCoords} />
                 </div>
@@ -3181,8 +2261,8 @@ export default function SmartSalesmanAssignmentsPage() {
               onClick={handleConfirmDelete}
               disabled={
                 !!(deleteJobTarget &&
-                [JobStatus.SalesmanOnTheWay, JobStatus.Measuring].includes(deleteJobTarget.status) &&
-                !confirmActiveDelete)
+                  [JobStatus.SalesmanOnTheWay, JobStatus.Measuring].includes(deleteJobTarget.status) &&
+                  !confirmActiveDelete)
               }
               className="bg-red-600 hover:bg-red-700 text-white shadow-md shadow-red-600/10 rounded-xl"
             >

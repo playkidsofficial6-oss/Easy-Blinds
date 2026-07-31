@@ -13,7 +13,6 @@ import { isFitterRole, UserRole } from "./auth";
 import { getUsers, updateUser, type UserRecord, extractLatLng } from "./users";
 import { getAllLiveLocations } from "@/services/api";
 import {
-  disconnectSocket,
   listenToLocationUpdates,
 } from "@/services/socket";
 import type {
@@ -93,22 +92,7 @@ export interface Fitter {
 const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 const ASSIGNED_FITTER_PATTERN = /Assigned to ([^@.]+)(?: @|\.|$)/i;
 
-function extractAssignedFitter(job: Job) {
-  if (job.assignedFitter) {
-    if (typeof job.assignedFitter === "object" && job.assignedFitter !== null) {
-      return (job.assignedFitter as any).name || (job.assignedFitter as any)._id;
-    }
-    return job.assignedFitter;
-  }
-  if (job.assignedSalesman) {
-    if (typeof job.assignedSalesman === "object" && job.assignedSalesman !== null) {
-      return (job.assignedSalesman as any).name || (job.assignedSalesman as any)._id;
-    }
-    return job.assignedSalesman;
-  }
-  const match = job.notes?.match(ASSIGNED_FITTER_PATTERN);
-  return match?.[1]?.trim();
-}
+
 
 export function isAssignedToFitter(job: Job, fitter: Pick<UserRecord, "name" | "_id">) {
   const targetId = fitter._id;

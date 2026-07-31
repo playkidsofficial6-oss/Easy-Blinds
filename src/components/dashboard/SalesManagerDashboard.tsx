@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowUp, CheckCircle, ClipboardList, PlusCircle, Users } from "lucide-react";
+import { AlertCircle, CheckCircle, PlusCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { getJobErrorMessage, getJobs, JobStatus, type Job } from "@/lib/jobs";
 import { getUsers, type UserRecord } from "@/lib/users";
-import { isFitterRole, isSalesmanRole } from "@/lib/auth";
+import { isSalesmanRole } from "@/lib/auth";
 
 import { JobDetailSheet } from "@/components/tracking/JobDetailSheet";
 
@@ -52,7 +52,7 @@ export default function SalesManagerDashboard() {
     }).length;
   }, [jobs]);
 
-  const activeFitters = useMemo(() => users.filter((u) => isFitterRole(u.role)).length, [users]);
+
   const activeSalesmen = useMemo(() => users.filter((u) => isSalesmanRole(u.role)).length, [users]);
 
   const stats = [

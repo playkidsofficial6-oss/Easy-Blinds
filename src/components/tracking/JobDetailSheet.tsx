@@ -8,7 +8,7 @@ import { isFitterRole } from "@/lib/auth";
 import { toast } from "sonner";
 import {
     X, Ruler, FileText, UserCheck, ChevronDown, ChevronUp,
-    Loader2, Edit3, Save, CheckCircle, Phone, MapPin, Home,
+    Loader2, CheckCircle, Phone, MapPin, Home,
     Package, DoorOpen, Wrench, AlertCircle, Camera, Image as ImageIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -31,12 +31,8 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<TabKey>("measurements");
     const [expandedRoom, setExpandedRoom] = useState<string | null>(null);
-    const [editingQuote, setEditingQuote] = useState(false);
-    const [quoteNotes, setQuoteNotes] = useState("");
-    const [quoteStatus, setQuoteStatus] = useState("");
     const [selectedFitter, setSelectedFitter] = useState("");
     const [isAssigning, setIsAssigning] = useState(false);
-    const [isSavingQuote, setIsSavingQuote] = useState(false);
 
     const load = useCallback(async () => {
         if (!jobId) return;
@@ -51,8 +47,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
             if (jobData.status === "fulfilled") {
                 const j = jobData.value;
                 setJob(j);
-                setQuoteNotes(j.quotation?.notes || "");
-                setQuoteStatus(j.quotation?.status || "Draft");
+
             }
             if (measurementRes.status === "fulfilled") {
                 setMeasurement(measurementRes.value.data);
@@ -346,7 +341,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                             </div>
 
                                             {/* Notes (view mode) */}
-                                            {!editingQuote && quote.notes && (
+                                            {quote.notes && (
                                                 <div className="bg-white rounded-xl border border-slate-200 p-4">
                                                     <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2">Notes</p>
                                                     <p className="text-sm text-slate-600 leading-relaxed">{quote.notes}</p>
@@ -466,21 +461,21 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                 ) : (
                                                     <div className="grid grid-cols-2 gap-3">
                                                         {photosList.map((url, idx) => (
-                                                        <a
-                                                            key={idx}
-                                                            href={url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 block"
-                                                        >
-                                                            <img
-                                                                src={url}
-                                                                alt={`Fitting photo ${idx + 1}`}
-                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                            />
-                                                        </a>
-                                                    ))}
-                                                </div>
+                                                            <a
+                                                                key={idx}
+                                                                href={url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 block"
+                                                            >
+                                                                <img
+                                                                    src={url}
+                                                                    alt={`Fitting photo ${idx + 1}`}
+                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                                />
+                                                            </a>
+                                                        ))}
+                                                    </div>
                                                 );
                                             })()}
                                         </div>

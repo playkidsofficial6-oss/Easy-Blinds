@@ -3,12 +3,11 @@
 import { useState } from "react";
 import { format, isToday } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Clock, MapPin, Calendar as CalendarIcon, Filter, Activity, CheckCircle2, Truck, User } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, } from "lucide-react";
 import Link from "next/link";
-import { MOCK_JOBS, InstallationJob, FitterStatus } from "@/lib/data/jobs";
+import { MOCK_JOBS, FitterStatus } from "@/lib/data/jobs";
 import { MOCK_TEAM } from "@/lib/data/team";
 import { cn } from "@/lib/utils";
 

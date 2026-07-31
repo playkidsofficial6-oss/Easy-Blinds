@@ -518,7 +518,6 @@ export default function OwnerOverviewPage() {
                     {(() => {
                         // Calculate Top Performer based on Revenue
                         const topPerformer = teamPerformance.reduce((prev, current) => (prev.revenue > current.revenue) ? prev : current);
-                        const topPerformerMock = teamPerformance.find(t => t.name === topPerformer.name) || teamPerformance[0];
 
                         return (
                             <Card className="border-0 bg-neutral-900 text-white relative overflow-hidden">

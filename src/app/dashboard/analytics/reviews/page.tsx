@@ -1,14 +1,14 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { MOCK_TEAM } from "@/lib/data/team";
+import { Card, CardContent, } from "@/components/ui/card";
+
 import { MOCK_JOBS } from "@/lib/data/jobs";
 import { Star, TrendingUp } from "lucide-react";
 
 export default function OwnerReviewsPage() {
     // Aggregate Review Data
     const totalReviews = MOCK_JOBS.filter(j => j.reviewStatus === "received").length;
-    const avgRating = 4.8; // Mock aggregate
+
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">

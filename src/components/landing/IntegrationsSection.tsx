@@ -1,4 +1,4 @@
-import { LayoutGrid, RefreshCw, Smartphone, Zap } from "lucide-react";
+import { LayoutGrid, Smartphone, Zap } from "lucide-react";
 
 export function IntegrationsSection() {
     return (

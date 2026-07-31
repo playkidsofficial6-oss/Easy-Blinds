@@ -12,14 +12,13 @@ const BrandContext = createContext<BrandContextType | undefined>(undefined);
 
 export function BrandProvider({ children }: { children: React.ReactNode }) {
     const [selectedBrandId, setSelectedBrandId] = useState<string>("easy-blinds");
-    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         const savedBrand = localStorage.getItem("selectedBrand");
         if (savedBrand) {
             setSelectedBrandId(savedBrand);
         }
-        setMounted(true);
+
     }, []);
 
     const setSelectedBrand = (brandId: string) => {

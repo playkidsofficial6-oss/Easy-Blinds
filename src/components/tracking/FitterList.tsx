@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MapPin, Clock, Calendar as CalendarIcon, History, User, Phone, Briefcase, ChevronRight } from "lucide-react";
+import { MapPin, Clock, Calendar as CalendarIcon, History, User, Briefcase, ChevronRight } from "lucide-react";
 import { Fitter, FitterJob } from "@/lib/live-store";
 import { Badge } from "@/components/ui/badge";
 import { format, parse, isPast, addDays, isSameDay } from "date-fns";
@@ -68,28 +68,7 @@ export function FitterList({ fitters, selectedFitterId, onSelectFitter, onJobsCh
 
     const selectedFitter = fitters.find(f => f.id === selectedFitterId);
 
-    const rescheduleSlots = useMemo(() => {
-        if (!dialogState || !rescheduleDate) return [];
 
-        const targetFitter = fitters.find((item) => item.id === dialogState.fitterId);
-        if (!targetFitter) return DAILY_SLOTS;
-
-        let busySlots: string[] = [];
-        if (isSameDay(rescheduleDate, new Date())) {
-            busySlots = targetFitter.schedule.today.map((job) => job.time);
-        } else if (isSameDay(rescheduleDate, addDays(new Date(), 1))) {
-            busySlots = targetFitter.schedule.tomorrow.map((job) => job.time);
-        }
-
-        return DAILY_SLOTS.filter((slot) => {
-            const isCurrentAssignmentSlot =
-                dialogState.originalFitterId === dialogState.fitterId &&
-                isSameDay(rescheduleDate, dialogState.currentDate) &&
-                slot === dialogState.currentSlot;
-
-            return isCurrentAssignmentSlot || !busySlots.includes(slot);
-        });
-    }, [dialogState, fitters, rescheduleDate]);
 
     const openRescheduleDialog = (job: FitterJob, fitter: Fitter) => {
         // Use the job's actual scheduled date to pre-fill the dialog.

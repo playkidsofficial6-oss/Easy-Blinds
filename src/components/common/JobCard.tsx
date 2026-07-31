@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
-import { User, Phone, MapPin, ChevronRight, AlertCircle, ArrowRight, CalendarClock, MoreVertical, Edit2, Trash2, Clock3, CarFront } from "lucide-react";
-import React from "react";
+import { Phone, MapPin, ChevronRight, AlertCircle, ArrowRight, CalendarClock, MoreVertical, Edit2, Trash2, Clock3, CarFront } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -82,32 +81,13 @@ interface JobCardProps {
     showEditDelete?: boolean;
 }
 
-function LiveCountdown({ startedAt }: { startedAt: string }) {
-    const [timeLeft, setTimeLeft] = React.useState<number>(0);
 
-    React.useEffect(() => {
-        const calculateTime = () => {
-            const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
-            const remaining = (45 * 60) - elapsed;
-            setTimeLeft(remaining > 0 ? remaining : 0);
-        };
-        calculateTime();
-        const interval = setInterval(calculateTime, 1000);
-        return () => clearInterval(interval);
-    }, [startedAt]);
-
-    return (
-        <span className="text-amber-600 font-semibold flex items-center gap-1">
-            Measuring ({Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, "0")})
-        </span>
-    );
-}
 
 export function JobCard({ job, isSelected, onSelect, onAction, variant = "assignment", showEditDelete = false }: JobCardProps) {
     const rawStatus = (job.status || "PENDING").replace(/_/g, " ");
     const statusLabel = rawStatus.toUpperCase();
     const firstRecommendation = job.recommendedFitters?.[0];
-    
+
     const resolveName = (ref: any): string | undefined => {
         if (!ref) return undefined;
         if (typeof ref === "object" && ref !== null && typeof ref.name === "string") {

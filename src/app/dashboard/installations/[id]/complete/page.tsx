@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SignaturePad } from "@/components/ui/signature-pad";
-import { ArrowLeft, CheckCircle2, Upload, Star, MapPin, User, Home, Calendar, ShieldCheck, Camera } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Star, MapPin, User, Home, ShieldCheck, Camera } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";

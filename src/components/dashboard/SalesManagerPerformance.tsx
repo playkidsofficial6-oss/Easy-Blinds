@@ -14,8 +14,6 @@ import {
     CheckCircle2,
     Calendar,
     Target,
-    MapPin,
-    Clock,
     ChevronRight,
     BarChart
 } from "lucide-react";

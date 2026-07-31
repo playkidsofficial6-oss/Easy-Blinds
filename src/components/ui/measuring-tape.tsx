@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface MeasuringTapeInputProps {
@@ -36,11 +36,7 @@ export function MeasuringTapeInput({
     const totalUnits = max - min;
     const totalWidth = totalUnits * PIXELS_PER_UNIT;
 
-    // Center offset to keep the current value in the middle
-    const getCenterOffset = () => {
-        if (!containerRef.current) return 0;
-        return containerRef.current.clientWidth / 2;
-    };
+
 
     // Convert scroll position to value
     const scrollToValue = (scroll: number) => {

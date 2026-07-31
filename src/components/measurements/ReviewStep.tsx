@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { updateJob, getJob, JobStatus } from "@/lib/jobs";
 import { toast } from "sonner";
 
-import { saveMeasurementToBackend, MeasurementStatus } from "@/lib/measurements";
+import { saveMeasurementToBackend } from "@/lib/measurements";
 
 interface ReviewStepProps {
     clientDetails: Partial<ClientDetails>;

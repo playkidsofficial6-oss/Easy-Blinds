@@ -1,6 +1,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Search, ChevronDown, ChevronUp, MapPin, Compass, Navigation } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, MapPin, Navigation } from "lucide-react";
 import {
   MapContainer,
   TileLayer,
@@ -17,7 +17,6 @@ import L from "leaflet";
 import { format, isPast, parse, parseISO } from "date-fns";
 import { useLiveLocation } from "@/hooks";
 import { cn } from "@/lib/utils";
-import DiagnosticsPanel from "./DiagnosticsPanel";
 import type { LiveLocationRecord } from "@/types/live-location";
 import { snapToRoad } from "@/utils/road-snapping";
 import {
@@ -29,8 +28,7 @@ import {
   type LiveMarkerStatus,
 } from "./map-icons";
 
-const OFFLINE_LOCATION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
-const KERALA_CENTER: [number, number] = [10.8505, 76.2711];
+const OFFLINE_LOCATION_TIMEOUT_MS = 24 * 60 * 60 * 1000;
 const MARKER_ANIMATION_MS = 1200;
 
 type TooltipDirection = "top" | "bottom" | "left" | "right";
@@ -255,14 +253,14 @@ function formatSpeed(speed?: number): string {
 }
 
 function getRoutePreview(marker: LiveMapMarker, selectedJob?: FitterMapProps["selectedJob"] | null) {
-  const destCoords = marker.destinationCoordinates ?? 
-                     (selectedJob ? [selectedJob.location.lat, selectedJob.location.lng] as [number, number] : null);
+  const destCoords = marker.destinationCoordinates ??
+    (selectedJob ? [selectedJob.location.lat, selectedJob.location.lng] as [number, number] : null);
   if (!destCoords) return { distance: null, eta: null, status: "No active route" };
   const distance = distanceKm(marker.position, destCoords);
   const eta = estimateEtaMinutes(distance);
-  const status = marker.status === "On The Way" ? "On the way" : 
-                 marker.status === "Working" || marker.status === "Measuring" ? "In progress" : 
-                 "Ready to dispatch";
+  const status = marker.status === "On The Way" ? "On the way" :
+    marker.status === "Working" || marker.status === "Measuring" ? "In progress" :
+      "Ready to dispatch";
   return { distance, eta, status };
 }
 
@@ -340,15 +338,15 @@ function buildFitterMarker(
   }
 
   const activeJob = fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
-                    fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
-                    fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
-                    fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress");
+    fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
+    fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
+    fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress");
 
   const destinationCoordinates: [number, number] | undefined =
     (activeJob?.coordinates &&
-     typeof activeJob.coordinates[0] === "number" &&
-     typeof activeJob.coordinates[1] === "number" &&
-     (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
+      typeof activeJob.coordinates[0] === "number" &&
+      typeof activeJob.coordinates[1] === "number" &&
+      (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
       ? [activeJob.coordinates[0], activeJob.coordinates[1]]
       : undefined;
 
@@ -383,16 +381,16 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
 
   const activeJob = fitter
     ? (fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
-       fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
-       fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
-       fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress"))
+      fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
+      fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
+      fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress"))
     : undefined;
 
   const destinationCoordinates: [number, number] | undefined =
     (activeJob?.coordinates &&
-     typeof activeJob.coordinates[0] === "number" &&
-     typeof activeJob.coordinates[1] === "number" &&
-     (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
+      typeof activeJob.coordinates[0] === "number" &&
+      typeof activeJob.coordinates[1] === "number" &&
+      (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
       ? [activeJob.coordinates[0], activeJob.coordinates[1]]
       : undefined;
 
@@ -452,7 +450,7 @@ function buildMapMarkers(
     });
 
   let allMarkers = [...fitterMarkers, ...liveOnlyMarkers];
-  
+
   if (filterRole) {
     allMarkers = allMarkers.filter((marker) => marker.role === filterRole);
   }
@@ -634,8 +632,8 @@ function SmoothLiveMarker({
 
   const zIndexOffset =
     marker.status === "On The Way" ? 300 :
-    marker.status === "Measuring" || marker.status === "Working" ? 200 :
-    marker.status === "Available" ? 100 : 0;
+      marker.status === "Measuring" || marker.status === "Working" ? 200 :
+        marker.status === "Available" ? 100 : 0;
 
   return (
     <Marker
@@ -838,7 +836,7 @@ function RoutingPolyline({
 
   const midPoint = routeCoords && routeCoords.length > 0
     ? routeCoords[Math.floor(routeCoords.length / 2)]
-    : [ (start[0] + end[0]) / 2, (start[1] + end[1]) / 2 ] as [number, number];
+    : [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2] as [number, number];
 
   const transparentIcon = useMemo(() => L.divIcon({
     html: '',
@@ -913,8 +911,8 @@ function createCustomPinIcon(color: string) {
   const html = renderToStaticMarkup(
     <div style={{ position: "relative", width: "30px", height: "42px", display: "flex", justifyContent: "center" }}>
       <svg width="30" height="42" viewBox="0 0 30 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15 0C6.71573 0 0 6.71573 0 15C0 26.25 15 42 15 42C15 42 30 26.25 30 15C30 6.71573 23.2843 0 15 0Z" fill={color}/>
-        <circle cx="15" cy="15" r="6" fill="white"/>
+        <path d="M15 0C6.71573 0 0 6.71573 0 15C0 26.25 15 42 15 42C15 42 30 26.25 30 15C30 6.71573 23.2843 0 15 0Z" fill={color} />
+        <circle cx="15" cy="15" r="6" fill="white" />
       </svg>
       <div style={{
         position: "absolute",
@@ -925,7 +923,7 @@ function createCustomPinIcon(color: string) {
         background: "rgba(15,23,42,0.2)",
         filter: "blur(2px)",
         zIndex: -1
-      }}/>
+      }} />
     </div>
   );
   return L.divIcon({
@@ -1000,9 +998,7 @@ export default function FitterMap({
   const {
     locations: liveLocations,
     isLoaded: liveLocationsLoaded,
-    isConnected: socketConnected,
     error: liveLocationError,
-    reload: reloadLiveLocations,
   } = useLiveLocation();
 
   // Socket.IO pushes are the real-time source of truth.
@@ -1297,13 +1293,13 @@ export default function FitterMap({
         {/* Automatic Active Salesman Destinations and Routes */}
         {markers
           .filter(marker => marker.role === "Salesman" &&
-                             marker.destinationCoordinates &&
-                             ((marker.status as string) === "On The Way" ||
-                              (marker.status as string) === "On Road" ||
-                              (marker.status as string) === "In Progress" ||
-                              (marker.status as string) === "In progress" ||
-                              (marker.status as string) === "Measuring" ||
-                              (marker.status as string) === "Working")
+            marker.destinationCoordinates &&
+            ((marker.status as string) === "On The Way" ||
+              (marker.status as string) === "On Road" ||
+              (marker.status as string) === "In Progress" ||
+              (marker.status as string) === "In progress" ||
+              (marker.status as string) === "Measuring" ||
+              (marker.status as string) === "Working")
           )
           .map((marker) => {
             const dest = marker.destinationCoordinates!;
@@ -1425,7 +1421,7 @@ export default function FitterMap({
               ) : (
                 filteredSalesmen.map((salesman) => {
                   const isSelected = selectedFitterId === salesman.id;
-                  
+
                   // Status Icon Mapping
                   let statusIcon = "🔴";
                   let statusText = "Offline";
@@ -1445,7 +1441,7 @@ export default function FitterMap({
                   const dest = salesman.destinationCoordinates;
                   let distStr = "";
                   let etaStr = "";
-                  
+
                   if (isTravelling && dest) {
                     const fallbackDistance = distanceKm(salesman.position, dest);
                     const fallbackEta = estimateEtaMinutes(fallbackDistance);
@@ -1472,7 +1468,7 @@ export default function FitterMap({
                           <span>{statusIcon}</span>
                           <span className="group-hover:text-blue-600 transition-colors uppercase tracking-wide">{salesman.name}</span>
                         </span>
-                        
+
                         {/* Speed indication for moving salesmen */}
                         {isTravelling && salesman.speed !== undefined && salesman.speed > 0 && (
                           <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 flex items-center gap-1">
@@ -1493,7 +1489,7 @@ export default function FitterMap({
                             </div>
                           </div>
                         )}
-                        
+
                         {isTravelling && (
                           <>
                             <div className="text-xs md:text-sm font-semibold text-slate-900 dark:text-slate-100 tracking-wide truncate block mt-1 pl-5">

@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { UserRole } from "@/lib/auth";
 import { canAccessRole, getPortalPathForRole } from "@/lib/role-routing";

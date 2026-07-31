@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Award, Star, TrendingUp, Target } from "lucide-react";
+import { Star } from "lucide-react";
 import { getReviewStats } from "@/lib/data/reviews";
 
 export default function TeamPage() {

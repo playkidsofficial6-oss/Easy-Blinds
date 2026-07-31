@@ -8,67 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
-import { Star, CheckCircle2, XCircle, Calendar, Filter, Building2 } from "lucide-react";
+import { Star, CheckCircle2, XCircle, } from "lucide-react";
 import { getReviewsByFitter } from "@/lib/data/reviews";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { cn } from "@/lib/utils";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { useBrand } from "@/components/providers/brand-provider";
 
 type DateFilter = "today" | "yesterday" | "month" | "all";
 
-const brands = [
-    {
-        id: "easy-blinds",
-        name: "Easy Blinds & Curtains",
-        styles: {
-            button: "bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-200",
-            border: "border-neutral-200 dark:border-neutral-800",
-            activeBorder: "peer-data-[state=checked]:border-neutral-900 dark:peer-data-[state=checked]:border-white peer-data-[state=checked]:bg-neutral-50 dark:peer-data-[state=checked]:bg-neutral-950/20",
-            icon: "text-neutral-900 dark:text-white",
-            badge: "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-white"
-        }
-    },
-    {
-        id: "my-thread",
-        name: "My Thread",
-        styles: {
-            button: "bg-purple-600 hover:bg-purple-700 text-white",
-            border: "border-purple-100 dark:border-purple-900",
-            activeBorder: "peer-data-[state=checked]:border-purple-600 peer-data-[state=checked]:bg-purple-50 dark:peer-data-[state=checked]:bg-purple-950/20",
-            icon: "text-purple-600 dark:text-purple-400",
-            badge: "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-        }
-    },
-    {
-        id: "oceana",
-        name: "Oceana",
-        styles: {
-            button: "bg-blue-600 hover:bg-blue-700 text-white",
-            border: "border-blue-100 dark:border-blue-900",
-            activeBorder: "peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 dark:peer-data-[state=checked]:bg-blue-950/20",
-            icon: "text-blue-600 dark:text-blue-400",
-            badge: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-        }
-    },
-    {
-        id: "hillarys",
-        name: "Hillarys",
-        styles: {
-            button: "bg-rose-600 hover:bg-rose-700 text-white",
-            border: "border-rose-100 dark:border-rose-900",
-            activeBorder: "peer-data-[state=checked]:border-rose-600 peer-data-[state=checked]:bg-rose-50 dark:peer-data-[state=checked]:bg-rose-950/20",
-            icon: "text-rose-600 dark:text-rose-400",
-            badge: "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
-        }
-    }
-];
+
 
 export default function ReviewPage() {
     const [clientName, setClientName] = useState("");

@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowUp, TrendingUp, Users, DollarSign, Target } from "lucide-react";
+import { ArrowUp, TrendingUp, DollarSign, Target } from "lucide-react";
 
 export default function AnalyticsPage() {
     return (

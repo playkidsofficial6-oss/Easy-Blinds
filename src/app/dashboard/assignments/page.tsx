@@ -603,8 +603,8 @@ export default function SmartAssignmentsPage() {
       {inspectJobId && (
         <JobDetailSheet jobId={inspectJobId} onClose={() => setInspectJobId(null)} />
       )}
-      <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl">
-        <div className="p-8 border-b border-slate-100 flex-shrink-0">
+      <div className="w-full xl:w-125 flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl">
+        <div className="p-8 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
             <div className="w-8 h-px bg-amber-600"></div>
             <span>Workforce Optimization</span>
@@ -757,7 +757,7 @@ export default function SmartAssignmentsPage() {
                           const isBusy = !!job;
                           return (
                             <div key={time} className="pl-6 pb-6 relative last:pb-0 group">
-                              <div className={cn("absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full border-2 ring-4 ring-white transition-colors", isBusy ? "bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer" : "bg-emerald-500 border-white")}></div>
+                              <div className={cn("absolute -left-1.25 top-1.5 w-2.25 h-2.25 rounded-full border-2 ring-4 ring-white transition-colors", isBusy ? "bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer" : "bg-emerald-500 border-white")}></div>
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{time}</div>
@@ -818,7 +818,7 @@ export default function SmartAssignmentsPage() {
                   <SelectTrigger className="h-11 w-full border-slate-200 bg-white text-sm font-medium text-slate-800">
                     <SelectValue placeholder="Choose fitter" />
                   </SelectTrigger>
-                  <SelectContent className="z-[1200] max-h-72">
+                  <SelectContent className="z-1200 max-h-72">
                     {fitters.map((fitter) => {
                       const activeSchedule = rescheduleDate && isSameDay(rescheduleDate, new Date())
                         ? fitter.schedule.today

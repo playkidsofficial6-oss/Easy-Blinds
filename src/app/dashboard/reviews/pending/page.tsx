@@ -4,7 +4,7 @@ import { differenceInDays, format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send, ExternalLink, AlertCircle, Copy, Check } from "lucide-react";
+import { ArrowLeft, Send, AlertCircle, Copy, Check } from "lucide-react";
 import Link from "next/link";
 import { MOCK_JOBS } from "@/lib/data/jobs";
 import { useState } from "react";

@@ -319,7 +319,7 @@ const highlightSuggestionMatch = (text: string, query: string) => {
 
 const isValidLocalPhoneNumber = (phone: string, countryCode: string): boolean => {
   let digits = phone.replace(/\D/g, "");
-  
+
   if (!digits) {
     return false;
   }
@@ -332,7 +332,7 @@ const isValidLocalPhoneNumber = (phone: string, countryCode: string): boolean =>
   if (digits.startsWith("0")) {
     digits = digits.slice(1);
   }
-  
+
   return digits.length >= 9 && digits.length <= 11;
 };
 
@@ -546,7 +546,7 @@ export default function NewJobPage() {
       countryCode = `+${countryCode}`;
     }
     const codeDigits = countryCode.replace(/\D/g, "");
-    
+
     let cleanPhone = phoneNumber.replace(/\D/g, "");
     if (codeDigits && cleanPhone.startsWith(codeDigits)) {
       cleanPhone = cleanPhone.slice(codeDigits.length);
@@ -554,7 +554,7 @@ export default function NewJobPage() {
     if (cleanPhone.startsWith("0")) {
       cleanPhone = cleanPhone.slice(1);
     }
-    
+
     const customerPhone = phoneNumber ? `${countryCode}${cleanPhone}` : "";
 
     let scheduledAt: string | undefined = undefined;
@@ -585,9 +585,9 @@ export default function NewJobPage() {
         assignedSalesManager: user?._id,
         location: mapCoords
           ? {
-              type: "Point",
-              coordinates: [mapCoords[1], mapCoords[0]],
-            }
+            type: "Point",
+            coordinates: [mapCoords[1], mapCoords[0]],
+          }
           : undefined,
       });
 
@@ -628,7 +628,7 @@ export default function NewJobPage() {
     }
   };
 
-  const todayStr = new Date().toISOString().split("T")[0];
+
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -664,7 +664,7 @@ export default function NewJobPage() {
               />
               {errors.firstName && <p className="text-sm text-red-500 mt-1">{errors.firstName}</p>}
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="lastName" className="text-slate-600 dark:text-slate-300">Last Name <span className="text-red-500">*</span></Label>
               <Input
@@ -758,17 +758,17 @@ export default function NewJobPage() {
                   </Popover>
                 ) : (
                   <div className="flex gap-1 items-center w-[140px]">
-                    <Input 
-                      name="customCountryCode" 
+                    <Input
+                      name="customCountryCode"
                       value={customCountryCode}
                       onChange={(e) => setCustomCountryCode(e.target.value)}
-                      placeholder="+971" 
-                      className="w-full bg-white dark:bg-slate-900" 
+                      placeholder="+971"
+                      className="w-full bg-white dark:bg-slate-900"
                       autoFocus
                     />
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
+                    <Button
+                      type="button"
+                      variant="ghost"
                       size="icon"
                       onClick={() => setIsCustom(false)}
                       className="h-10 w-10 shrink-0 text-slate-400 hover:text-slate-600"
@@ -780,14 +780,14 @@ export default function NewJobPage() {
                 )}
                 <div className="relative flex-1">
                   <Phone className={cn("w-4 h-4 absolute left-3 top-3 text-slate-400", errors.phoneNumber && "text-red-500")} />
-                  <Input 
-                    id="phoneNumber" 
-                    name="phoneNumber" 
-                    type="tel" 
-                    required 
-                    placeholder="50 123 4567" 
+                  <Input
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    type="tel"
+                    required
+                    placeholder="50 123 4567"
                     onChange={handleInputChange}
-                    className={cn("pl-9 bg-white dark:bg-slate-900", errors.phoneNumber && "border-red-500 focus-visible:ring-red-500")} 
+                    className={cn("pl-9 bg-white dark:bg-slate-900", errors.phoneNumber && "border-red-500 focus-visible:ring-red-500")}
                   />
                 </div>
               </div>
@@ -824,7 +824,7 @@ export default function NewJobPage() {
                   onFocus={() => setShowSuggestions(true)}
                   className={cn("bg-white dark:bg-slate-900", errors.address && "border-red-500 focus-visible:ring-red-500")}
                 />
-                
+
                 {showSuggestions && (addressValue.trim().length >= 2) && (
                   <div className="absolute z-50 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/70 ring-1 ring-slate-900/5 transition-all dark:border-slate-800 dark:bg-slate-950 dark:shadow-black/30">
                     <div className="border-b border-slate-100 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:border-slate-800 dark:text-slate-500">
@@ -879,7 +879,7 @@ export default function NewJobPage() {
                     ))}
                   </div>
                 )}
-                
+
                 {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address}</p>}
                 <div className="mt-4 border rounded-xl overflow-hidden shadow-inner">
                   <AddressPickerMap onAddressSelect={handleAddressSelect} externalCoords={mapCoords} />
@@ -916,12 +916,12 @@ export default function NewJobPage() {
               <Label htmlFor="projectValue" className="text-slate-600 dark:text-slate-300">Project Value (AED)</Label>
               <div className="relative">
                 <span className={cn("absolute left-3 top-2.5 text-[11px] font-bold text-slate-400 select-none", errors.projectValue && "text-red-500")}>AED</span>
-                <Input 
-                  id="projectValue" 
-                  name="projectValue" 
-                  type="number" 
-                  step="0.01" 
-                  placeholder="0.00" 
+                <Input
+                  id="projectValue"
+                  name="projectValue"
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
                   onChange={handleInputChange}
                   className={cn("pl-12 bg-white dark:bg-slate-900", errors.projectValue && "border-red-500 focus-visible:ring-red-500")}
                 />
@@ -990,10 +990,10 @@ export default function NewJobPage() {
                     />
                   </PopoverContent>
                 </Popover>
-                <input 
-                  type="hidden" 
-                  name="scheduledDate" 
-                  value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""} 
+                <input
+                  type="hidden"
+                  name="scheduledDate"
+                  value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
                 />
               </div>
               {errors.scheduledDate && <p className="text-sm text-red-500 mt-1">{errors.scheduledDate}</p>}
@@ -1002,10 +1002,10 @@ export default function NewJobPage() {
               <Label htmlFor="scheduledTime" className="text-slate-600 dark:text-slate-300">Requested Time <span className="text-red-500">*</span></Label>
               <div className="relative">
                 <Clock className={cn("w-4 h-4 absolute left-3 top-3 text-slate-400 pointer-events-none", errors.scheduledTime && "text-red-500")} />
-                <Input 
-                  id="scheduledTime" 
-                  name="scheduledTime" 
-                  type="time" 
+                <Input
+                  id="scheduledTime"
+                  name="scheduledTime"
+                  type="time"
                   required
                   min={
                     selectedDate && selectedDate.toDateString() === new Date().toDateString()
@@ -1023,18 +1023,18 @@ export default function NewJobPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-2">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={() => router.back()} 
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
             disabled={isLoading}
             className="w-full sm:w-auto min-w-[120px]"
           >
             Cancel
           </Button>
-          <Button 
-            type="submit" 
-            disabled={isLoading} 
+          <Button
+            type="submit"
+            disabled={isLoading}
             className="w-full sm:w-auto min-w-[160px] bg-blue-600 hover:bg-blue-700 text-white font-medium"
           >
             {isLoading ? "Saving Details..." : "Work Order"}

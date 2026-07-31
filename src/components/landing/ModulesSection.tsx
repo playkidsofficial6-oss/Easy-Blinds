@@ -1,4 +1,4 @@
-import { Laptop, Briefcase, BarChart3, Ruler, CheckSquare, TrendingUp, ChevronRight, Plus, Calendar, MoreHorizontal, Search, User, Scissors } from "lucide-react";
+import { Ruler, CheckSquare, TrendingUp, ChevronRight, Calendar, Search, User, } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ModulesSection() {

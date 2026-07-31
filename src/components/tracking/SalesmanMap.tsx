@@ -17,7 +17,6 @@ import L from "leaflet";
 import { format, isPast, parse, parseISO } from "date-fns";
 import { useLiveLocation } from "@/hooks";
 import { cn } from "@/lib/utils";
-import DiagnosticsPanel from "./DiagnosticsPanel";
 import type { LiveLocationRecord } from "@/types/live-location";
 import { snapToRoad } from "@/utils/road-snapping";
 import {
@@ -30,7 +29,6 @@ import {
 } from "./map-icons";
 
 const OFFLINE_LOCATION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
-const KERALA_CENTER: [number, number] = [10.8505, 76.2711];
 const MARKER_ANIMATION_MS = 1200;
 
 type TooltipDirection = "top" | "bottom" | "left" | "right";
@@ -327,14 +325,14 @@ function getFallbackRouteMetrics(start: [number, number], end: [number, number])
 }
 
 function getRoutePreview(marker: LiveMapMarker, selectedJob?: SalesmanMapProps["selectedJob"] | null) {
-  const destCoords = marker.destinationCoordinates ?? 
-                     (selectedJob ? [selectedJob.location.lat, selectedJob.location.lng] as [number, number] : null);
+  const destCoords = marker.destinationCoordinates ??
+    (selectedJob ? [selectedJob.location.lat, selectedJob.location.lng] as [number, number] : null);
   if (!destCoords) return { distance: null, eta: null, status: "No active route" };
   const distance = distanceKm(marker.position, destCoords);
   const eta = estimateEtaMinutes(distance);
-  const status = marker.status === "On The Way" ? "On the way" : 
-                 marker.status === "Working" || marker.status === "Measuring" ? "In progress" : 
-                 "Ready to dispatch";
+  const status = marker.status === "On The Way" ? "On the way" :
+    marker.status === "Working" || marker.status === "Measuring" ? "In progress" :
+      "Ready to dispatch";
   return { distance, eta, status };
 }
 
@@ -407,15 +405,15 @@ function buildFitterMarker(
   }
 
   const activeJob = fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
-                    fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
-                    fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
-                    fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress");
+    fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
+    fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
+    fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress");
 
   const destinationCoordinates: [number, number] | undefined =
     (activeJob?.coordinates &&
-     typeof activeJob.coordinates[0] === "number" &&
-     typeof activeJob.coordinates[1] === "number" &&
-     (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
+      typeof activeJob.coordinates[0] === "number" &&
+      typeof activeJob.coordinates[1] === "number" &&
+      (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
       ? [activeJob.coordinates[0], activeJob.coordinates[1]]
       : undefined;
 
@@ -451,16 +449,16 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
 
   const activeJob = fitter
     ? (fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
-       fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
-       fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
-       fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress"))
+      fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
+      fitter.schedule.upcoming.find(j => j.id === fitter.jobRef) ??
+      fitter.schedule.today.find(j => j.status === "On the way" || j.status === "In Progress"))
     : undefined;
 
   const destinationCoordinates: [number, number] | undefined =
     (activeJob?.coordinates &&
-     typeof activeJob.coordinates[0] === "number" &&
-     typeof activeJob.coordinates[1] === "number" &&
-     (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
+      typeof activeJob.coordinates[0] === "number" &&
+      typeof activeJob.coordinates[1] === "number" &&
+      (activeJob.coordinates[0] !== 0 || activeJob.coordinates[1] !== 0))
       ? [activeJob.coordinates[0], activeJob.coordinates[1]]
       : undefined;
 
@@ -521,7 +519,7 @@ function buildMapMarkers(
     });
 
   let allMarkers = [...fitterMarkers, ...liveOnlyMarkers];
-  
+
   if (filterRole) {
     allMarkers = allMarkers.filter((marker) => marker.role === filterRole);
   }
@@ -604,7 +602,6 @@ function SmoothLiveMarker({
   marker,
   selectedJob,
   onSelectFitter,
-  zoomLevel,
 }: {
   marker: LiveMapMarker;
   selectedJob?: SalesmanMapProps["selectedJob"] | null;
@@ -730,8 +727,8 @@ function SmoothLiveMarker({
 
   const zIndexOffset =
     marker.status === "On The Way" ? 300 :
-    marker.status === "Measuring" || marker.status === "Working" ? 200 :
-    marker.status === "Available" ? 100 : 0;
+      marker.status === "Measuring" || marker.status === "Working" ? 200 :
+        marker.status === "Available" ? 100 : 0;
 
   return (
     <>
@@ -950,7 +947,7 @@ function RoutingPolyline({
 
   const midPoint = routeCoords && routeCoords.length > 0
     ? routeCoords[Math.floor(routeCoords.length / 2)]
-    : [ (start[0] + end[0]) / 2, (start[1] + end[1]) / 2 ] as [number, number];
+    : [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2] as [number, number];
 
   const transparentIcon = useMemo(() => L.divIcon({
     html: '',
@@ -1050,8 +1047,8 @@ function createJobLocationIcon(job: MapJobMarkerCardData, tone: "pending" | "sch
     <div style={{ position: "relative", width: "236px", height: "138px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" }}>
       <div style={{ width: "224px", borderRadius: "22px", background: "#0f172a", color: "white", boxShadow: "0 18px 38px rgba(15,23,42,0.28)", padding: "14px 16px 13px", border: "1px solid rgba(148,163,184,0.16)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", color: titleColor, fontSize: "14px", lineHeight: 1, fontWeight: 950, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10.5 9-7 9 7"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-7h6v7"/></svg>
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",fontSize:"12px" }}>{shortMarkerTitle(job)}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10.5 9-7 9 7" /><path d="M5 9.5V21h14V9.5" /><path d="M9 21v-7h6v7" /></svg>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "12px" }}>{shortMarkerTitle(job)}</span>
         </div>
         <div style={{ height: "1px", background: "rgba(148,163,184,0.20)", margin: "12px 0 11px" }} />
         <div style={{ color: "#cbd5e1", fontSize: "10px", fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -1165,15 +1162,10 @@ export default function SalesmanMap({
   const {
     locations: liveLocations,
     isLoaded: liveLocationsLoaded,
-    isConnected: socketConnected,
     error: liveLocationError,
-    reload: reloadLiveLocations,
   } = useLiveLocation();
 
-  // Socket.IO pushes are the real-time source of truth.
-  // The 30s poll has been removed — it was resetting isLoaded on every
-  // interval, causing full marker re-renders that interrupted animations.
-  // Reconnect-triggered reloads in useLiveLocation handle missed updates.
+
 
 
   useEffect(() => {
@@ -1497,14 +1489,14 @@ export default function SalesmanMap({
         {/* Automatic Active Salesman Destinations and Routes */}
         {visibleMapLayers.routes && markers
           .filter(marker => marker.role === "Salesman" &&
-                             marker.destinationCoordinates &&
-                             (isOnTheWayStatus(marker.activeJobStatus) ||
-                              (marker.status as string) === "On The Way" ||
-                              (marker.status as string) === "On Road" ||
-                              (marker.status as string) === "In Progress" ||
-                              (marker.status as string) === "In progress" ||
-                              (marker.status as string) === "Measuring" ||
-                              (marker.status as string) === "Working")
+            marker.destinationCoordinates &&
+            (isOnTheWayStatus(marker.activeJobStatus) ||
+              (marker.status as string) === "On The Way" ||
+              (marker.status as string) === "On Road" ||
+              (marker.status as string) === "In Progress" ||
+              (marker.status as string) === "In progress" ||
+              (marker.status as string) === "Measuring" ||
+              (marker.status as string) === "Working")
           )
           .map((marker) => {
             const dest = marker.destinationCoordinates!;
@@ -1683,7 +1675,7 @@ export default function SalesmanMap({
               ) : (
                 filteredSalesmen.map((salesman) => {
                   const isSelected = selectedFitterId === salesman.id;
-                  
+
                   // Status Icon Mapping
                   let statusIcon = "🔴";
                   let statusText = "Offline";
@@ -1703,7 +1695,7 @@ export default function SalesmanMap({
                   const dest = salesman.destinationCoordinates;
                   let distStr = "";
                   let etaStr = "";
-                  
+
                   if (isTravelling && dest) {
                     const fallbackDistance = distanceKm(salesman.position, dest);
                     const fallbackEta = estimateEtaMinutes(fallbackDistance);
@@ -1730,7 +1722,7 @@ export default function SalesmanMap({
                           <span>{statusIcon}</span>
                           <span className="group-hover:text-blue-600 transition-colors uppercase tracking-wide">{salesman.name}</span>
                         </span>
-                        
+
                         {/* Speed indication for moving salesmen */}
                         {isTravelling && salesman.speed !== undefined && salesman.speed > 0 && (
                           <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 flex items-center gap-1">
@@ -1751,7 +1743,7 @@ export default function SalesmanMap({
                             </div>
                           </div>
                         )}
-                        
+
                         {isTravelling && (
                           <>
                             <div className="text-xs md:text-sm font-semibold text-slate-900 dark:text-slate-100 tracking-wide truncate block mt-1 pl-5">

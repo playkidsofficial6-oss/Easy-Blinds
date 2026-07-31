@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star, TrendingUp, AlertCircle, ArrowRight, Filter, MessageSquare, CheckCircle2 } from "lucide-react";
+import { Star, TrendingUp, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { MOCK_JOBS } from "@/lib/data/jobs";
 import { MOCK_TEAM } from "@/lib/data/team";
@@ -162,7 +162,7 @@ export default function ReviewTrackingPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {brandStats.map((stat, i) => (
+                            {brandStats.map((stat) => (
                                 <div key={stat.brand} className="flex items-center justify-between">
                                     <div className="space-y-1">
                                         <p className="text-sm font-medium text-neutral-900">{stat.brand}</p>

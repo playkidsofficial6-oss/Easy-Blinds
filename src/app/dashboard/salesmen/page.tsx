@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { format, addDays, isSameDay, parseISO } from "date-fns";
-import { ArrowLeft, ClipboardList, FileText, MapPin, Calendar, CheckCircle, Mail, Phone, Eye, Pencil, Plus, Trash2, Save, UserCheck, X, Clock } from "lucide-react";
+import { ArrowLeft, FileText, MapPin, Eye, Pencil, Plus, Trash2, Save, UserCheck, X, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -100,17 +100,12 @@ function isJobForDate(job: Job, date: Date) {
     }
 }
 
-function getUnassignedJobsForDate(jobs: Job[], date: Date) {
-    return jobs.filter((job) => !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
-}
 
 function isAssignedToSalesman(job: Job, salesman: UserRecord) {
     return isAssignedToFitter(job, salesman);
 }
 
-function getUnassignedJobs(jobs: Job[]) {
-    return jobs.filter((job) => !job.assignedSalesman && (job.status === JobStatus.Pending || job.status === JobStatus.SalesmanScheduled));
-}
+
 
 function getStatusVariant(status: string) {
     if (status === "completed" || status === "Approved") return "default";
@@ -128,9 +123,6 @@ function formatDate(value?: string) {
     }
 }
 
-function getQuoteJobId(quote: any) {
-    return quote.jobId ?? quote.measurementId ?? "Unknown Job";
-}
 
 const TIME_SLOTS = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"];
 
@@ -139,8 +131,6 @@ export default function SalesmenPage() {
     const [salesmen, setSalesmen] = useState<UserRecord[]>([]);
     const [jobs, setJobs] = useState<Job[]>([]);
     const [selectedSalesmanId, setSelectedSalesmanId] = useState<string | null>(null);
-    const [selectedJobId, setSelectedJobId] = useState<string>("");
-    const [isAssigning, setIsAssigning] = useState(false);
     const [selectedQuote, setSelectedQuote] = useState<any | null>(null);
     const [isEditingQuote, setIsEditingQuote] = useState(false);
     const [editQuoteData, setEditQuoteData] = useState<any | null>(null);
@@ -179,15 +169,14 @@ export default function SalesmenPage() {
         loadData();
     }, [loadData]);
 
-    const unassignedJobs = useMemo(() => getUnassignedJobs(jobs), [jobs]);
 
     const submittedQuotes = useMemo(() => {
         return jobs.map(j => {
             const assignedSalesman = salesmen.find(s => isAssignedToSalesman(j, s));
             const displayStatus = j.assignedFitter ? "Assigned" : (j.quotation?.status ?? "");
-            return { 
-                ...j.quotation, 
-                jobId: j._id, 
+            return {
+                ...j.quotation,
+                jobId: j._id,
                 jobCustomerName: j.customerName,
                 salesmanName: assignedSalesman?.name || "Unknown Salesman",
                 status: displayStatus,
@@ -220,7 +209,7 @@ export default function SalesmenPage() {
             const todayJobs = assignedJobs.filter((job) => isJobForDate(job, today)).map(toFitterJob);
             const tomorrowJobs = assignedJobs.filter((job) => isJobForDate(job, tomorrow)).map(toFitterJob);
             const upcomingJobs = assignedJobs.filter((job) => job.scheduledAt && !isJobForDate(job, today) && !isJobForDate(job, tomorrow)).map(toFitterJob);
-            
+
             const activeAssignedJobs = assignedJobs.filter(j => j.status !== JobStatus.Completed);
             // Set max to 999 to hide the denominator as requested
             const maxCapacity = 999;
@@ -228,9 +217,9 @@ export default function SalesmenPage() {
             const remainingCapacity = Math.max(0, maxCapacity - currentCapacity);
             const busySlots = todayJobs.map((job) => job.time).filter(Boolean);
             const nextAvailableSlot = TIME_SLOTS.find((slot) => !busySlots.includes(slot)) ?? "None";
-            
+
             const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending") ?? tomorrowJobs.find((job) => job.status === "In Progress") ?? tomorrowJobs.find((job) => job.status === "Pending");
-            
+
             let status: Fitter["status"] = "Available";
             if (salesman.liveStatus === "Offline") status = "Offline";
             else if (salesman.liveStatus === "Completed") status = "Completed";
@@ -238,7 +227,7 @@ export default function SalesmenPage() {
             else if (salesman.liveStatus === "In progress") status = "In progress";
             else if (todayJobs.some(j => j.status === "In Progress")) status = "In progress";
             else if (todayJobs.some(j => j.status === "Pending")) status = "On the way";
-            
+
             return {
                 id: salesman._id,
                 name: salesman.name,
@@ -252,7 +241,7 @@ export default function SalesmenPage() {
                 avatar: salesman.avatar,
                 email: salesman.email,
                 phone: salesman.phone,
-                history: [], 
+                history: [],
                 schedule: {
                     today: todayJobs,
                     yesterday: [],
@@ -269,37 +258,7 @@ export default function SalesmenPage() {
         });
     }, [salesmen, jobs]);
 
-    const handleAssignJob = async () => {
-        if (!selectedSalesmanId || !selectedJobId) {
-            toast.error("Select a salesman and job before assigning.");
-            return;
-        }
 
-        const salesman = salesmen.find(s => s._id === selectedSalesmanId);
-        if (!salesman) return;
-
-        setIsAssigning(true);
-        try {
-            const selectedJob = jobs.find((job) => job._id === selectedJobId);
-            const updatedJob = await updateJob(selectedJobId, {
-                assignedSalesman: salesman._id,
-                assignedSalesManager: user?._id || user?.name || "Sales Manager",
-                status: JobStatus.SalesmanScheduled,
-                notes: [
-                    selectedJob?.notes,
-                    `Assigned to salesman ${salesman.name}`,
-                ].filter(Boolean).join("\n"),
-            });
-
-            setJobs((currentJobs) => currentJobs.map((job) => job._id === updatedJob._id ? updatedJob : job));
-            setSelectedJobId("");
-            toast.success(`Job assigned to ${salesman.name}`);
-        } catch (assignError) {
-            toast.error(getJobErrorMessage(assignError, "Unable to assign job to salesman."));
-        } finally {
-            setIsAssigning(false);
-        }
-    };
 
     const handleSaveQuote = async () => {
         if (!editQuoteData) return;
@@ -307,7 +266,7 @@ export default function SalesmenPage() {
             const subtotal = (editQuoteData.items || []).reduce((sum: number, item: any) => sum + ((item.quantity || 0) * (item.unitPrice || 0)), 0);
             const vat = subtotal * 0.05;
             const newTotal = subtotal + vat;
-            
+
             const updatedQuotation = {
                 ...editQuoteData,
                 items: (editQuoteData.items || []).map((item: any) => ({
@@ -422,9 +381,9 @@ export default function SalesmenPage() {
                                 if (!fitter) return null;
                                 const activeSchedule = fitter.schedule.today;
                                 const capacityPercent = fitter.capacity.max > 0 ? (activeSchedule.length / fitter.capacity.max) * 100 : 0;
-                                const activeJobObj = fitter.schedule.today.find(j => j.id === fitter.jobRef) ?? 
-                                                     fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ?? 
-                                                     fitter.schedule.upcoming.find(j => j.id === fitter.jobRef);
+                                const activeJobObj = fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
+                                    fitter.schedule.tomorrow.find(j => j.id === fitter.jobRef) ??
+                                    fitter.schedule.upcoming.find(j => j.id === fitter.jobRef);
                                 return (
                                     <>
                                         <div className="p-6 border-b border-slate-100/50 flex justify-between items-start bg-slate-50/50">
@@ -439,14 +398,14 @@ export default function SalesmenPage() {
                                                         <span className={cn(
                                                             "w-2.5 h-2.5 rounded-full relative inline-block",
                                                             (fitter.status as string) === "Available" ? "bg-emerald-500 ring-2 ring-emerald-100" :
-                                                            (fitter.status as string) === "On the way" || (fitter.status as string) === "On Road" ? "bg-amber-500 ring-2 ring-amber-100" :
-                                                            (fitter.status as string) === "In progress" || (fitter.status as string) === "Measuring" || (fitter.status as string) === "In Progress" ? "bg-blue-500 ring-2 ring-blue-100" :
-                                                            (fitter.status as string) === "Fully Booked" ? "bg-red-500 ring-2 ring-red-100" :
-                                                            "bg-slate-400 ring-2 ring-slate-100"
+                                                                (fitter.status as string) === "On the way" || (fitter.status as string) === "On Road" ? "bg-amber-500 ring-2 ring-amber-100" :
+                                                                    (fitter.status as string) === "In progress" || (fitter.status as string) === "Measuring" || (fitter.status as string) === "In Progress" ? "bg-blue-500 ring-2 ring-blue-100" :
+                                                                        (fitter.status as string) === "Fully Booked" ? "bg-red-500 ring-2 ring-red-100" :
+                                                                            "bg-slate-400 ring-2 ring-slate-100"
                                                         )}>
                                                             {((fitter.status as string) === "On the way" || (fitter.status as string) === "In progress" || (fitter.status as string) === "In Progress") && (
-                                                                 <span className="absolute inset-0 rounded-full animate-ping opacity-25 bg-current"></span>
-                                                             )}
+                                                                <span className="absolute inset-0 rounded-full animate-ping opacity-25 bg-current"></span>
+                                                            )}
                                                         </span>
                                                         {fitter.role ?? "Salesman"} · {fitter.status}
                                                     </div>
@@ -679,13 +638,13 @@ export default function SalesmenPage() {
                             <span className="block mt-1">Submitted by: <span className="font-medium text-slate-900">{(isEditingQuote ? editQuoteData : selectedQuote)?.salesmanName}</span></span>
                         </DialogDescription>
                     </DialogHeader>
-                    
+
                     {isEditingQuote && editQuoteData ? (
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</label>
-                                    <Select value={editQuoteData.status} onValueChange={(val) => setEditQuoteData({...editQuoteData, status: val})}>
+                                    <Select value={editQuoteData.status} onValueChange={(val) => setEditQuoteData({ ...editQuoteData, status: val })}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
@@ -699,7 +658,7 @@ export default function SalesmenPage() {
                                     </Select>
                                 </div>
                             </div>
-                            
+
                             <div className="border rounded-lg border-slate-200 overflow-hidden">
                                 <Table>
                                     <TableHeader className="bg-slate-50">
@@ -718,21 +677,21 @@ export default function SalesmenPage() {
                                                     <Input value={item.description} onChange={(e) => {
                                                         const newItems = [...editQuoteData.items];
                                                         newItems[idx].description = e.target.value;
-                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                        setEditQuoteData({ ...editQuoteData, items: newItems });
                                                     }} />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Input type="number" min="1" value={item.quantity === 0 ? "" : item.quantity} onChange={(e) => {
                                                         const newItems = [...editQuoteData.items];
                                                         newItems[idx].quantity = parseInt(e.target.value) || 0;
-                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                        setEditQuoteData({ ...editQuoteData, items: newItems });
                                                     }} />
                                                 </TableCell>
                                                 <TableCell>
                                                     <Input type="number" min="0" value={item.unitPrice === 0 ? "" : item.unitPrice} onChange={(e) => {
                                                         const newItems = [...editQuoteData.items];
                                                         newItems[idx].unitPrice = parseFloat(e.target.value) || 0;
-                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                        setEditQuoteData({ ...editQuoteData, items: newItems });
                                                     }} />
                                                 </TableCell>
                                                 <TableCell className="font-medium">
@@ -741,7 +700,7 @@ export default function SalesmenPage() {
                                                 <TableCell>
                                                     <Button variant="ghost" size="icon" className="text-red-500" onClick={() => {
                                                         const newItems = editQuoteData.items.filter((_: any, i: number) => i !== idx);
-                                                        setEditQuoteData({...editQuoteData, items: newItems});
+                                                        setEditQuoteData({ ...editQuoteData, items: newItems });
                                                     }}>
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -752,7 +711,7 @@ export default function SalesmenPage() {
                                 </Table>
                                 <div className="p-3 bg-slate-50 border-t border-slate-200">
                                     <Button variant="outline" size="sm" onClick={() => {
-                                        setEditQuoteData({...editQuoteData, items: [...(editQuoteData.items || []), { id: Math.random().toString(), description: "", quantity: 1, unitPrice: 0 }]});
+                                        setEditQuoteData({ ...editQuoteData, items: [...(editQuoteData.items || []), { id: Math.random().toString(), description: "", quantity: 1, unitPrice: 0 }] });
                                     }}>
                                         <Plus className="w-4 h-4 mr-2" /> Add Item
                                     </Button>

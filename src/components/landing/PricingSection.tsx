@@ -1,4 +1,4 @@
-import { CheckCircle2, ChevronRight } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function PricingSection() {
@@ -67,12 +67,12 @@ export function PricingSection() {
                     Transparent pricing. No hidden installation fees. Start with a 14-day free trial.
                 </p>
                 <div className="isolate mx-auto mt-16 grid max-w-md grid-cols-1 gap-y-8 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-3">
-                    {tiers.map((tier, tierIdx) => (
+                    {tiers.map((tier) => (
                         <div
                             key={tier.id}
                             className={`flex flex-col justify-between rounded-3xl p-8 ring-1 xl:p-10 ${tier.featured
-                                    ? "bg-neutral-900 ring-neutral-900 shadow-xl scale-105 z-10"
-                                    : "bg-white ring-neutral-200"
+                                ? "bg-neutral-900 ring-neutral-900 shadow-xl scale-105 z-10"
+                                : "bg-white ring-neutral-200"
                                 }`}
                         >
                             <div>

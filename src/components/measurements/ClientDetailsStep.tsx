@@ -54,7 +54,6 @@ export function ClientDetailsStep({
     clientDetails,
     setClientDetails,
     onNext,
-    isFirstStep,
 }: ClientDetailsStepProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
