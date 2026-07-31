@@ -1006,7 +1006,7 @@ export default function SmartSalesmanAssignmentsPage() {
         jobRef: activeJob?.id ?? "--",
         status: remaining === 0 && maxCapacity !== 999
           ? "Fully Booked"
-          : getSalesmanMapStatus(activeWorkflowJob, user.liveStatus ?? "Available"),
+          : getSalesmanMapStatus(activeWorkflowJob, user.checkedIn === false ? "Offline" : "Available"),
         location: (() => {
           const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
           if (liveLoc) {
@@ -1025,7 +1025,7 @@ export default function SmartSalesmanAssignmentsPage() {
         locationLabel: (() => {
           const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
           if (liveLoc) return "Live GPS Tracking";
-          return user.location?.address || "Simulated Location";
+          return "Simulated Location";
         })(),
         lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
         avatar: user.avatar,
@@ -1761,7 +1761,7 @@ export default function SmartSalesmanAssignmentsPage() {
                       role: isSalesManagerRole(userObj.role) ? UserRole.SalesManager : (userObj.role || UserRole.Salesman),
                       avatar: userObj.avatar,
                       phone: userObj.phone,
-                      status: userObj.liveStatus || "Available",
+                      status: userObj.checkedIn === false ? "Offline" : "Available",
                       location: ll ? [ll.lat, ll.lng] as [number, number] : undefined,
                       lastUpdated: "Not updated",
                       schedule: { yesterday: [], today: [], tomorrow: [], upcoming: [] },

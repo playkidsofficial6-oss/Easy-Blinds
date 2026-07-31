@@ -243,7 +243,6 @@ function getLastUpdated(
   liveLocation?: LiveLocationRecord,
 ) {
   return toReadableLastUpdated(
-    toIsoString(liveLocation?.lastUpdatedAt) ??
     toIsoString(liveLocation?.updatedAt) ??
     toIsoString(profile.location?.updatedAt) ??
     toIsoString(profile.updatedAt) ??
@@ -265,12 +264,10 @@ function getStatus(
   capacityRemaining: number,
   liveLocation?: LiveLocationRecord,
 ): FitterStatus {
-  if (liveLocation && !liveLocation.isOnline) return "Offline";
+  if (profile.user.checkedIn === false) return "Offline";
   if (capacityRemaining <= 0) return "Fully Booked";
   if (todayJobs.some((job) => job.status === "In Progress")) return "In progress";
   if (todayJobs.some((job) => job.status === "On the way")) return "On the way";
-  if (profile.user.liveStatus === "Offline") return "Offline";
-  if (profile.user.liveStatus === "Completed") return "Completed";
   return toLiveStatus(profile.status);
 }
 
@@ -317,7 +314,6 @@ function buildFitter(
     status: getStatus(profile, todayJobs, remainingCapacity, liveLocation),
     checkedIn: user.checkedIn ?? true,
     location,
-    locationLabel: profile.location?.address,
     lastUpdated: getLastUpdated(profile, liveLocation),
     avatar: user.avatar,
     email: user.email,
@@ -356,18 +352,18 @@ function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
 const MAX_HISTORY = 50; // keep last 50 events in memory
 
 function buildInitialHistory(liveLocation?: LiveLocationRecord): FitterEvent[] {
-  if (!liveLocation?.lastUpdatedAt && !liveLocation?.updatedAt) return [];
+  if (!liveLocation?.updatedAt) return [];
 
-  const ts = liveLocation.lastUpdatedAt ?? liveLocation.updatedAt ?? "";
+  const ts = liveLocation.updatedAt ?? "";
   let timeLabel = "--";
   try { timeLabel = format(new Date(ts), "HH:mm"); } catch { }
 
   return [{
     id: `init-${ts}`,
     type: "status_change",
-    action: liveLocation.isOnline ? "Came Online" : "Last Seen",
+    action: "Status Updated",
     time: timeLabel,
-    location: liveLocation.isOnline ? "GPS active" : "GPS inactive",
+    location: "GPS active",
     coordinates: [liveLocation.lat, liveLocation.lng],
   }];
 }
@@ -379,7 +375,7 @@ function applyLiveLocationToFitters(
   return currentFitters.map((fitter) => {
     if (fitter.id !== liveLocation.userId) return fitter;
 
-    const ts = liveLocation.lastUpdatedAt ?? liveLocation.updatedAt ?? new Date().toISOString();
+    const ts = liveLocation.updatedAt ?? new Date().toISOString();
     let timeLabel = "--";
     try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch { }
 
@@ -388,7 +384,7 @@ function applyLiveLocationToFitters(
       type: "check_in",
       action: "Location Updated",
       time: timeLabel,
-      location: liveLocation.isOnline ? "GPS ping received" : "GPS offline",
+      location: "GPS ping received",
       coordinates: [liveLocation.lat, liveLocation.lng],
     };
 
@@ -397,8 +393,7 @@ function applyLiveLocationToFitters(
     return {
       ...fitter,
       location: [liveLocation.lat, liveLocation.lng],
-      status: liveLocation.isOnline ? (liveLocation.liveStatus as any || (fitter.status === "Offline" ? "Available" : fitter.status)) : "Offline",
-      lastUpdated: toReadableLastUpdated(liveLocation.lastUpdatedAt ?? liveLocation.updatedAt),
+      lastUpdated: toReadableLastUpdated(liveLocation.updatedAt),
       history: updatedHistory,
     };
   });
@@ -412,7 +407,7 @@ function applyPresenceToFitters(
   return currentFitters.map((fitter) => {
     if (fitter.id !== event.userId) return fitter;
 
-    const ts = event.timestamp ?? event.lastUpdatedAt ?? new Date().toISOString();
+    const ts = event.timestamp ?? new Date().toISOString();
     let timeLabel = "--";
     try { timeLabel = format(new Date(ts), "HH:mm:ss"); } catch { }
 
@@ -543,7 +538,7 @@ export function useLiveFitters() {
 
   const updateFitterStatus = useCallback(
     async (fitterId: string, status: FitterStatus) => {
-      await updateUser(fitterId, { liveStatus: status });
+      await updateUser(fitterId, { checkedIn: status !== "Offline" });
       await loadFitters();
     },
     [loadFitters],

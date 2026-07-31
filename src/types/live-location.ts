@@ -21,13 +21,7 @@ export interface BackendGeoJsonLiveLocationCoordinates {
   location: GeoJsonPoint;
 }
 
-export interface UpdateLiveLocationPayload extends LiveLocationCoordinates {
-  accuracy?: number;
-  speed?: number;
-  heading?: number;
-  isOnline?: boolean;
-  liveStatus?: string;
-}
+export interface UpdateLiveLocationPayload extends LiveLocationCoordinates {}
 
 export type BackendUpdateLiveLocationPayload = BackendGeoJsonLiveLocationCoordinates &
   Partial<BackendLiveLocationCoordinates> &
@@ -38,13 +32,6 @@ export interface LiveLocationRecord extends LiveLocationCoordinates {
   userId: string;
   user?: AuthUser;
   role: LiveLocationRole;
-  liveStatus?: string;
-  status?: string;
-  accuracy?: number;
-  speed?: number;
-  heading?: number;
-  isOnline: boolean;
-  lastUpdatedAt?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -83,9 +70,7 @@ export interface LiveLocationUpdatedEvent {
 export interface LiveLocationPresenceEvent {
   userId: string;
   role?: LiveLocationRole;
-  isOnline?: boolean;
   timestamp?: string;
-  lastUpdatedAt?: string;
   location?: BackendLiveLocationRecord;
 }
 

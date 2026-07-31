@@ -302,8 +302,6 @@ function FitterGpsControl() {
             await sendLiveLocationUpdate({
                 lat: lastKnownFix.lat,
                 lng: lastKnownFix.lng,
-                accuracy: lastKnownFix.accuracy,
-                isOnline: false,
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
@@ -384,10 +382,6 @@ function FitterGpsControl() {
                     await sendLiveLocationUpdate({
                         lat: nextFix.lat,
                         lng: nextFix.lng,
-                        accuracy: nextFix.accuracy,
-                        speed: typeof position.coords.speed === "number" ? position.coords.speed : undefined,
-                        heading: typeof position.coords.heading === "number" ? position.coords.heading : undefined,
-                        isOnline: true,
                     });
 
                     if (!mountedRef.current) return;

@@ -275,9 +275,7 @@ function toReadableLastUpdated(source?: string) {
 }
 
 function isTimedOutOffline(location: LiveLocationRecord, now: number) {
-  if (location.isOnline) return false;
-
-  const source = location.lastUpdatedAt ?? location.updatedAt;
+  const source = location.updatedAt;
   if (!source) return false;
 
   const lastUpdatedTime = Date.parse(source);
@@ -286,9 +284,7 @@ function isTimedOutOffline(location: LiveLocationRecord, now: number) {
   return now - lastUpdatedTime > OFFLINE_LOCATION_TIMEOUT_MS;
 }
 
-function normalizeStatus(status?: string, isOnline = true): LiveMarkerStatus {
-  if (!isOnline) return "Offline";
-
+function normalizeStatus(status?: string): LiveMarkerStatus {
   const s = status?.toLowerCase() ?? "";
 
   if (s.includes("offline") || s.includes("busy")) return "Offline";
@@ -321,14 +317,8 @@ function buildFitterMarker(
   fitter: Fitter,
   liveLocation?: LiveLocationRecord,
 ): LiveMapMarker | null {
-  const lastUpdatedAt = liveLocation?.lastUpdatedAt ?? liveLocation?.updatedAt;
-  const status = normalizeStatus(fitter.status, liveLocation?.isOnline ?? fitter.status !== "Offline");
-  console.log(
-    `🏗️ Marker: ${fitter.name}`,
-    `fitter.status: ${fitter.status}`,
-    `liveStatus: ${liveLocation?.liveStatus}`,
-    `→ normalized: ${status}`,
-  );
+  const lastUpdatedAt = liveLocation?.updatedAt;
+  const status = normalizeStatus(fitter.status);
   const position = liveLocation
     ? ([liveLocation.lat, liveLocation.lng] as [number, number])
     : fitter.location;
@@ -362,8 +352,6 @@ function buildFitterMarker(
     lastUpdatedAt,
     isLate: isLate(fitter),
     isLiveLocation: Boolean(liveLocation),
-    speed: liveLocation?.speed,
-    heading: liveLocation?.heading,
     assignedJobCount: assignedJobCount(fitter),
     activeJobId: activeJob?.id || activeJob?.jobId,
     customerName: activeJob?.client,
@@ -375,7 +363,7 @@ function buildFitterMarker(
 }
 
 function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter): LiveMapMarker {
-  const lastUpdatedAt = location.lastUpdatedAt ?? location.updatedAt;
+  const lastUpdatedAt = location.updatedAt;
   const userName = location.user?.name ?? `User ${location.userId.slice(-6)}`;
   const userPhone = (location.user as { phone?: string } | undefined)?.phone;
 
@@ -398,18 +386,13 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
     id: location.userId,
     name: userName,
     role: normalizeRole(location.role),
-    status: normalizeStatus(
-      location.liveStatus ?? location.status ?? location.role,
-      location.isOnline
-    ),
+    status: normalizeStatus(location.role),
     position: [location.lat, location.lng],
     phone: userPhone,
     lastUpdated: toReadableLastUpdated(lastUpdatedAt),
     lastUpdatedAt,
     isLate: false,
     isLiveLocation: true,
-    speed: location.speed,
-    heading: location.heading,
     assignedJobCount: fitter ? assignedJobCount(fitter) : 0,
     activeJobId: activeJob?.id || activeJob?.jobId,
     customerName: activeJob?.client,

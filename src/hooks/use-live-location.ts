@@ -40,18 +40,15 @@ function upsertLocation(
 function applyPresenceEvent(
   locations: LiveLocationRecord[],
   event: LiveLocationPresenceEvent,
-  isOnline: boolean,
 ): LiveLocationRecord[] {
   if (event.location) {
     const normalizedLocation = normalizeLiveLocationRecord(event.location);
     if (normalizedLocation) {
-      return upsertLocation(locations, { ...normalizedLocation, isOnline });
+      return upsertLocation(locations, normalizedLocation);
     }
   }
 
-  return locations.map((location) =>
-    location.userId === event.userId ? { ...location, isOnline } : location,
-  );
+  return locations;
 }
 
 export interface UseLiveLocationOptions {
@@ -116,14 +113,13 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
         logDiagnostic(
           "SOCKET",
           `📍 location:updated ${location.userId} → [${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}]`,
-          { lat: location.lat, lng: location.lng, accuracy: location.accuracy, speed: location.speed },
+          { lat: location.lat, lng: location.lng },
         );
         console.log(
           `📍 Map location update:`,
           location.userId,
           location.lat,
           location.lng,
-          `liveStatus: ${location.liveStatus}`,
         );
         setLocations((prev) => upsertLocation(prev, location));
       },
@@ -141,7 +137,6 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
             l.userId === payload.userId
               ? {
                   ...l,
-                  liveStatus: payload.status,
                   status: payload.status,
                 }
               : l
@@ -150,11 +145,11 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
       },
       onUserOnline: (event) => {
         logDiagnostic("SOCKET", `🟢 user:online ${event.userId}`, event);
-        setLocations((prev) => applyPresenceEvent(prev, event, true));
+        setLocations((prev) => applyPresenceEvent(prev, event));
       },
       onUserOffline: (event) => {
         logDiagnostic("SOCKET", `🔴 user:offline ${event.userId}`, event);
-        setLocations((prev) => applyPresenceEvent(prev, event, false));
+        setLocations((prev) => applyPresenceEvent(prev, event));
       },
       onJobUpdated: (job) => {
         optionsRef.current?.onJobUpdated?.(job);

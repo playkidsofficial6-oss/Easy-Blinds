@@ -24,7 +24,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 // The backend gateway broadcasts this exact shape on location:updated:
 // { userId, role, location: { type: "Point", coordinates: [lng, lat] },
-//   latitude, longitude, accuracy, speed, heading, isOnline, lastUpdatedAt }
+//   latitude, longitude }
 function resolveLocationPayload(
   payload: BackendLiveLocationRecord | LiveLocationUpdatedEvent,
 ): LiveLocationRecord | null {
@@ -60,7 +60,6 @@ function normalizePresencePayload(
 ): LiveLocationPresenceEvent {
   return {
     ...payload,
-    timestamp: payload.timestamp ?? payload.lastUpdatedAt,
   };
 }
 
@@ -206,11 +205,6 @@ export async function emitLocationUpdate(
       type: "Point",
       coordinates: [payload.lng, payload.lat],
     },
-    accuracy: payload.accuracy,
-    speed: payload.speed,
-    heading: payload.heading,
-    isOnline: payload.isOnline,
-    liveStatus: payload.liveStatus,
   };
 
   return new Promise<LiveLocationRecord>((resolve, reject) => {
@@ -239,15 +233,10 @@ export async function emitLocationUpdate(
         resolve({
           userId: "unknown",
           role: "salesman",
-          liveStatus: "Available",
+          status: "Available",
           lat: payload.lat,
           lng: payload.lng,
-          accuracy: payload.accuracy,
-          speed: payload.speed,
-          heading: payload.heading,
-          isOnline: payload.isOnline ?? true,
           updatedAt: new Date().toISOString(),
-          lastUpdatedAt: new Date().toISOString(),
         } as LiveLocationRecord);
       }
     });

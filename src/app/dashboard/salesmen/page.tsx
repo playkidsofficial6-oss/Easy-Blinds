@@ -221,10 +221,7 @@ export default function SalesmenPage() {
             const activeJob = todayJobs.find((job) => job.status === "In Progress") ?? todayJobs.find((job) => job.status === "Pending") ?? tomorrowJobs.find((job) => job.status === "In Progress") ?? tomorrowJobs.find((job) => job.status === "Pending");
 
             let status: Fitter["status"] = "Available";
-            if (salesman.liveStatus === "Offline") status = "Offline";
-            else if (salesman.liveStatus === "Completed") status = "Completed";
-            else if (salesman.liveStatus === "On the way") status = "On the way";
-            else if (salesman.liveStatus === "In progress") status = "In progress";
+            if (salesman.checkedIn === false) status = "Offline";
             else if (todayJobs.some(j => j.status === "In Progress")) status = "In progress";
             else if (todayJobs.some(j => j.status === "Pending")) status = "On the way";
 
@@ -236,7 +233,6 @@ export default function SalesmenPage() {
                 status,
                 checkedIn: salesman.checkedIn ?? true,
                 location: (() => { const ll = extractLatLng(salesman.location); return ll ? [ll.lat, ll.lng] as [number, number] : undefined; })(),
-                locationLabel: salesman.location?.address,
                 lastUpdated: (() => { const u = salesman.location?.updatedAt; if (!u) return "Not updated"; try { return format(typeof u === "string" ? parseISO(u) : new Date(u), "MMM d, HH:mm"); } catch { return "Not updated"; } })(),
                 avatar: salesman.avatar,
                 email: salesman.email,

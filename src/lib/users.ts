@@ -18,7 +18,6 @@ export interface UserLocation {
   /** Flat lat/lng fields (legacy fallback) */
   lat?: number;
   lng?: number;
-  address?: string;
   updatedAt?: string | Date;
 }
 
@@ -47,14 +46,13 @@ export interface UserRecord {
   role: UserRole;
   phone?: string;
   avatar?: string;
-  liveStatus?: LiveUserStatus;
   location?: UserLocation;
   checkedIn?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
-export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "liveStatus" | "location" | "checkedIn">> & {
+export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "location" | "checkedIn">> & {
   password?: string;
 };
 
