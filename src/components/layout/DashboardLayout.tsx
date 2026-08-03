@@ -80,7 +80,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
             return [
                 { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
                 { name: "Salesman Assignments", href: "/dashboard/salesman-assignments", icon: ClipboardList },
-                { name: "Fitter Assignments", href: "/dashboard/assignments", icon: ClipboardList },
+                { name: "Fitter Assignments", href: "/dashboard/fitter-assignments", icon: ClipboardList },
                 { name: "Salesmen", href: "/dashboard/salesmen", icon: UserCheck },
                 { name: "Fitters", href: "/dashboard/fitter", icon: NavigationIcon },
                 { name: "Fittings Analytics", href: "/dashboard/analytics", icon: LineChart },

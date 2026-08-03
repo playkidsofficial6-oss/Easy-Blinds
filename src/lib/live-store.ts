@@ -264,7 +264,7 @@ function getStatus(
   capacityRemaining: number,
   liveLocation?: LiveLocationRecord,
 ): FitterStatus {
-  if (profile.user.checkedIn === false) return "Offline";
+  if (profile.user && profile.user.checkedIn === false) return "Offline";
   if (capacityRemaining <= 0) return "Fully Booked";
   if (todayJobs.some((job) => job.status === "In Progress")) return "In progress";
   if (todayJobs.some((job) => job.status === "On the way")) return "On the way";
@@ -287,7 +287,15 @@ function buildFitter(
   jobs: Job[],
   liveLocation?: LiveLocationRecord,
 ): Fitter {
-  const user = profile.user;
+  const user: UserRecord = profile.user || {
+    _id: profile.userId || profile._id || "",
+    name: (profile as any).name || (profile as any).email || "Fitter",
+    email: (profile as any).email || "",
+    role: UserRole.Fitter,
+    phone: profile.phone,
+    location: profile.location,
+    checkedIn: true,
+  };
   const today = new Date();
   const tomorrow = addDays(today, 1);
   const assignedJobs = jobs.filter((job) => ![JobStatus.Cancelled, JobStatus.Dropped].includes(job.status) && isAssignedToFitter(job, user));
