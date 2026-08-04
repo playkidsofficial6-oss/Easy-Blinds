@@ -245,7 +245,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                                     <div key={opening.id} className="px-4 py-3 bg-slate-50/50">
                                                                         <div className="flex items-start justify-between mb-2">
                                                                             <div className="flex items-center gap-2">
-                                                                                {opening.type === "WINDOW" ? <Package className="w-3.5 h-3.5 text-blue-500" /> : <DoorOpen className="w-3.5 h-3.5 text-amber-500" />}
+                                                                                {opening.type === "Window" ? <Package className="w-3.5 h-3.5 text-blue-500" /> : <DoorOpen className="w-3.5 h-3.5 text-amber-500" />}
                                                                                 <span className="text-sm font-semibold text-slate-800">{opening.name}</span>
                                                                                 <Badge variant="outline" className="text-[9px] uppercase">{opening.type}</Badge>
                                                                             </div>

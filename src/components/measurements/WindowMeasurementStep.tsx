@@ -409,12 +409,12 @@ export function WindowMeasurementStep({
                                                                         {fabric.name}
                                                                     </SelectItem>
                                                                 ))}
-                                                                <SelectItem value="CUSTOM">+ Add Custom Fabric...</SelectItem>
+                                                                <SelectItem value="Custom">+ Add Custom Fabric...</SelectItem>
                                                             </SelectContent>
                                                         </Select>
                                                     </div>
 
-                                                    {window.fabricSelection === "CUSTOM" && (
+                                                    {window.fabricSelection === "Custom" && (
                                                         <div className="space-y-2 md:col-span-2">
                                                             <Label className="text-base font-semibold">Custom Fabric Name / Reference</Label>
                                                             <Input

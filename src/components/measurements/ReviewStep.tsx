@@ -68,8 +68,8 @@ export function ReviewStep({
                         : (rawProduct.includes("door") ? "Door" : "Window");
 
                     // Format custom material & fabric selection
-                    const materialType = w.fabricSelection === "CUSTOM" ? "custom" : "standard";
-                    const customMaterial = w.fabricSelection === "CUSTOM"
+                    const materialType = w.fabricSelection === "Custom" ? "custom" : "standard";
+                    const customMaterial = w.fabricSelection === "Custom"
                         ? (w.customFabricName || "Custom Fabric")
                         : (FABRICS.find(f => f.id === w.fabricSelection)?.name || w.fabricSelection || "None");
 
@@ -264,7 +264,7 @@ export function ReviewStep({
                                             const displayProduct = window.productType === "Custom Item"
                                                 ? `Custom Item (${window.customProductName || "Unnamed"})`
                                                 : window.productType;
-                                            const displayFabric = window.fabricSelection === "CUSTOM"
+                                            const displayFabric = window.fabricSelection === "Custom"
                                                 ? (window.customFabricName || "Custom Fabric")
                                                 : fabric?.name;
                                             return (

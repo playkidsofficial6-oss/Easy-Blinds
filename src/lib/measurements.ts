@@ -16,7 +16,7 @@ export enum MeasurementStatus {
 
 export interface OpeningInput {
   id: string;
-  type: OpeningType | "Window" | "Door" | "Custom" | "WINDOW" | "DOOR" | "CUSTOM" | string;
+  type: OpeningType | string;
   name: string;
   width: number;
   height: number;
