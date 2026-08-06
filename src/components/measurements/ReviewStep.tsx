@@ -133,28 +133,26 @@ export function ReviewStep({
             }
 
             let originalNotes = "";
+            let existingSalemanMeasuringCompletedAt: string | undefined = undefined;
+            let existingSalemanJobCompletedAt: string | undefined = undefined;
             try {
                 const job = await getJob(jobId);
                 originalNotes = job.notes || "";
+                existingSalemanMeasuringCompletedAt = job.salemanMeasuringCompletedAt;
+                existingSalemanJobCompletedAt = job.salemanJobCompletedAt;
             } catch (err) {
                 console.warn("Failed to fetch original job notes", err);
             }
 
+            const now = new Date().toISOString();
+
             // Also keep job notes & status updated for backwards compatibility with a concise note
             await updateJob(jobId, {
-                status: status === "Completed" ? JobStatus.ReadyForFitting : JobStatus.SalesmanScheduled,
+                status: JobStatus.ReadyForFitting,
                 notes: [originalNotes, appendedNotes].filter(Boolean).join("\n"),
+                salemanMeasuringCompletedAt: existingSalemanMeasuringCompletedAt ?? now,
+                salemanJobCompletedAt: existingSalemanJobCompletedAt ?? now,
             });
-        }
-    };
-
-    const handleSaveDraft = async () => {
-        try {
-            await persistMeasurement("Draft");
-            toast.success("Measurement saved as draft");
-            router.push("/dashboard/measurements");
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Unable to save measurement");
         }
     };
 
@@ -302,9 +300,6 @@ export function ReviewStep({
                     Back
                 </Button>
                 <div className="flex gap-3">
-                    <Button type="button" variant="outline" size="lg" onClick={handleSaveDraft}>
-                        Save as Draft
-                    </Button>
                     <Button type="button" size="lg" onClick={handleComplete} className="bg-green-600 hover:bg-green-700">
                         <CheckCircle className="w-4 h-4 mr-2" />
                         Complete Measurement

@@ -51,6 +51,8 @@ export interface Job {
   fittingPhotos?: string[];
   fittingNotes?: string;
   measurementCompletedAt?: string;
+  salemanMeasuringCompletedAt?: string;
+  salemanJobCompletedAt?: string;
   fitterTravelStartedAt?: string;
   fittingStartedAt?: string;
   fittingCompletedAt?: string;
@@ -125,6 +127,8 @@ export interface CreateJobInput {
   notes?: string;
   scheduledAt?: string;
   measurementCompletedAt?: string;
+  salemanMeasuringCompletedAt?: string;
+  salemanJobCompletedAt?: string;
   assignedSalesManager?: string;
   assignedSalesman?: string;
   assignedFitter?: string;

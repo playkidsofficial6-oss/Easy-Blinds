@@ -143,12 +143,11 @@ export default function NewQuotePage() {
             };
 
             await updateJob(jobId, {
-                status: JobStatus.ReadyForFitting,
                 notes: [originalJobNotes, notes, `Quote submitted by ${user?.name ?? "salesman"}`].filter(Boolean).join("\n"),
                 quotation,
             });
 
-            toast.success(status === "Draft" ? "Quote saved as draft to job" : "Quote submitted to sales manager");
+            toast.success("Quote saved successfully");
             router.push(`/salesman?jobId=${jobId}`);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Unable to save quote");
@@ -175,9 +174,6 @@ export default function NewQuotePage() {
                     </div>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="outline" className="h-12 px-6 border-2" onClick={() => handleSave("Draft")}>
-                        Save Draft
-                    </Button>
                     <Button onClick={() => setShowInvoiceModal(true)} className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800 text-white">
                         <Save className="w-4 h-4 mr-2" />
                         {existingQuoteId ? "Update Quote" : "Create Quote"}
