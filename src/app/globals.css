@@ -202,3 +202,22 @@
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  nav, footer, .print\:hidden {
+    display: none !important;
+  }
+  main {
+    padding-top: 0 !important;
+  }
+  section {
+    page-break-inside: avoid;
+    border: 1px solid #e5e5e5 !important;
+    box-shadow: none !important;
+    margin-bottom: 1.5rem !important;
+  }
+}

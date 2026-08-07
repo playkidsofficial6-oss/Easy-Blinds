@@ -34,9 +34,10 @@ export function Footer() {
                     <div>
                         <h4 className="font-semibold text-neutral-900 mb-4">Legal</h4>
                         <ul className="space-y-2 text-sm text-neutral-500">
-                            <li><Link href="#" className="hover:text-neutral-900">Privacy</Link></li>
-                            <li><Link href="#" className="hover:text-neutral-900">Terms</Link></li>
-                            <li><Link href="#" className="hover:text-neutral-900">Security</Link></li>
+                            <li><Link href="/privacy" className="hover:text-neutral-900">Privacy Policy</Link></li>
+                            <li><Link href="/terms" className="hover:text-neutral-900">Terms of Service</Link></li>
+                            <li><Link href="/privacy#data-security" className="hover:text-neutral-900">Data Security</Link></li>
+                            <li><Link href="/legal" className="hover:text-neutral-900">Legal Hub</Link></li>
                         </ul>
                     </div>
                 </div>
