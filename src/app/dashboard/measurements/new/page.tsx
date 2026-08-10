@@ -6,21 +6,27 @@ import { ClientDetailsStep } from "@/components/measurements/ClientDetailsStep";
 import { RoomManagementStep } from "@/components/measurements/RoomManagementStep";
 import { WindowMeasurementStep } from "@/components/measurements/WindowMeasurementStep";
 import { ReviewStep } from "@/components/measurements/ReviewStep";
+import { FitterMeasurementView } from "@/components/measurements/FitterMeasurementView";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getJob } from "@/lib/jobs";
+import { getJob, getJobs } from "@/lib/jobs";
 import { api } from "@/lib/api";
+import { useAuth } from "@/components/providers/auth-provider";
+import { isFitterRole } from "@/lib/auth";
 import type { ClientDetails, Room, RoomType, MountType, OpeningDirection, ProductType, MotorType } from "@/types/measurement";
 
 function NewMeasurementForm() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const jobId = searchParams.get("jobId");
+    const { user } = useAuth();
+    const isFitter = isFitterRole(user?.role);
 
     const [currentStep, setCurrentStep] = useState(1);
     const [clientDetails, setClientDetails] = useState<Partial<ClientDetails>>({});
     const [rooms, setRooms] = useState<Room[]>([]);
     const [isLoading, setIsLoading] = useState(!!jobId);
+    const [availableJobs, setAvailableJobs] = useState<Array<{ id: string; customerName: string; address: string }>>([]);
 
     // Dynamic steps setup: if jobId is provided, skip the "Client Details" step
     const steps = jobId
@@ -38,7 +44,25 @@ function NewMeasurementForm() {
 
     // Automatically load customer details & saved measurement if jobId is in URL
     useEffect(() => {
-        if (!jobId) return;
+        if (!jobId) {
+            if (isFitter) {
+                // Fetch list of assigned jobs for fitter selection if no jobId parameter provided
+                getJobs({ limit: 50 })
+                    .then((res) => {
+                        if (res?.items) {
+                            setAvailableJobs(
+                                res.items.map((j) => ({
+                                    id: j._id || j.jobId || "",
+                                    customerName: j.customerName,
+                                    address: j.address,
+                                }))
+                            );
+                        }
+                    })
+                    .catch((err) => console.warn("Failed to load available fitter jobs:", err));
+            }
+            return;
+        }
 
         async function fetchJobAndMeasurement() {
             try {
@@ -99,7 +123,21 @@ function NewMeasurementForm() {
             }
         }
         void fetchJobAndMeasurement();
-    }, [jobId]);
+    }, [jobId, isFitter]);
+
+    // If logged in user is a Fitter, render the specialized Read-Only FitterMeasurementView
+    if (isFitter) {
+        return (
+            <FitterMeasurementView
+                jobId={jobId}
+                clientDetails={clientDetails}
+                rooms={rooms}
+                isLoading={isLoading}
+                availableJobs={availableJobs}
+                onSelectJob={(id) => router.push(`/dashboard/measurements/new?jobId=${id}`)}
+            />
+        );
+    }
 
     const progress = (currentStep / steps.length) * 100;
 
@@ -131,7 +169,7 @@ function NewMeasurementForm() {
     const CurrentStepComponent = steps[currentStep - 1].component;
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
             <div>
                 <h1 className="text-3xl font-bold text-stone-900">New Measurement</h1>
                 <p className="text-stone-500">
@@ -211,3 +249,4 @@ export default function NewMeasurementPage() {
         </Suspense>
     );
 }
+

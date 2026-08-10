@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { isFieldRole, isFitterRole } from "@/lib/auth";
 import { toast } from "sonner";
@@ -662,6 +663,15 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                                         </li>
                                     )}
                                 </ul>
+                                <div className="mt-4 pt-3 border-t border-slate-100">
+                                    <Link
+                                        href={`/dashboard/measurements/new?jobId=${job.id}`}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-lg transition-colors border border-purple-200"
+                                    >
+                                        <Ruler className="w-3.5 h-3.5" />
+                                        Full Specifications Sheet &rarr;
+                                    </Link>
+                                </div>
                             </div>
                         </div>
                     </div>
