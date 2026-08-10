@@ -30,8 +30,8 @@ export default function FitterPage() {
 
     const isFitterRoleUser = Boolean(user && (isFitterRole(user.role) || isFieldRole(user.role)));
     const currentFitter = isFitterRoleUser
-      ? fitters.find(f => f.id === user?._id)
-      : null;
+        ? fitters.find(f => f.id === user?._id)
+        : null;
 
     useEffect(() => {
         return () => {
@@ -40,26 +40,26 @@ export default function FitterPage() {
     }, []);
 
     if (!currentFitter) {
-      return (
-        <div className="p-8 text-center text-slate-500 font-light">
-          {!user
-            ? "Not signed in."
-            : !isFitterRole
-            ? "Access denied. Fitter role required."
-            : fitters.length === 0
-            ? "Loading fitter data..."
-            : "Fitter profile not found."}
-        </div>
-      );
+        return (
+            <div className="p-8 text-center text-slate-500 font-light">
+                {!user
+                    ? "Not signed in."
+                    : !isFitterRole
+                        ? "Access denied. Fitter role required."
+                        : fitters.length === 0
+                            ? "Loading fitter data..."
+                            : "Fitter profile not found."}
+            </div>
+        );
     }
 
     const getJobsForTab = (tab: Tab): FitterJob[] => {
         switch (tab) {
-            case "today":     return currentFitter.schedule.today     ?? [];
-            case "tomorrow":  return currentFitter.schedule.tomorrow  ?? [];
-            case "upcoming":  return currentFitter.schedule.upcoming  ?? [];
+            case "today": return currentFitter.schedule.today ?? [];
+            case "tomorrow": return currentFitter.schedule.tomorrow ?? [];
+            case "upcoming": return currentFitter.schedule.upcoming ?? [];
             case "completed": return currentFitter.schedule.completed ?? [];
-            default:          return [];
+            default: return [];
         }
     };
 
@@ -69,9 +69,9 @@ export default function FitterPage() {
         if (!selectedJob) return;
         updateFitterStatus(currentFitter.id, status as FitterStatus);
         const updatedStatus =
-            status === "Completed"   ? JobStatus.Completed   :
-            status === "In progress" ? JobStatus.Fitting     :
-            JobStatus.FitterOnTheWay;
+            status === "Completed" ? JobStatus.Completed :
+                status === "In progress" ? JobStatus.Fitting :
+                    JobStatus.FitterOnTheWay;
         setSelectedJob(prev => prev ? { ...prev, status: updatedStatus } : null);
 
         try {
@@ -93,7 +93,7 @@ export default function FitterPage() {
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col h-screen overflow-hidden">
 
             {/* Global Header */}
-            <header className="bg-slate-900 border-b border-slate-800 px-8 py-5 flex items-center justify-between shadow-md shrink-0 z-50 h-[80px]">
+            <header className="bg-slate-900 border-b border-slate-800 px-8 py-5 flex items-center justify-between shadow-md shrink-0 z-50 h-20">
                 <div className="flex items-center gap-5">
                     <div className="h-10 w-10 bg-blue-600 flex items-center justify-center text-white font-light text-xl tracking-tight shadow-lg shadow-blue-900/20">EB</div>
                     <div>
@@ -208,18 +208,18 @@ interface GpsSnapshot {
 }
 
 function getDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371e3; // meters
-  const phi1 = (lat1 * Math.PI) / 180;
-  const phi2 = (lat2 * Math.PI) / 180;
-  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-  const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
+    const R = 6371e3; // meters
+    const phi1 = (lat1 * Math.PI) / 180;
+    const phi2 = (lat2 * Math.PI) / 180;
+    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+    const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
 
-  const a =
-    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const a =
+        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-  return R * c;
+    return R * c;
 }
 
 function FitterGpsControl() {
@@ -454,7 +454,7 @@ function FitterGpsControl() {
                 {status === "tracking" ? <CheckCircle className="h-4 w-4" /> : status === "error" ? <AlertCircle className="h-4 w-4" /> : <Navigation className="h-4 w-4" />}
                 {statusLabel}
             </button>
-            <div className="max-w-[240px] text-right text-[10px] font-light text-slate-400">
+            <div className="max-w-60 text-right text-[10px] font-light text-slate-400">
                 {errorMessage ? errorMessage : lastFix ? `Synced ${lastFix.lat.toFixed(5)}, ${lastFix.lng.toFixed(5)}` : "Share location with sales manager"}
             </div>
         </div>

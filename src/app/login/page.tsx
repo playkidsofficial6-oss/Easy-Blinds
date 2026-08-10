@@ -111,7 +111,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-neutral-950 px-6 py-10 text-white">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center justify-center">
-        <div className="grid w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid w-full overflow-hidden rounded-4xl border border-white/10 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
           <section className="hidden bg-neutral-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
             <div>
               <div className="mb-10 flex h-14 w-14 items-center justify-center bg-amber-600 text-2xl font-light">
@@ -144,12 +144,12 @@ export default function LoginPage() {
                 <Suspense fallback={null}>
                   <LoginForm />
                 </Suspense>
-                <p className="mt-6 text-center text-sm text-neutral-500">
+                {/* <p className="mt-6 text-center text-sm text-neutral-500">
                   Need an account?{" "}
                   <Link href="/register" className="font-medium text-neutral-900 underline-offset-4 hover:underline">
                     Register a portal user
                   </Link>
-                </p>
+                </p> */}
               </CardContent>
             </Card>
           </section>

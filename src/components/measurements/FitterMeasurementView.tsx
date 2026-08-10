@@ -194,17 +194,7 @@ export function FitterMeasurementView({
                                 Call Client ({clientDetails.phone})
                             </a>
                         )}
-                        {clientDetails.location && (
-                            <a
-                                href={`https://maps.google.com/?q=${encodeURIComponent(clientDetails.location)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-800 font-semibold rounded-xl text-xs transition-colors border border-blue-200"
-                            >
-                                <Navigation className="w-4 h-4 text-blue-600" />
-                                Open Map
-                            </a>
-                        )}
+
                     </div>
                 </div>
 
@@ -213,7 +203,7 @@ export function FitterMeasurementView({
                         <MapPin className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                         <div>
                             <span className="font-semibold text-stone-900 block">Site Address:</span>
-                            <span className="break-words">{clientDetails.location || "No address specified"}</span>
+                            <span className="wrap- `">{clientDetails.location || "No address specified"}</span>
                         </div>
                     </div>
 
