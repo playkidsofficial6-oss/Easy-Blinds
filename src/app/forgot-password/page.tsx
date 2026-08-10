@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
             <div className="w-full max-w-md">
                 <Card className="border-neutral-800 bg-neutral-900 text-white shadow-2xl rounded-3xl p-2 sm:p-4">
                     <CardHeader className="space-y-2">
-                        <div className="w-12 h-12 bg-blue-600/20 text-blue-500 rounded-2xl flex items-center justify-center mb-2">
+                        <div className="w-12 h-12 bg-amber-600/20 text-amber-500 rounded-2xl flex items-center justify-center mb-2">
                             <Mail className="w-6 h-6" />
                         </div>
                         <CardTitle className="text-2xl font-semibold tracking-tight">Forgot Password?</CardTitle>
@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
                                             onChange={(e) => setEmail(e.target.value)}
                                             placeholder="your-name@example.com"
                                             autoComplete="email"
-                                            className="pl-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:ring-blue-500"
+                                            className="pl-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:ring-amber-500"
                                             required
                                         />
                                     </div>
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
 
                                 <Button
                                     type="submit"
-                                    className="h-11 w-full bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-md transition-all"
+                                    className="h-11 w-full bg-amber-600 hover:bg-amber-500 text-white font-medium shadow-md transition-all"
                                     disabled={isSubmitting}
                                 >
                                     {isSubmitting ? "Sending Reset Link..." : "Send Reset Link"}

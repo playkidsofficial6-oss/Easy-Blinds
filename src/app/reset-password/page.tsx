@@ -47,7 +47,6 @@ function ResetPasswordForm() {
         setIsSubmitting(true);
 
         try {
-            // Try path param endpoint first, then query/body endpoint
             await api.post(`/users/reset-password/${encodeURIComponent(token)}`, {
                 password,
                 confirmPassword,
@@ -56,7 +55,6 @@ function ResetPasswordForm() {
             setIsSuccess(true);
             toast.success("Password reset successfully!");
 
-            // Redirect to login page after 1.5 seconds (Task 4)
             setTimeout(() => {
                 router.push("/login");
             }, 1500);
@@ -82,7 +80,7 @@ function ResetPasswordForm() {
                 </div>
                 <div className="pt-2">
                     <Link href="/forgot-password">
-                        <Button className="bg-blue-600 hover:bg-blue-500 text-white">
+                        <Button className="bg-amber-600 hover:bg-amber-500 text-white">
                             Request new reset link
                         </Button>
                     </Link>
@@ -128,7 +126,7 @@ function ResetPasswordForm() {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="At least 8 characters"
                         autoComplete="new-password"
-                        className="pl-10 pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:ring-blue-500"
+                        className="pl-10 pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:ring-amber-500"
                         minLength={8}
                         required
                     />
@@ -155,7 +153,7 @@ function ResetPasswordForm() {
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Re-enter your new password"
                         autoComplete="new-password"
-                        className="pl-10 pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:ring-blue-500"
+                        className="pl-10 pr-10 bg-neutral-800 border-neutral-700 text-white placeholder:text-neutral-500 focus:ring-amber-500"
                         minLength={8}
                         required
                     />
@@ -179,7 +177,7 @@ function ResetPasswordForm() {
 
             <Button
                 type="submit"
-                className="h-11 w-full bg-blue-600 hover:bg-blue-500 text-white font-medium shadow-md transition-all mt-2"
+                className="h-11 w-full bg-amber-600 hover:bg-amber-500 text-white font-medium shadow-md transition-all mt-2"
                 disabled={isSubmitting || !isMatch || !isMinLength}
             >
                 {isSubmitting ? "Resetting Password..." : "Reset Password"}
@@ -200,7 +198,7 @@ export default function ResetPasswordPage() {
             <div className="w-full max-w-md">
                 <Card className="border-neutral-800 bg-neutral-900 text-white shadow-2xl rounded-3xl p-2 sm:p-4">
                     <CardHeader className="space-y-2">
-                        <div className="w-12 h-12 bg-blue-600/20 text-blue-500 rounded-2xl flex items-center justify-center mb-2">
+                        <div className="w-12 h-12 bg-amber-600/20 text-amber-500 rounded-2xl flex items-center justify-center mb-2">
                             <LockKeyhole className="w-6 h-6" />
                         </div>
                         <CardTitle className="text-2xl font-semibold tracking-tight">Set New Password</CardTitle>
