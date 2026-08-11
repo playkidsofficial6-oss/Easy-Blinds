@@ -73,7 +73,7 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
     void reload().catch(() => undefined);
   }, [reload]);
 
-  // Connect socket to receive real-time updates from Flutter app
+  // Connect socket once and listen for real-time location updates
   useEffect(() => {
     const activeToken = token || getStoredAuthToken();
     if (!activeToken) {
@@ -81,7 +81,10 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
       return undefined;
     }
 
-    connectSocket(activeToken);
+    const socket = connectSocket(activeToken);
+    if (socket?.connected) {
+      setIsConnected(true);
+    }
 
     const cleanupListeners = listenToLocationUpdates(
       {
@@ -104,12 +107,6 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
     return () => {
       cleanupListeners();
     };
-  }, [token]);
-
-  useEffect(() => {
-    if (!token) {
-      disconnectSocket();
-    }
   }, [token]);
 
   const locationsByUserId = useMemo(() => {

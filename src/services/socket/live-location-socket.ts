@@ -72,21 +72,21 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     return null;
   }
 
-  if (!token) {
-    disconnectSocket();
+  const effectiveToken = token || getStoredAuthToken();
+  if (!effectiveToken) {
     return null;
   }
 
   if (liveLocationSocket) {
     const currentAuth = liveLocationSocket.auth as { token?: string } | undefined;
-    if (currentAuth?.token !== token) {
+    if (currentAuth?.token && currentAuth.token !== effectiveToken) {
       // Token changed, update auth and reconnect
-      liveLocationSocket.auth = { token };
+      liveLocationSocket.auth = { token: effectiveToken };
       if (liveLocationSocket.connected) {
         liveLocationSocket.disconnect();
       }
       liveLocationSocket.connect();
-    } else if (!liveLocationSocket.connected && !(liveLocationSocket as any).active) {
+    } else if (!liveLocationSocket.connected) {
       liveLocationSocket.connect();
     }
     return liveLocationSocket;
