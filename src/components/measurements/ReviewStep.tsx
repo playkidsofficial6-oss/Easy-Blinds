@@ -295,13 +295,13 @@ export function ReviewStep({
                 </CardContent>
             </Card>
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-stone-200">
-                <Button type="button" variant="outline" size="lg" onClick={onBack}>
+            <div className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:justify-between">
+                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={onBack}>
                     Back
                 </Button>
-                <div className="flex gap-3">
-                    <Button type="button" size="lg" onClick={handleComplete} className="bg-green-600 hover:bg-green-700">
-                        <CheckCircle className="w-4 h-4 mr-2" />
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                    <Button type="button" size="lg" onClick={handleComplete} className="w-full bg-green-600 hover:bg-green-700 sm:w-auto">
+                        <CheckCircle className="mr-2 h-4 w-4" />
                         Complete Measurement
                     </Button>
                 </div>

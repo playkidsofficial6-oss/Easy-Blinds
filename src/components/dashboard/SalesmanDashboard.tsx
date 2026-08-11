@@ -467,21 +467,21 @@ function SalesmanPageContent() {
 
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] md:h-screen overflow-hidden select-none bg-stone-50/50">
-      <div className="flex flex-1 overflow-hidden relative">
+    <div className="flex h-[calc(100dvh-4rem)] min-w-0 flex-col overflow-hidden bg-stone-50/50 select-none md:h-[calc(100vh-0px)]">
+      <div className="relative flex min-w-0 flex-1 overflow-hidden">
         {/* Sidebar Filtered List */}
         <aside className={cn(
-          "w-full md:w-80 bg-white/80 backdrop-blur-xl border-r border-stone-200 flex flex-col z-40 transition-transform duration-500 absolute md:relative h-full",
+          "absolute z-40 flex h-full w-full min-w-0 flex-col border-r border-stone-200 bg-white/80 backdrop-blur-xl transition-transform duration-500 md:relative md:w-80 md:translate-x-0",
           selectedJob ? "-translate-x-full md:translate-x-0" : "translate-x-0"
         )}>
           {/* Tabs */}
-          <div className="flex border-b border-stone-200 bg-white p-1 gap-1 overflow-x-auto no-scrollbar">
+          <div className="flex border-b border-stone-200 bg-white p-1 gap-0.5 overflow-x-auto no-scrollbar shrink-0">
             {(["today", "tomorrow", "upcoming", "delayed", "completed"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
                 className={cn(
-                  "flex-1 min-w-[70px] py-2.5 text-[9px] font-bold uppercase tracking-widest text-center transition-all rounded-lg",
+                  "shrink-0 min-w-[3.25rem] flex-1 py-2 text-[8px] font-bold uppercase tracking-wide text-center transition-all rounded-lg sm:min-w-[4.5rem] sm:py-2.5 sm:text-[9px] sm:tracking-widest",
                   activeTab === tab
                     ? `text-neutral-900 bg-neutral-100 shadow-sm`
                     : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"
@@ -544,8 +544,8 @@ function SalesmanPageContent() {
 
         {/* Main Content Area */}
         <main className={cn(
-          "flex-1 bg-white overflow-hidden flex flex-col transition-all duration-500 w-full md:w-auto absolute md:relative h-full",
-          selectedJob ? "opacity-100 z-50 pointer-events-auto" : "opacity-100 z-10 md:z-0"
+          "absolute flex h-full min-w-0 w-full flex-1 flex-col overflow-hidden bg-white transition-all duration-500 md:relative md:w-auto",
+          selectedJob ? "z-50 opacity-100 pointer-events-auto" : "z-10 opacity-100 md:z-0"
         )}>
           {selectedJob ? (
             <div className="h-full overflow-hidden flex flex-col animate-fadeIn bg-stone-50/30">
@@ -578,23 +578,23 @@ function WorkspaceOverview({
   schedule: SalesmanSchedule;
 }) {
   return (
-    <div className="h-full relative flex flex-col bg-stone-50">
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12 text-center">
-        <div className="w-20 h-20 bg-white border border-stone-200 rounded-xl flex items-center justify-center mb-8 shadow-xl">
-          <MousePointer2 className="w-8 h-8 text-neutral-900" />
+    <div className="relative flex h-full min-w-0 flex-col bg-stone-50">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-6 text-center sm:p-12">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-xl border border-stone-200 bg-white shadow-xl sm:mb-8 sm:h-20 sm:w-20">
+          <MousePointer2 className="h-7 w-7 text-neutral-900 sm:h-8 sm:w-8" />
         </div>
-        <h2 className="text-5xl font-light text-neutral-900 tracking-tight mb-4">Select Workspace</h2>
-        <p className="text-neutral-500 max-w-sm mt-0 text-lg font-light leading-snug">Pick an assignment from the sidebar to begin.</p>
+        <h2 className="mb-3 text-3xl font-light tracking-tight text-neutral-900 sm:mb-4 sm:text-5xl">Select Workspace</h2>
+        <p className="mt-0 max-w-sm text-base font-light leading-snug text-neutral-500 sm:text-lg">Pick an assignment from the sidebar to begin.</p>
 
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-5xl">
+        <div className="mt-10 grid w-full max-w-5xl grid-cols-2 gap-3 sm:mt-16 sm:gap-4 md:grid-cols-4">
           {[
             { val: String(schedule.today.length), label: "Today's Work" },
             { val: String(schedule.tomorrow.length + schedule.upcoming.length), label: "Upcoming" },
             { val: String(schedule.delayed.length), label: "Delayed" },
             { val: String(schedule.completed.length), label: "Completed" }
           ].map((stat, i) => (
-            <div key={i} className="p-6 bg-white rounded-xl border border-stone-100 shadow-md transition-all cursor-default">
-              <div className="text-3xl font-light text-neutral-900 tracking-tight mb-1">{stat.val}</div>
+            <div key={i} className="cursor-default rounded-xl border border-stone-100 bg-white p-4 shadow-md transition-all sm:p-6">
+              <div className="mb-1 text-2xl font-light tracking-tight text-neutral-900 sm:text-3xl">{stat.val}</div>
               <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em]">{stat.label}</div>
             </div>
           ))}
@@ -618,10 +618,10 @@ function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSe
     <div
       onClick={onSelect}
       className={cn(
-        "p-5 cursor-pointer transition-all border rounded-xl relative group",
+        "relative cursor-pointer rounded-xl border p-4 transition-all sm:p-5",
         isSelected
-          ? `bg-[#0F172A] border-neutral-900 shadow-xl scale-[1.01] z-10`
-          : "bg-white border-stone-200 hover:border-stone-300"
+          ? "z-10 border-neutral-900 bg-[#0F172A] shadow-xl sm:scale-[1.01]"
+          : "border-stone-200 bg-white hover:border-stone-300"
       )}
     >
       <div className="flex justify-between items-start mb-3">
@@ -899,9 +899,9 @@ function JobDetailView({
             <h2 className="text-2xl sm:text-3xl font-light text-white tracking-tight mb-2 capitalize">
               {job.client}
             </h2>
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-stone-300">
-              <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>{job.address}</span>
+            <div className="flex min-w-0 items-start gap-2 text-xs text-stone-300 sm:text-sm">
+              <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span className="break-words">{job.address}</span>
             </div>
           </div>
 
@@ -952,7 +952,7 @@ function JobDetailView({
           {job.status === "Done" && (
             <div className="space-y-6 text-left">
               {/* Measurements Detail Block */}
-              <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+              <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm sm:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center shrink-0">
@@ -1015,7 +1015,7 @@ function JobDetailView({
               </div>
 
               {/* Quotation Detail Block */}
-              <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+              <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm sm:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center shrink-0">
@@ -1062,8 +1062,8 @@ function JobDetailView({
                     </div>
 
                     {/* Line Items Table */}
-                    <div className="border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                      <table className="w-full text-left border-collapse text-xs">
+                    <div className="overflow-x-auto border border-stone-200 rounded-xl shadow-sm">
+                      <table className="w-full min-w-[32rem] text-left border-collapse text-xs">
                         <thead>
                           <tr className="bg-neutral-100 border-b border-stone-200 font-bold text-neutral-700">
                             <th className="p-3 w-12 text-center">#</th>

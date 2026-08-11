@@ -169,10 +169,10 @@ function NewMeasurementForm() {
     const CurrentStepComponent = steps[currentStep - 1].component;
 
     return (
-        <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold text-stone-900">New Measurement</h1>
-                <p className="text-stone-500">
+        <div className="mx-auto w-full min-w-0 max-w-5xl space-y-4 p-3 sm:space-y-6 sm:p-6 lg:p-8">
+            <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-stone-900 sm:text-3xl">New Measurement</h1>
+                <p className="break-words text-sm text-stone-500 sm:text-base">
                     {jobId
                         ? `Capturing dimensions for customer: ${clientDetails.name || "Loading..."}`
                         : "Complete the measurement details step by step"}
@@ -180,14 +180,14 @@ function NewMeasurementForm() {
             </div>
 
             {/* Progress Indicator */}
-            <Card className="p-6">
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
+            <Card className="min-w-0 overflow-hidden p-4 sm:p-6">
+                <div className="min-w-0 space-y-3 sm:space-y-4">
+                    <div className="flex w-full min-w-0 items-center">
                         {steps.map((step, index) => (
-                            <div key={step.id} className="flex-1 flex items-center">
-                                <div className="flex flex-col items-center flex-1">
+                            <div key={step.id} className="contents">
+                                <div className="flex shrink-0 flex-col items-center">
                                     <div
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-colors ${currentStep === step.id
+                                        className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors sm:h-10 sm:w-10 sm:text-base ${currentStep === step.id
                                             ? "bg-stone-900 text-white"
                                             : currentStep > step.id
                                                 ? "bg-green-600 text-white"
@@ -197,7 +197,7 @@ function NewMeasurementForm() {
                                         {step.id}
                                     </div>
                                     <p
-                                        className={`text-sm mt-2 font-medium hidden md:block ${currentStep === step.id ? "text-stone-900" : "text-stone-500"
+                                        className={`mt-1.5 hidden max-w-[4.5rem] truncate text-center text-xs font-medium sm:mt-2 sm:block sm:max-w-none sm:text-sm ${currentStep === step.id ? "text-stone-900" : "text-stone-500"
                                             }`}
                                     >
                                         {step.name}
@@ -205,19 +205,22 @@ function NewMeasurementForm() {
                                 </div>
                                 {index < steps.length - 1 && (
                                     <div
-                                        className={`h-1 flex-1 mx-2 ${currentStep > step.id ? "bg-green-600" : "bg-stone-200"
+                                        className={`mx-1 h-0.5 min-w-[0.75rem] flex-1 sm:mx-2 sm:h-1 ${currentStep > step.id ? "bg-green-600" : "bg-stone-200"
                                             }`}
                                     />
                                 )}
                             </div>
                         ))}
                     </div>
+                    <p className="text-center text-sm font-medium text-stone-700 sm:hidden">
+                        Step {currentStep} of {steps.length}: {steps[currentStep - 1].name}
+                    </p>
                     <Progress value={progress} className="h-2" />
                 </div>
             </Card>
 
             {/* Step Content */}
-            <Card className="p-6 max-h-[75vh] overflow-y-auto">
+            <Card className="min-w-0 overflow-x-hidden p-4 sm:p-6 md:max-h-[75vh] md:overflow-y-auto">
                 <CurrentStepComponent
                     clientDetails={clientDetails}
                     setClientDetails={setClientDetails}

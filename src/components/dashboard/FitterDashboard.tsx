@@ -77,15 +77,15 @@ export default function FitterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col h-screen overflow-hidden">
+        <div className="flex h-[100dvh] min-w-0 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
 
             {/* Global Header */}
-            <header className="bg-slate-900 border-b border-slate-800 px-8 py-5 flex items-center justify-between shadow-md shrink-0 z-50 h-20">
-                <div className="flex items-center gap-5">
-                    <div className="h-10 w-10 bg-blue-600 flex items-center justify-center text-white font-light text-xl tracking-tight shadow-lg shadow-blue-900/20">EB</div>
-                    <div>
-                        <h1 className="text-xl font-light text-white leading-none">Fitter Portal</h1>
-                        <p className="text-xs text-slate-400 font-medium uppercase tracking-[0.2em] mt-1">Field Operations</p>
+            <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-4 shadow-md sm:h-20 sm:px-8 sm:py-5">
+                <div className="flex min-w-0 items-center gap-3 sm:gap-5">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-blue-600 text-lg font-light tracking-tight text-white shadow-lg shadow-blue-900/20 sm:h-10 sm:w-10 sm:text-xl">EB</div>
+                    <div className="min-w-0">
+                        <h1 className="truncate text-base font-light leading-none text-white sm:text-xl">Fitter Portal</h1>
+                        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.15em] text-slate-400 sm:mt-1 sm:text-xs sm:tracking-[0.2em]">Field Operations</p>
                     </div>
                 </div>
 
@@ -110,11 +110,11 @@ export default function FitterPage() {
             </header>
 
             {/* Main Split Layout */}
-            <div className="flex flex-1 overflow-hidden relative">
+            <div className="relative flex min-w-0 flex-1 overflow-hidden">
 
                 {/* Sidebar / List View */}
                 <aside className={cn(
-                    "w-full md:w-96 bg-white border-r border-slate-200 flex flex-col z-40 transition-transform duration-300 absolute md:relative h-full",
+                    "absolute z-40 flex h-full w-full min-w-0 flex-col border-r border-slate-200 bg-white transition-transform duration-300 md:relative md:w-96 md:translate-x-0",
                     selectedJob ? "-translate-x-full md:translate-x-0" : "translate-x-0"
                 )}>
                     {/* Tabs */}
@@ -155,8 +155,8 @@ export default function FitterPage() {
 
                 {/* Main Content Area / Detail View */}
                 <main className={cn(
-                    "flex-1 bg-slate-100 overflow-hidden flex flex-col transition-opacity duration-300 w-full md:w-auto absolute md:relative h-full",
-                    selectedJob ? "opacity-100 z-50" : "opacity-0 md:opacity-100 -z-10 md:z-0 pointer-events-none md:pointer-events-auto"
+                    "absolute flex h-full min-w-0 w-full flex-1 flex-col overflow-hidden bg-slate-100 transition-opacity duration-300 md:relative md:w-auto",
+                    selectedJob ? "z-50 opacity-100" : "-z-10 pointer-events-none opacity-0 md:pointer-events-auto md:z-0 md:opacity-100"
                 )}>
                     {selectedJob ? (
                         <div className="h-full overflow-y-auto flex flex-col">

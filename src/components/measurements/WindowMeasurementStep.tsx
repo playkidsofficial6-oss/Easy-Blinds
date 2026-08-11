@@ -455,11 +455,11 @@ export function WindowMeasurementStep({
                 ))}
             </Tabs>
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-stone-200 dark:border-stone-800">
-                <Button type="button" variant="outline" size="lg" onClick={onBack}>
+            <div className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 dark:border-stone-800 sm:flex-row sm:justify-between">
+                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={onBack}>
                     Back
                 </Button>
-                <Button type="button" size="lg" onClick={handleNext} className="bg-stone-900 dark:bg-white hover:bg-stone-800 dark:hover:bg-stone-200 dark:text-stone-900">
+                <Button type="button" size="lg" onClick={handleNext} className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200 sm:w-auto">
                     Continue to Review
                 </Button>
             </div>

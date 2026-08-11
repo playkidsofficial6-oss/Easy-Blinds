@@ -222,15 +222,15 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
 
     return (
         <ProtectedRoute allowedRoles={allowedRoles}>
-            <div className="min-h-screen bg-stone-50 dark:bg-neutral-950 flex">
+            <div className="min-h-screen bg-stone-50 dark:bg-neutral-950 flex w-full max-w-[100vw] overflow-x-hidden">
                 <aside className="hidden md:flex flex-col w-64 border-r border-neutral-800 bg-neutral-900 fixed inset-y-0 z-50">
                     <NavContent />
                 </aside>
 
-                <div className="flex-1 md:ml-64 flex flex-col min-h-screen bg-stone-50 dark:bg-neutral-950">
-                    <header className="md:hidden h-16 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-4 sticky top-0 z-40">
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-lg font-bold text-white">{selectedBrand.name}</h1>
+                <div className="flex min-h-screen min-w-0 flex-1 flex-col bg-stone-50 dark:bg-neutral-950 md:ml-64">
+                    <header className="md:hidden sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-neutral-800 bg-neutral-900 px-4">
+                        <div className="min-w-0 flex-1 pr-3">
+                            <h1 className="truncate text-lg font-bold text-white">{selectedBrand.name}</h1>
                         </div>
                         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
                             <SheetTrigger asChild>
@@ -244,7 +244,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                         </Sheet>
                     </header>
 
-                    <main className="flex-1 overflow-x-hidden p-0 m-0">
+                    <main className="m-0 min-w-0 flex-1 overflow-x-hidden p-0">
                         {children}
                     </main>
                 </div>

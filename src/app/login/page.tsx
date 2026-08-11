@@ -117,9 +117,9 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen bg-neutral-950 px-6 py-10 text-white">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center justify-center">
-        <div className="grid w-full overflow-hidden rounded-4xl border border-white/10 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
+    <main className="min-h-[100dvh] bg-neutral-950 px-4 py-6 text-white sm:px-6 sm:py-10">
+      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-6xl items-center justify-center sm:min-h-[calc(100vh-5rem)]">
+        <div className="grid w-full min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl sm:rounded-4xl lg:grid-cols-[1.05fr_0.95fr]">
           <section className="hidden bg-neutral-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
             <div>
               <div className="mb-10 flex h-14 w-14 items-center justify-center bg-amber-600 text-2xl font-light">
@@ -140,10 +140,10 @@ export default function LoginPage() {
             </p>
           </section>
 
-          <section className="bg-neutral-50 p-6 text-neutral-900 sm:p-10 lg:p-12">
+          <section className="bg-neutral-50 p-5 text-neutral-900 sm:p-10 lg:p-12">
             <Card className="border-0 bg-transparent shadow-none">
-              <CardHeader className="px-0">
-                <CardTitle className="text-3xl font-light tracking-tight">Welcome back</CardTitle>
+              <CardHeader className="px-0 pb-4">
+                <CardTitle className="text-2xl font-light tracking-tight sm:text-3xl">Welcome back</CardTitle>
                 <CardDescription>
                   Use your Easy Blinds account credentials to continue.
                 </CardDescription>
