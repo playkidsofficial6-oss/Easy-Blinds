@@ -6,19 +6,12 @@ import { MapPin, Navigation, CheckCircle, Clock, ArrowLeft, Camera, Ruler, Clipb
 import { useLiveFitters, FitterJob, FitterStatus, isJobOnTheWay, isJobInFitting, isJobCompleted, isJobPendingOrAssigned, getFitterJobStatusLabel } from "@/lib/live-store";
 import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
-import dynamic from "next/dynamic";
-import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { isFieldRole, isFitterRole } from "@/lib/auth";
 import { toast } from "sonner";
 import { startFitterTravel, startFitterFitting, completeFitterWorkflow, getJobErrorMessage, JobStatus } from "@/lib/jobs";
-
-const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
-    ssr: false,
-    loading: () => <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400 font-light">Loading Map...</div>
-});
 
 type Tab = "today" | "tomorrow" | "upcoming" | "completed";
 
@@ -32,12 +25,6 @@ export default function FitterPage() {
     const currentFitter = isFitterRoleUser
         ? fitters.find(f => f.id === user?._id)
         : null;
-
-    useEffect(() => {
-        return () => {
-            disconnectSocket();
-        };
-    }, []);
 
     if (!currentFitter) {
         return (
@@ -103,7 +90,6 @@ export default function FitterPage() {
                 </div>
 
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <FitterGpsControl />
                     <div className="text-right hidden sm:block">
                         <div className="text-sm font-medium text-white">{currentFitter.name}</div>
                         <div className="text-xs text-slate-400 font-light">{format(new Date(), "EEEE, d MMM")}</div>
@@ -207,259 +193,7 @@ interface GpsSnapshot {
     syncedAt?: string;
 }
 
-function getDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371e3; // meters
-    const phi1 = (lat1 * Math.PI) / 180;
-    const phi2 = (lat2 * Math.PI) / 180;
-    const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
-    const deltaLambda = ((lng2 - lng1) * Math.PI) / 180;
 
-    const a =
-        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-        Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
-}
-
-function FitterGpsControl() {
-    const { user, logout } = useAuth();
-    const router = useRouter();
-    const [status, setStatus] = useState<GpsTrackingStatus>("idle");
-    const [lastFix, setLastFix] = useState<GpsSnapshot | null>(null);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const watchIdRef = useRef<number | null>(null);
-    const lastFixRef = useRef<GpsSnapshot | null>(null);
-    const mountedRef = useRef(true);
-    const consecutiveErrorsRef = useRef(0);
-
-    const userRef = useRef(user);
-    useEffect(() => {
-        userRef.current = user;
-    }, [user]);
-
-    // Stop tracking and redirect to login if session is lost while tracking
-    useEffect(() => {
-        const currentUser = userRef.current;
-        const isFitter = Boolean(currentUser && (isFitterRole(currentUser.role) || isFieldRole(currentUser.role)));
-        if (!currentUser || !isFitter) {
-            if (watchIdRef.current !== null && "geolocation" in navigator) {
-                navigator.geolocation.clearWatch(watchIdRef.current);
-                watchIdRef.current = null;
-            }
-            disconnectSocket();
-            if (status === "tracking" || status === "requesting") {
-                setStatus("idle");
-                router.replace("/login");
-            }
-        }
-    }, [user, status, router]);
-
-    useEffect(() => {
-        return () => {
-            mountedRef.current = false;
-
-            if (watchIdRef.current !== null && "geolocation" in navigator) {
-                navigator.geolocation.clearWatch(watchIdRef.current);
-                watchIdRef.current = null;
-            }
-            // DO NOT call disconnectSocket() here
-        };
-    }, []);
-
-    useEffect(() => {
-        if (
-            user &&
-            (isFitterRole(user.role) || isFieldRole(user.role)) &&
-            status === "idle" &&
-            "geolocation" in navigator
-        ) {
-            startTracking();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.role]);
-
-    async function stopTracking() {
-        if (watchIdRef.current !== null && "geolocation" in navigator) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-            watchIdRef.current = null;
-        }
-
-        setStatus("idle");
-        disconnectSocket();
-
-        const lastKnownFix = lastFixRef.current;
-        if (!lastKnownFix) return;
-
-        const currentUser = userRef.current;
-        const isFitter = Boolean(currentUser && (isFitterRole(currentUser.role) || isFieldRole(currentUser.role)));
-        if (!currentUser || !isFitter) {
-            setErrorMessage("Session expired. Please sign in again.");
-            logout("/login");
-            return;
-        }
-
-        try {
-            await sendLiveLocationUpdate({
-                lat: lastKnownFix.lat,
-                lng: lastKnownFix.lng,
-            });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
-            setErrorMessage(message);
-        }
-    }
-
-    function startTracking() {
-        const currentUser = userRef.current;
-        const isFitter = Boolean(currentUser && (isFitterRole(currentUser.role) || isFieldRole(currentUser.role)));
-        if (!currentUser || !isFitter) {
-            setStatus("error");
-            setErrorMessage("You must be signed in as a fitter to share your location.");
-            logout("/login");
-            return;
-        }
-
-        if (!("geolocation" in navigator)) {
-            setStatus("error");
-            setErrorMessage("This browser does not support GPS location access.");
-            return;
-        }
-
-        if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-            watchIdRef.current = null;
-        }
-
-        setStatus("requesting");
-        setErrorMessage(null);
-        connectSocket();
-
-        watchIdRef.current = navigator.geolocation.watchPosition(
-            async (position) => {
-                const innerUser = userRef.current;
-                const isInnerFitter = Boolean(innerUser && (isFitterRole(innerUser.role) || isFieldRole(innerUser.role)));
-                if (!innerUser || !isInnerFitter) {
-                    if (watchIdRef.current !== null) {
-                        navigator.geolocation.clearWatch(watchIdRef.current);
-                        watchIdRef.current = null;
-                    }
-                    disconnectSocket();
-                    setStatus("error");
-                    setErrorMessage("Session changed. GPS tracking stopped.");
-                    logout("/login");
-                    return;
-                }
-
-                const nextFix: GpsSnapshot = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude,
-                    accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : undefined,
-                    syncedAt: new Date().toISOString(),
-                };
-
-                // Noise filtering — relaxed thresholds for urban GPS
-                if (nextFix.accuracy !== undefined && nextFix.accuracy > 120) {
-                    logDiagnostic("GPS", `⚠️ Discarded GPS fix: poor accuracy (${nextFix.accuracy.toFixed(1)}m > 120m limit)`, nextFix);
-                    return;
-                }
-
-                const lastFixVal = lastFixRef.current;
-                if (lastFixVal) {
-                    const distanceMoved = getDistanceMeters(lastFixVal.lat, lastFixVal.lng, nextFix.lat, nextFix.lng);
-                    if (distanceMoved < 0.5) {
-                        logDiagnostic("GPS", `⚠️ Discarded GPS update: pure jitter (${distanceMoved.toFixed(2)}m < 0.5m)`, nextFix);
-                        return;
-                    }
-                    logDiagnostic("GPS", `✅ GPS update accepted: moved ${distanceMoved.toFixed(1)}m, accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
-                } else {
-                    logDiagnostic("GPS", `✅ Initial GPS fix: accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
-                }
-
-                lastFixRef.current = nextFix;
-                setLastFix(nextFix);
-
-                try {
-                    await sendLiveLocationUpdate({
-                        lat: nextFix.lat,
-                        lng: nextFix.lng,
-                    });
-
-                    if (!mountedRef.current) return;
-                    consecutiveErrorsRef.current = 0;
-                    setStatus("tracking");
-                    setErrorMessage(null);
-                } catch (error) {
-                    if (!mountedRef.current) return;
-                    consecutiveErrorsRef.current += 1;
-                    const message = error instanceof Error ? error.message : "Unable to save your GPS location.";
-                    logDiagnostic("ERROR", `GPS send failed (${consecutiveErrorsRef.current}/3): ${message}`, error);
-
-                    if (consecutiveErrorsRef.current >= 3) {
-                        if (watchIdRef.current !== null) {
-                            navigator.geolocation.clearWatch(watchIdRef.current);
-                            watchIdRef.current = null;
-                        }
-                        disconnectSocket();
-                        setStatus("error");
-                        setErrorMessage(`GPS stopped after repeated failures: ${message}`);
-                    } else {
-                        setErrorMessage(`Send failed, retrying... (${message})`);
-                    }
-                }
-            },
-            (error) => {
-                const message = error.code === error.PERMISSION_DENIED
-                    ? "GPS permission was denied. Please allow location access for this site."
-                    : error.message || "Unable to read GPS location.";
-
-                if (watchIdRef.current !== null) {
-                    navigator.geolocation.clearWatch(watchIdRef.current);
-                    watchIdRef.current = null;
-                }
-                disconnectSocket();
-
-                setStatus("error");
-                setErrorMessage(message);
-            },
-            {
-                enableHighAccuracy: true,
-                maximumAge: 0,
-                timeout: 10000,
-            },
-        );
-    }
-
-    const isTracking = status === "tracking" || status === "requesting";
-    const statusLabel = status === "requesting"
-        ? "Starting GPS"
-        : status === "tracking"
-            ? "GPS On"
-            : status === "error"
-                ? "GPS Error"
-                : "Enable GPS";
-
-    return (
-        <div className="flex flex-col items-end gap-1">
-            <button
-                type="button"
-                onClick={isTracking ? stopTracking : startTracking}
-                className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-colors",
-                    status === "tracking" ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20" :
-                        status === "error" ? "border-red-400/40 bg-red-500/10 text-red-200 hover:bg-red-500/20" :
-                            "border-blue-400/40 bg-blue-500/10 text-blue-100 hover:bg-blue-500/20",
-                )}
-            >
-                {status === "tracking" ? <CheckCircle className="h-4 w-4" /> : status === "error" ? <AlertCircle className="h-4 w-4" /> : <Navigation className="h-4 w-4" />}
-                {statusLabel}
-            </button>
-            <div className="max-w-60 text-right text-[10px] font-light text-slate-400">
-                {errorMessage ? errorMessage : lastFix ? `Synced ${lastFix.lat.toFixed(5)}, ${lastFix.lng.toFixed(5)}` : "Share location with sales manager"}
-            </div>
-        </div>
-    );
-}
 
 function calculateIsLate(jobTime: string, status: string, jobDate?: string): boolean {
     if (["Done", "In Progress", "Completed", "On the way"].includes(status)) return false;
@@ -567,26 +301,22 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
 
     return (
         <div className="flex-1 flex flex-col min-h-0 bg-slate-100">
-            {/* Header / Map Area */}
-            <div className="h-72 bg-slate-200 relative shrink-0 group shadow-lg z-10">
+            {/* Header Area */}
+            <div className="bg-slate-900 shrink-0 p-8 shadow-lg z-10 relative">
                 <button
                     onClick={onBack}
-                    className="absolute top-4 left-4 z-50 md:hidden bg-white/90 p-3 rounded-none shadow-sm backdrop-blur-sm border border-slate-200"
+                    className="absolute top-4 left-4 z-50 md:hidden bg-white/10 text-white p-3 rounded-none backdrop-blur-sm border border-white/20"
                 >
-                    <ArrowLeft className="w-4 h-4 text-slate-900" />
+                    <ArrowLeft className="w-4 h-4" />
                 </button>
 
-                <div className="absolute inset-0 z-0">
-                    <JobDetailMap coordinates={coordinates} />
-                </div>
-
-                <div className="absolute bottom-0 left-0 right-0 z-10 p-8 pt-24 bg-linear-to-t from-slate-900/90 to-transparent pointer-events-none">
-                    <div className="flex items-center gap-3 text-blue-200/80 text-[10px] uppercase tracking-[0.2em] font-semibold mb-2">
+                <div className="max-w-6xl mx-auto">
+                    <div className="flex items-center gap-3 text-blue-400 text-[10px] uppercase tracking-[0.2em] font-semibold mb-2">
                         <div className="w-8 h-px bg-blue-500"></div>
                         <span>Job Assignment</span>
                     </div>
-                    <h2 className="text-4xl font-light text-white shadow-black drop-shadow-sm mb-2">{job.client}</h2>
-                    <p className="text-white/90 flex items-center gap-2 text-sm drop-shadow-md font-light tracking-wide">
+                    <h2 className="text-4xl font-light text-white mb-2">{job.client}</h2>
+                    <p className="text-slate-300 flex items-center gap-2 text-sm font-light tracking-wide">
                         <MapPin className="w-4 h-4 text-blue-400" />
                         {job.address}
                     </p>

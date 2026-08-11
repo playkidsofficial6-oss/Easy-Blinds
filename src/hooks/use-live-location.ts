@@ -11,8 +11,6 @@ import {
   connectSocket,
   disconnectSocket,
   listenToLocationUpdates,
-  sendLiveLocationUpdate,
-  logDiagnostic,
 } from "@/services/socket";
 import type {
   LiveLocationPresenceEvent,
@@ -37,20 +35,6 @@ function upsertLocation(
   );
 }
 
-function applyPresenceEvent(
-  locations: LiveLocationRecord[],
-  event: LiveLocationPresenceEvent,
-): LiveLocationRecord[] {
-  if (event.location) {
-    const normalizedLocation = normalizeLiveLocationRecord(event.location);
-    if (normalizedLocation) {
-      return upsertLocation(locations, normalizedLocation);
-    }
-  }
-
-  return locations;
-}
-
 export interface UseLiveLocationOptions {
   onJobUpdated?: (job: any) => void;
   onJobDeleted?: (payload: { id: string; jobId?: string }) => void;
@@ -62,8 +46,6 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Count reconnects so we can reload state after each recovery
-  const reconnectCountRef = useRef(0);
 
   const reload = useCallback(async () => {
     setIsLoaded(false);
@@ -85,121 +67,45 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
     }
   }, []);
 
-  // Initial load
+  // Initial load via REST API
   useEffect(() => {
-     
     void reload().catch(() => undefined);
   }, [reload]);
 
-  // Keep options in a ref so we don't restart socket listeners when callbacks change
-  const optionsRef = useRef(options);
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
-
-  // Socket connection and event listeners
+  // Connect socket to receive real-time updates from Flutter app
   useEffect(() => {
     if (!token) {
-       
       setIsConnected(false);
       return undefined;
     }
 
-    // Connect (or reuse the singleton with this token)
     connectSocket(token);
 
     const cleanupListeners = listenToLocationUpdates({
       onLocationUpdated: (location) => {
-        logDiagnostic(
-          "SOCKET",
-          `📍 location:updated ${location.userId} → [${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}]`,
-          { lat: location.lat, lng: location.lng },
-        );
-        console.log(
-          `📍 Map location update:`,
-          location.userId,
-          location.lat,
-          location.lng,
-        );
         setLocations((prev) => upsertLocation(prev, location));
       },
-      onSalesmanStatusChanged: (payload) => {
-        console.log(
-          `🚗 Map status change:`,
-          payload.userId,
-          payload.status,
-        );
-        setLocations((prev) => {
-          const exists = prev.some((l) => l.userId === payload.userId);
-          if (!exists) return prev;
-
-          return prev.map((l) =>
-            l.userId === payload.userId
-              ? {
-                  ...l,
-                  status: payload.status,
-                }
-              : l
-          );
-        });
-      },
-      onUserOnline: (event) => {
-        logDiagnostic("SOCKET", `🟢 user:online ${event.userId}`, event);
-        setLocations((prev) => applyPresenceEvent(prev, event));
-      },
-      onUserOffline: (event) => {
-        logDiagnostic("SOCKET", `🔴 user:offline ${event.userId}`, event);
-        setLocations((prev) => applyPresenceEvent(prev, event));
-      },
-      onJobUpdated: (job) => {
-        optionsRef.current?.onJobUpdated?.(job);
-      },
-      onJobDeleted: (payload) => {
-        optionsRef.current?.onJobDeleted?.(payload);
-      },
       onConnect: () => {
-        logDiagnostic("SOCKET", "✅ Manager socket CONNECTED");
         setIsConnected(true);
-        reconnectCountRef.current += 1;
-        // After any reconnect (not the initial connect) sync state from DB
-        // to recover any missed broadcasts during the outage window.
-        if (reconnectCountRef.current > 1) {
-          logDiagnostic("SOCKET", "🔄 Reloading locations after reconnect...");
-          void reload().catch(() => undefined);
-        }
       },
-      onDisconnect: (reason) => {
-        logDiagnostic("SOCKET", `⚠️ Manager socket DISCONNECTED: ${reason}`);
+      onDisconnect: () => {
         setIsConnected(false);
       },
       onError: (socketError) => {
-        logDiagnostic("ERROR", `❌ Manager socket error: ${socketError.message}`, socketError);
         setError(socketError.message);
       },
     });
 
     return () => {
-      // Only remove event listeners — keep the socket alive so it auto-reconnects.
-      // Destroying the socket here causes a new handshake on every re-render.
       cleanupListeners();
     };
-  }, [token, reload]);
+  }, [token]);
 
-  // Disconnect only when the user logs out (token becomes null)
   useEffect(() => {
     if (!token) {
       disconnectSocket();
     }
   }, [token]);
-
-  const updateCurrentUserLocation = useCallback(
-    async (payload: UpdateLiveLocationPayload) => {
-      const nextLocation = await sendLiveLocationUpdate(payload);
-      setLocations((prev) => upsertLocation(prev, nextLocation));
-      return nextLocation;
-    },
-    [],
-  );
 
   const locationsByUserId = useMemo(() => {
     return locations.reduce<Record<string, LiveLocationRecord>>(
@@ -218,6 +124,5 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
     isConnected,
     error,
     reload,
-    updateLiveLocation: updateCurrentUserLocation,
   };
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, addDays, isSameDay, parseISO } from "date-fns";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { CalendarDays, Pencil, X } from "lucide-react";
+import { CalendarDays, MapPin, Pencil, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { useLiveFitters, toFitterJobStatus, type Fitter, type FitterJob } from "
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { JobDetailSheet } from "@/components/tracking/JobDetailSheet";
 import { cn } from "@/lib/utils";
+import { useLiveLocation } from "@/hooks";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
   ssr: false,
@@ -205,6 +206,7 @@ export default function SmartAssignmentsPage() {
   }, [user, router]);
 
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
+  const { locations: liveLocations } = useLiveLocation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
   const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
@@ -350,8 +352,26 @@ export default function SmartAssignmentsPage() {
   }, [salesmanUsers]);
 
   const workforceMembers = useMemo<Fitter[]>(() => {
-    return [...fitters, ...salesmen];
-  }, [fitters, salesmen]);
+    const base = [...fitters, ...salesmen];
+    // Enrich with live location data
+    return base.map((member) => {
+      const liveLoc = liveLocations?.find(loc => loc.userId === member.id);
+      if (liveLoc) {
+        const liveCoords = [liveLoc.lat, liveLoc.lng] as [number, number];
+        const liveLabel = `${liveLoc.lat.toFixed(6)}, ${liveLoc.lng.toFixed(6)}`;
+        let liveLastUpdated = member.lastUpdated;
+        if (liveLoc.updatedAt) {
+          try { liveLastUpdated = toReadableLastUpdated(liveLoc.updatedAt); } catch { /* keep original */ }
+        }
+        return { ...member, location: liveCoords, locationLabel: liveLabel, lastUpdated: liveLastUpdated };
+      }
+      // If no live data, show coordinates from static location
+      if (member.location) {
+        return { ...member, locationLabel: `${member.location[0].toFixed(6)}, ${member.location[1].toFixed(6)}` };
+      }
+      return member;
+    });
+  }, [fitters, salesmen, liveLocations]);
 
   const rescheduleSlots = useMemo(() => {
     if (!dialogState || !rescheduleDate) return [];
@@ -773,6 +793,17 @@ export default function SmartAssignmentsPage() {
                     <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
                   </div>
                   <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                    {/* Live Coordinates */}
+                    {fitter.location && (
+                      <div className="flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/50 rounded-xl p-3">
+                        <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Live Coordinates</span>
+                          <span className="leading-snug text-slate-700 font-mono text-[11px]">{(fitter as any).locationLabel || `${fitter.location[0].toFixed(6)}, ${fitter.location[1].toFixed(6)}`}</span>
+                          <span className="text-[9px] text-slate-400 mt-1 font-semibold">Updated {fitter.lastUpdated}</span>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2"><span>Workload ({format(viewDate, "MMM do")})</span><span className={cn(fitter.capacity.remaining === 0 ? "text-red-600" : "text-emerald-600")}>{activeSchedule.length} Assignments</span></div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={cn("h-full transition-all", capacityPercent >= 100 ? "bg-red-500" : "bg-emerald-500")} style={{ width: `${capacityPercent}%` }}></div></div>

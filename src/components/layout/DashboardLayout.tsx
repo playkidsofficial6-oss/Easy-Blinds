@@ -81,13 +81,6 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                 { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
                 { name: "Salesman Assignments", href: "/dashboard/salesman-assignments", icon: ClipboardList },
                 { name: "Fitter Assignments", href: "/dashboard/fitter-assignments", icon: ClipboardList },
-                { name: "Salesmen", href: "/dashboard/salesmen", icon: UserCheck },
-                { name: "Fitters", href: "/dashboard/fitter", icon: NavigationIcon },
-                { name: "Fittings Analytics", href: "/dashboard/analytics", icon: LineChart },
-                { name: "Fitter Performance", href: "/dashboard/performance", icon: BarChart3 },
-                { name: "Review Tracking", href: "/dashboard/reviews", icon: Star },
-                { name: "Pending Reviews", href: "/dashboard/reviews/pending", icon: PlayCircle },
-                { name: "Catalogue", href: "/dashboard/catalogue", icon: BookOpen },
                 { name: "Staff Directory", href: "/dashboard/staff", icon: Users },
                 { name: "Staff Requests", href: "/dashboard/staff-request", icon: Users },
             ];
@@ -96,9 +89,6 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
             return [
                 { name: "Field Work", href: "/dashboard", icon: Ruler },
                 { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
-                { name: "Products", href: "/dashboard/products", icon: Package },
-                { name: "Our Gallery", href: "/dashboard/gallery", icon: LayoutDashboard },
-                { name: "Reviews", href: "/dashboard/reviews", icon: Star },
             ];
         }
         if (role === UserRole.Stitching || String(role).toLowerCase() === "stitching") {

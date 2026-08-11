@@ -78,7 +78,7 @@ export default function SalesManagerDashboard() {
       title: "Active Salesmen",
       value: isLoading ? "..." : activeSalesmen,
       icon: Users,
-      href: "/dashboard/salesmen",
+      href: "/dashboard/salesman-assignments",
     },
   ];
 

@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "@/services/api";
 
-export const LIVE_LOCATION_NAMESPACE = "/live-location";
+export const LIVE_LOCATION_NAMESPACE = "/flutter/live-location";
 
 function normalizeSocketBaseUrl(url: string): string {
   return url

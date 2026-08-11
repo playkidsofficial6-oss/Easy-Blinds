@@ -24,7 +24,6 @@ import { getJobErrorMessage, getJobs, JobPriority, JobStatus, updateJob, deleteJ
 import { useLiveFitters, isAssignedToFitter, type Fitter, type FitterJob, type FitterStatus } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { useLiveLocation } from "@/hooks";
-import { getLiveLocationSocket } from "@/services/socket";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/SalesmanMap"), {
   ssr: false,
@@ -565,23 +564,7 @@ export default function SmartSalesmanAssignmentsPage() {
   const [viewDate, setViewDate] = useState<Date>(new Date());
   const [dateFilterType, setDateFilterType] = useState<"today" | "tomorrow" | "custom">("today");
 
-  const { locations: liveLocations } = useLiveLocation({
-    onJobUpdated: (updatedJob) => {
-      setJobs((prev) => {
-        const exists = prev.some((j) => j._id === updatedJob._id);
-        if (exists) {
-          return prev.map((j) => (j._id === updatedJob._id ? updatedJob : j));
-        }
-        return [updatedJob, ...prev];
-      });
-    },
-    onJobDeleted: (payload) => {
-      setJobs((prev) => prev.filter((j) => j._id !== payload.id));
-      if (selectedJobId === payload.id) {
-        setSelectedJobId(null);
-      }
-    },
-  });
+  const { locations: liveLocations } = useLiveLocation();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editJobFormState, setEditJobFormState] = useState({
@@ -810,10 +793,8 @@ export default function SmartSalesmanAssignmentsPage() {
       toast.success("Job updated successfully!");
       setIsEditOpen(false);
 
-      const socket = getLiveLocationSocket();
-      if (socket?.connected) {
-        socket.emit("job:updated", updated);
-      }
+      toast.success("Job updated successfully!");
+      setIsEditOpen(false);
     } catch (error) {
       toast.error(getJobErrorMessage(error, "Failed to update job."));
     }
@@ -835,11 +816,6 @@ export default function SmartSalesmanAssignmentsPage() {
       toast.success(`Job ${getJobDisplayId(deleteJobTarget)} deleted successfully.`);
       setIsDeleteOpen(false);
       setDeleteJobTarget(null);
-
-      const socket = getLiveLocationSocket();
-      if (socket?.connected) {
-        socket.emit("job:deleted", { id, assignedSalesman: originalAssignedSalesman });
-      }
     } catch (error) {
       toast.error(getJobErrorMessage(error, "Failed to delete job."));
     }
@@ -1024,10 +1000,20 @@ export default function SmartSalesmanAssignmentsPage() {
         })(),
         locationLabel: (() => {
           const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
-          if (liveLoc) return "Live GPS Tracking";
-          return "Simulated Location";
+          if (liveLoc) return `${liveLoc.lat.toFixed(6)}, ${liveLoc.lng.toFixed(6)}`;
+          const ll = extractLatLng(user.location);
+          if (ll) return `${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
+          return undefined;
         })(),
-        lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
+        lastUpdated: (() => {
+          const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
+          if (liveLoc?.updatedAt) {
+            try { return toReadableLastUpdated(liveLoc.updatedAt); } catch { /* fallback */ }
+          }
+          const u = user.location?.updatedAt;
+          if (!u) return "Not updated";
+          try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; }
+        })(),
         avatar: user.avatar,
         email: user.email,
         phone: user.phone,
@@ -1789,12 +1775,12 @@ export default function SmartSalesmanAssignmentsPage() {
                         <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-4 h-4" /></button>
                       </div>
                       <div className="p-5 space-y-4 flex-1 overflow-y-auto">
-                        {fitter.locationLabel && (
+                        {fitter.location && (
                           <div className="flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/50 rounded-xl p-3">
                             <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                             <div className="flex flex-col">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Last Location</span>
-                              <span className="leading-snug text-slate-700">{fitter.locationLabel}</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Live Coordinates</span>
+                              <span className="leading-snug text-slate-700 font-mono text-[11px]">{fitter.locationLabel || `${fitter.location[0].toFixed(6)}, ${fitter.location[1].toFixed(6)}`}</span>
                               <span className="text-[9px] text-slate-400 mt-1 font-semibold">Updated {fitter.lastUpdated}</span>
                             </div>
                           </div>
