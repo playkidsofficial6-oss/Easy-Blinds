@@ -97,8 +97,7 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     auth: { token },
     query: { token },
     autoConnect: true,
-    // Use HTTP long-polling to work seamlessly through Cloudways Apache/Varnish/Nginx reverse proxy stack without WSS upgrade errors
-    transports: ["polling"],
+    transports: ["websocket", "polling"],
     forceNew: false,
   });
 

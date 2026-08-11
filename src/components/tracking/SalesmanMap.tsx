@@ -632,14 +632,8 @@ function SmoothLiveMarker({
   useEffect(() => {
     let active = true;
 
-    async function runSnappingAndAnimate() {
-      let targetPosition = marker.position;
-      if (marker.role === "Salesman" && marker.status === "On The Way") {
-        targetPosition = await snapToRoad(marker.position[0], marker.position[1]);
-      }
-
-      if (!active) return;
-
+    function runAnimate() {
+      const targetPosition = marker.position;
       const start = currentPositionRef.current;
       const end = targetPosition;
       if (start[0] === end[0] && start[1] === end[1]) {
@@ -684,7 +678,7 @@ function SmoothLiveMarker({
       animationFrameRef.current = requestAnimationFrame(animate);
     }
 
-    runSnappingAndAnimate();
+    runAnimate();
 
     return () => {
       active = false;
