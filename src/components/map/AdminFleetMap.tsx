@@ -420,11 +420,11 @@ export function AdminFleetMap() {
             variant={statusFilter === "OFFLINE" ? "default" : "ghost"}
             onClick={() => setStatusFilter(statusFilter === "OFFLINE" ? "ALL" : "OFFLINE")}
             className={cn(
-              "h-7 sm:h-8 text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 border border-rose-500/30 whitespace-nowrap shrink-0",
-              statusFilter === "OFFLINE" ? "bg-rose-600 text-white" : "text-rose-400 hover:bg-rose-950/40"
+              "h-7 sm:h-8 text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 border border-red-500/30 whitespace-nowrap shrink-0",
+              statusFilter === "OFFLINE" ? "bg-red-600 text-white" : "text-red-400 hover:bg-red-950/40"
             )}
           >
-            <XCircle className="w-3 sm:w-3.5 h-3 sm:h-3.5 mr-1 text-rose-500" />
+            <XCircle className="w-3 sm:w-3.5 h-3 sm:h-3.5 mr-1 text-red-500" />
             Off ({counts.offline})
           </Button>
         </div>
@@ -537,15 +537,8 @@ export function AdminFleetMap() {
             >
               <Tooltip direction="top" offset={[0, -28]} opacity={0.95}>
                 <div className="font-semibold text-xs py-0.5">
-                  <span className={member.role === "Salesman" ? "text-blue-600 font-bold" : "text-emerald-600 font-bold"}>
-                    [{member.role}]
-                  </span>{" "}
                   {member.name}
-                  {!member.checkedIn ? (
-                    <span className="ml-1 text-rose-500 font-bold">(Offline - Red Ring)</span>
-                  ) : (
-                    <span className="ml-1 text-emerald-600 font-bold">(Online - Green Ring)</span>
-                  )}
+                  <span className="ml-2 font-bold">({member.role})</span>
                 </div>
               </Tooltip>
             </Marker>
@@ -572,14 +565,14 @@ export function AdminFleetMap() {
                     "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-bold text-base sm:text-lg text-slate-900 bg-white shadow-md border-[3px] sm:border-4",
                     selectedMember.checkedIn
                       ? "border-emerald-600 ring-[3px] sm:ring-4 ring-emerald-500/20"
-                      : "border-rose-500 ring-[3px] sm:ring-4 ring-rose-500/30"
+                      : "border-red-500 ring-[3px] sm:ring-4 ring-red-500/30"
                   )}
                 >
                   {selectedMember.name.slice(0, 2).toUpperCase()}
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <div className="flex flex-col gap-0.5 flex-wrap">
                     <h3 className="font-bold text-base sm:text-lg text-white truncate">{selectedMember.name}</h3>
                     <Badge
                       className={cn(
@@ -593,17 +586,7 @@ export function AdminFleetMap() {
                     </Badge>
                   </div>
 
-                  <div className="flex items-center gap-2 mt-1">
-                    {selectedMember.checkedIn ? (
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] sm:text-xs">
-                        <CheckCircle2 className="w-3 h-3 mr-1" /> Online
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-rose-500/20 text-rose-400 border-rose-500/40 text-[10px] sm:text-xs animate-pulse">
-                        <ShieldAlert className="w-3 h-3 mr-1 text-rose-500" /> Offline
-                      </Badge>
-                    )}
-                  </div>
+
                 </div>
               </div>
 
