@@ -95,10 +95,9 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
   liveLocationSocket = io(LIVE_LOCATION_SOCKET_URL, {
     ...SOCKET_RECONNECTION_CONFIG,
     auth: { token },
+    query: { token },
     autoConnect: true,
-    // WebSocket first — polling is fallback only. This is the #1 cause of
-    // delayed real-time updates when left as ["polling", "websocket"].
-    transports: ["websocket", "polling"],
+    transports: ["polling", "websocket"],
     forceNew: false,
   });
 
