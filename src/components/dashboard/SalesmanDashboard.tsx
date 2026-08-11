@@ -867,81 +867,80 @@ function JobDetailView({
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
       {/* Customer Details & Actions Header Card */}
-      <div className="bg-stone-900 shrink-0 p-6 md:p-8 border-b border-stone-800 text-white shadow-lg relative">
+      <div className="bg-stone-900 shrink-0 p-4 sm:p-6 md:p-8 border-b border-stone-800 text-white shadow-lg relative">
         <button
           onClick={(event) => {
             event.stopPropagation();
             onBack();
           }}
-          className="md:hidden mb-4 bg-white/10 text-white p-2.5 rounded-lg border border-white/20 hover:bg-white/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
+          className="md:hidden mb-3 bg-white/10 text-white p-2 rounded-lg border border-white/20 hover:bg-white/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
         >
           <ArrowLeft className="w-4 h-4" /> Back to Schedule
         </button>
 
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
           <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-[0.15em] rounded border border-amber-400/30">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-[0.15em] rounded border border-amber-400/30 shrink-0">
                 Task {job.jobId ?? job.shortRef}
               </span>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-2">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex flex-wrap items-center gap-1.5 sm:gap-2">
                 {job.formattedDate && (
                   <>
-                    <Calendar className="w-3.5 h-3.5 text-stone-400" />
+                    <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                     <span>{job.formattedDate}</span>
                     <span className="opacity-50">•</span>
                   </>
                 )}
-                <Clock className="w-3.5 h-3.5 text-stone-400" />
+                <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                 <span>{job.time}</span>
               </div>
             </div>
-            <h2 className="text-3xl font-light text-white tracking-tight mb-2 capitalize">
+            <h2 className="text-2xl sm:text-3xl font-light text-white tracking-tight mb-2 capitalize">
               {job.client}
             </h2>
-            <div className="flex items-center gap-2 text-sm text-stone-300">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-stone-300">
               <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
               <span>{job.address}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {job.customerPhone && (
-              <a href={`tel:${job.customerPhone}`}>
-                <Button variant="outline" className="bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-lg text-xs font-semibold">
-                  <Phone className="w-4 h-4 mr-2" /> Call
+              <a href={`tel:${job.customerPhone}`} className="flex-1 sm:flex-initial">
+                <Button variant="outline" className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-lg text-xs font-semibold px-3 py-2">
+                  <Phone className="w-4 h-4 mr-1.5" /> Call
                 </Button>
               </a>
             )}
-            <a href={`https://wa.me/${job.customerPhone?.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">
-              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold">
-                <MessageSquare className="w-4 h-4 mr-2" /> WhatsApp
+            <a href={`https://wa.me/${job.customerPhone?.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="flex-1 sm:flex-initial">
+              <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold px-3 py-2">
+                <MessageSquare className="w-4 h-4 mr-1.5" /> WhatsApp
               </Button>
             </a>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto w-full pb-48 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto w-full pb-32 sm:pb-48 custom-scrollbar">
 
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
           {/* Stats Bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[
               { label: "Travel Time", val: travelVal, color: "bg-amber-500", mono: isTravelMono && travelVal !== "Not Tracked" },
               { label: "Measuring Time", val: measVal, color: "bg-purple-500", mono: isMeasMono && measVal !== "Not Tracked" },
-              // { label: "Estimated", val: "1h 15m", color: "bg-neutral-300" },
               { label: "Status", val: job.status, color: "bg-emerald-500" }
             ].map((node, i) => {
               const isMuted = node.val === "Not Started" || node.val === "Not Tracked";
               return (
-                <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm relative overflow-hidden">
+                <div key={i} className="bg-white p-3 sm:p-5 rounded-xl border border-stone-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
                   <div className={cn("absolute top-0 left-0 w-1 h-full", node.color)}></div>
-                  <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-2">{node.label}</div>
+                  <div className="text-[9px] sm:text-[10px] font-bold text-neutral-400 uppercase tracking-wider sm:tracking-[0.2em] mb-1 truncate">{node.label}</div>
                   <div className={cn(
-                    "text-2xl font-light",
+                    "text-sm sm:text-2xl font-light tracking-tight leading-snug",
                     node.mono ? "font-mono" : "",
-                    isMuted ? "text-neutral-400 text-lg font-normal" : "text-neutral-900"
+                    isMuted ? "text-neutral-400 text-xs sm:text-lg font-normal" : "text-neutral-900"
                   )}>
                     {node.val}
                   </div>
@@ -1129,16 +1128,16 @@ function JobDetailView({
 
       {/* Action Bar */}
       {job.status !== "Done" && job.status !== "Completed" && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-100 w-[95%] max-w-5xl">
-          <div className="bg-neutral-900 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 backdrop-blur-xl flex items-stretch gap-2 h-20 md:h-24">
+        <div className="sticky bottom-0 left-0 right-0 z-40 w-full p-2 sm:p-3 bg-stone-900/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+          <div className="max-w-4xl mx-auto flex items-stretch gap-1.5 sm:gap-2 h-16 sm:h-20 md:h-24">
             {(!isJobToday || isLate) ? (
-              <div className="flex-1 flex items-center justify-center p-2">
+              <div className="flex-1 flex items-center justify-center p-1 sm:p-2">
                 <Button
                   onClick={handleRequestReschedule}
                   disabled={isRequestingReschedule}
-                  className="w-full max-w-md h-full text-base font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-white rounded-xl"
+                  className="w-full max-w-md h-full text-xs sm:text-base font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-white rounded-xl"
                 >
-                  <Calendar className="w-5 h-5 mr-3" />
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
                   {isRequestingReschedule ? "Requesting..." : "Request Reschedule"}
                 </Button>
               </div>
@@ -1176,11 +1175,11 @@ function JobDetailView({
                     router.push(`/dashboard/measurements/new?jobId=${job.id}`);
                   }}
                 />
-                <div className="flex-[1.5] group">
+                <div className="flex-[1.2] sm:flex-[1.5] group">
                   <button
                     disabled={!(job.status === "In Progress" || job.status === "In progress")}
                     className={cn(
-                      "w-full h-full rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm border",
+                      "w-full h-full rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-sm border px-2 sm:px-4",
                       (job.status === "In Progress" || job.status === "In progress")
                         ? "bg-white text-neutral-900 border-white/20 hover:bg-neutral-100 hover:scale-[1.02]"
                         : "bg-white/5 text-white/40 border-transparent cursor-not-allowed"
@@ -1191,8 +1190,8 @@ function JobDetailView({
                       router.push(`/dashboard/quotes/new?jobId=${job.id}`);
                     }}
                   >
-                    <FileText className="w-4 h-4" />
-                    <span className="text-sm font-bold tracking-wide">New Quote</span>
+                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                    <span className="text-xs sm:text-sm font-bold tracking-wide whitespace-nowrap">New Quote</span>
                   </button>
                 </div>
                 <ActionButton
@@ -1242,13 +1241,13 @@ function ActionButton({ icon: Icon, label, activeLabel, isActive, disabled, vari
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 border border-transparent",
+        "flex-1 rounded-xl flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-2 transition-all duration-300 border border-transparent min-w-0",
         variants[variant],
         disabled ? "opacity-10 cursor-not-allowed scale-[0.98]" : "hover:scale-[1.02] active:scale-[0.98] cursor-pointer",
       )}
     >
-      <Icon className={cn("w-5 h-5 md:w-6 md:h-6 transition-transform", isActive ? "scale-110" : "")} />
-      <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{isActive ? activeLabel : label}</span>
+      <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 transition-transform shrink-0", isActive ? "scale-110" : "")} />
+      <span className="text-[8px] sm:text-[9px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap truncate max-w-full px-0.5">{isActive ? activeLabel : label}</span>
     </button>
   );
 }

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import {
     X, Ruler, FileText, UserCheck, ChevronDown, ChevronUp,
     Loader2, CheckCircle, Phone, MapPin, Home,
-    Package, DoorOpen, Wrench, AlertCircle, Camera, Image as ImageIcon
+    Package, DoorOpen, Wrench, AlertCircle, Camera, Image as ImageIcon, Star
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -142,6 +142,19 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                 <span className="text-xs text-slate-400">
                                     {format(parseISO(job.scheduledAt), "MMM d, yyyy · HH:mm")}
                                 </span>
+                            )}
+                            {job.isReviewed && (
+                                <div className="col-span-2 mt-1 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-1.5 text-amber-300 font-medium shrink-0">
+                                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                                        <span>Google Review: {job.reviewRating || 5}.0 Stars</span>
+                                    </div>
+                                    {job.reviewMessage && (
+                                        <span className="text-[11px] text-amber-200/80 italic max-w-[240px] truncate ml-2">
+                                            &ldquo;{job.reviewMessage}&rdquo;
+                                        </span>
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}

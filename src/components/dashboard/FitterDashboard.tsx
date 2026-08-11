@@ -440,27 +440,27 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
 
             {/* Floating Action Dock */}
             {!isJobCompleted(job.status) && (
-                <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-6 md:px-12 shadow-[0_-4px_30px_rgba(0,0,0,0.1)] z-50">
-                    <div className="max-w-4xl mx-auto grid grid-cols-3 gap-6">
+                <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 sm:p-6 md:px-12 shadow-[0_-4px_30px_rgba(0,0,0,0.1)] z-40">
+                    <div className="max-w-4xl mx-auto grid grid-cols-3 gap-2 sm:gap-6">
                         <button
                             onClick={() => onStatusChange("On the way")}
                             disabled={!isJobPendingOrAssigned(job.status)}
                             className={cn(
-                                "flex flex-col items-center justify-center py-4 gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md",
+                                "flex flex-col items-center justify-center py-2.5 sm:py-4 px-1 gap-1 sm:gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md min-w-0",
                                 isJobPendingOrAssigned(job.status)
                                     ? "bg-white border-amber-200 hover:border-amber-400 hover:bg-amber-50"
                                     : "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed"
                             )}
                         >
-                            <Navigation className={cn("w-5 h-5 stroke-2", isJobPendingOrAssigned(job.status) ? "text-amber-600" : "text-slate-400")} />
-                            <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", isJobPendingOrAssigned(job.status) ? "text-amber-900" : "text-slate-400")}>On my way</span>
+                            <Navigation className={cn("w-4 h-4 sm:w-5 sm:h-5 stroke-2 shrink-0", isJobPendingOrAssigned(job.status) ? "text-amber-600" : "text-slate-400")} />
+                            <span className={cn("text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap truncate max-w-full px-0.5", isJobPendingOrAssigned(job.status) ? "text-amber-900" : "text-slate-400")}>On my way</span>
                         </button>
 
                         <button
                             onClick={() => onStatusChange("In progress")}
                             disabled={!isJobInFitting(job.status) && !isJobOnTheWay(job.status) && currentGlobalStatus !== "On the way"}
                             className={cn(
-                                "flex flex-col items-center justify-center py-4 gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md",
+                                "flex flex-col items-center justify-center py-2.5 sm:py-4 px-1 gap-1 sm:gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md min-w-0",
                                 isJobInFitting(job.status)
                                     ? "bg-blue-50 border-blue-200"
                                     : (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way"
@@ -470,13 +470,13 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                         >
                             {isJobInFitting(job.status) ? (
                                 <>
-                                    <div className="text-2xl font-light tracking-widest text-blue-900">{elapsedTime}</div>
-                                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-500 animate-pulse">Running</span>
+                                    <div className="text-lg sm:text-2xl font-light tracking-widest text-blue-900">{elapsedTime}</div>
+                                    <span className="text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-blue-500 animate-pulse">Running</span>
                                 </>
                             ) : (
                                 <>
-                                    <Clock className={cn("w-5 h-5 stroke-2", (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way") ? "text-white" : "text-slate-400")} />
-                                    <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way") ? "text-white" : "text-slate-400")}>Start Job</span>
+                                    <Clock className={cn("w-4 h-4 sm:w-5 sm:h-5 stroke-2 shrink-0", (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way") ? "text-white" : "text-slate-400")} />
+                                    <span className={cn("text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap truncate max-w-full px-0.5", (isJobOnTheWay(job.status) || currentGlobalStatus === "On the way") ? "text-white" : "text-slate-400")}>Start Job</span>
                                 </>
                             )}
                         </button>
@@ -485,14 +485,14 @@ function JobDetailView({ job, onStatusChange, currentGlobalStatus, onBack, jobSt
                             onClick={() => setIsCompletionModalOpen(true)}
                             disabled={!isJobInFitting(job.status)}
                             className={cn(
-                                "flex flex-col items-center justify-center py-4 gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md",
+                                "flex flex-col items-center justify-center py-2.5 sm:py-4 px-1 gap-1 sm:gap-2 transition-all border rounded-xl shadow-sm hover:shadow-md min-w-0",
                                 isJobInFitting(job.status)
                                     ? "bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-200"
                                     : "bg-slate-50 border-slate-100 opacity-50 cursor-not-allowed"
                             )}
                         >
-                            <CheckCircle className={cn("w-5 h-5 stroke-2", isJobInFitting(job.status) ? "text-white" : "text-slate-400")} />
-                            <span className={cn("text-[10px] font-bold uppercase tracking-[0.2em]", isJobInFitting(job.status) ? "text-white" : "text-slate-400")}>Complete</span>
+                            <CheckCircle className={cn("w-4 h-4 sm:w-5 sm:h-5 stroke-2 shrink-0", isJobInFitting(job.status) ? "text-white" : "text-slate-400")} />
+                            <span className={cn("text-[9px] sm:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap truncate max-w-full px-0.5", isJobInFitting(job.status) ? "text-white" : "text-slate-400")}>Complete</span>
                         </button>
                     </div>
                 </div>

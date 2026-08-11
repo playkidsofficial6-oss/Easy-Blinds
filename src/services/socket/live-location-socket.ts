@@ -100,6 +100,7 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     auth: { token: effectiveToken },
     query: { token: effectiveToken },
     autoConnect: true,
+    // WebSocket preferred on pure VPS setup
     transports: ["websocket", "polling"],
     forceNew: false,
   });

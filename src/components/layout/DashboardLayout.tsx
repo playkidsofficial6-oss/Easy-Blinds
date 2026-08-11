@@ -29,7 +29,8 @@ import {
     Scissors,
     History,
     ChevronDown,
-    Check
+    Check,
+    Briefcase
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -67,6 +68,8 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
         if (isOwnerRole(role)) {
             return [
                 { name: 'Executive Dashboard', href: '/dashboard', icon: BarChart3 },
+                { name: 'Fleet Map', href: '/dashboard/map', icon: MapPin },
+                { name: 'All Jobs', href: '/dashboard/jobs', icon: Briefcase },
                 { name: 'Sales Insights', href: '/dashboard/analytics/sales', icon: TrendingUp },
                 { name: 'Fitting Efficiency', href: '/dashboard/performance', icon: PieChart },
                 { name: 'Review Performance', href: '/dashboard/analytics/reviews', icon: Star },
@@ -79,6 +82,8 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
         if (isSalesManagerRole(role)) {
             return [
                 { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+                { name: "Fleet Map", href: "/dashboard/map", icon: MapPin },
+                { name: "All Jobs", href: "/dashboard/jobs", icon: Briefcase },
                 { name: "Salesman Assignments", href: "/dashboard/salesman-assignments", icon: ClipboardList },
                 { name: "Fitter Assignments", href: "/dashboard/fitter-assignments", icon: ClipboardList },
                 { name: "Staff Directory", href: "/dashboard/staff", icon: Users },
@@ -147,7 +152,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
 
             <nav className="flex-1 overflow-y-auto px-4 py-8 space-y-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#525252 transparent" }}>
                 {navItems.map((item) => {
-                    const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard');
+                    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
                     return (
                         <Link
                             key={item.href}
