@@ -476,13 +476,13 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                         {photosList.map((url, idx) => (
                                                             <a
                                                                 key={idx}
-                                                                href={url}
+                                                                href={`${process.env.NEXT_PUBLIC_IMAGE_URL}${url}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 block"
                                                             >
                                                                 <img
-                                                                    src={url}
+                                                                    src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${url}`}
                                                                     alt={`Fitting photo ${idx + 1}`}
                                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                                 />

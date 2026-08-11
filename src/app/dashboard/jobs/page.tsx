@@ -724,8 +724,8 @@ export default function AdminJobsPage() {
                           {job.scheduledAt
                             ? format(parseISO(job.scheduledAt), "MMM d, yyyy • p")
                             : job.createdAt
-                            ? format(parseISO(job.createdAt), "MMM d, yyyy")
-                            : "N/A"}
+                              ? format(parseISO(job.createdAt), "MMM d, yyyy")
+                              : "N/A"}
                         </div>
                       </td>
 
@@ -1207,12 +1207,7 @@ export default function AdminJobsPage() {
         <Dialog open={true} onOpenChange={() => setActiveLightboxImages(null)}>
           <DialogContent className="max-w-4xl bg-slate-950 text-white border-slate-800 p-0 overflow-hidden">
             <div className="relative p-6 flex flex-col items-center justify-center min-h-[400px]">
-              <button
-                onClick={() => setActiveLightboxImages(null)}
-                className="absolute top-4 right-4 p-2 bg-slate-800/80 rounded-full hover:bg-slate-700 text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+
 
               <div className="mb-4 text-xs font-mono uppercase tracking-widest text-slate-400">
                 Image {activeLightboxImages.index + 1} of {activeLightboxImages.urls.length}
@@ -1222,7 +1217,7 @@ export default function AdminJobsPage() {
               <div className="relative max-h-[60vh] max-w-full flex items-center justify-center">
                 {/* eslint-disable-next-html-element-suppression */}
                 <img
-                  src={activeLightboxImages.urls[activeLightboxImages.index]}
+                  src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${activeLightboxImages.urls[activeLightboxImages.index]}`}
                   alt={`Job Upload ${activeLightboxImages.index + 1}`}
                   className="max-h-[60vh] max-w-full object-contain rounded-lg shadow-2xl border border-slate-800"
                 />
@@ -1238,9 +1233,9 @@ export default function AdminJobsPage() {
                       setActiveLightboxImages((prev) =>
                         prev
                           ? {
-                              ...prev,
-                              index: (prev.index - 1 + prev.urls.length) % prev.urls.length,
-                            }
+                            ...prev,
+                            index: (prev.index - 1 + prev.urls.length) % prev.urls.length,
+                          }
                           : null
                       )
                     }
@@ -1255,9 +1250,9 @@ export default function AdminJobsPage() {
                       setActiveLightboxImages((prev) =>
                         prev
                           ? {
-                              ...prev,
-                              index: (prev.index + 1) % prev.urls.length,
-                            }
+                            ...prev,
+                            index: (prev.index + 1) % prev.urls.length,
+                          }
                           : null
                       )
                     }
