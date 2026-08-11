@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import {
   getAllLiveLocations,
+  getStoredAuthToken,
   normalizeLiveLocationRecord,
 } from "@/services/api";
 import {
@@ -74,27 +75,31 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
 
   // Connect socket to receive real-time updates from Flutter app
   useEffect(() => {
-    if (!token) {
+    const activeToken = token || getStoredAuthToken();
+    if (!activeToken) {
       setIsConnected(false);
       return undefined;
     }
 
-    connectSocket(token);
+    connectSocket(activeToken);
 
-    const cleanupListeners = listenToLocationUpdates({
-      onLocationUpdated: (location) => {
-        setLocations((prev) => upsertLocation(prev, location));
+    const cleanupListeners = listenToLocationUpdates(
+      {
+        onLocationUpdated: (location) => {
+          setLocations((prev) => upsertLocation(prev, location));
+        },
+        onConnect: () => {
+          setIsConnected(true);
+        },
+        onDisconnect: () => {
+          setIsConnected(false);
+        },
+        onError: (socketError) => {
+          setError(socketError.message);
+        },
       },
-      onConnect: () => {
-        setIsConnected(true);
-      },
-      onDisconnect: () => {
-        setIsConnected(false);
-      },
-      onError: (socketError) => {
-        setError(socketError.message);
-      },
-    });
+      activeToken,
+    );
 
     return () => {
       cleanupListeners();

@@ -116,8 +116,9 @@ export function disconnectSocket(): void {
 
 export function listenToLocationUpdates(
   listeners: LiveLocationSocketListeners,
+  token?: string,
 ): () => void {
-  const socket = connectSocket();
+  const socket = connectSocket(token || getStoredAuthToken());
 
   if (!socket) {
     return () => undefined;
