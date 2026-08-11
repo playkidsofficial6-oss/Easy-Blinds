@@ -92,13 +92,32 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     return liveLocationSocket;
   }
 
+  console.log("[LiveLocation Socket] Connecting to:", LIVE_LOCATION_SOCKET_URL);
+  console.log("[LiveLocation Socket] Token present:", !!effectiveToken);
+
   liveLocationSocket = io(LIVE_LOCATION_SOCKET_URL, {
     ...SOCKET_RECONNECTION_CONFIG,
-    auth: { token },
-    query: { token },
+    auth: { token: effectiveToken },
+    query: { token: effectiveToken },
     autoConnect: true,
     transports: ["websocket", "polling"],
     forceNew: false,
+  });
+
+  liveLocationSocket.on("connect", () => {
+    console.log("[LiveLocation Socket] ✅ Connected! Socket ID:", liveLocationSocket?.id);
+  });
+
+  liveLocationSocket.on("connect_error", (err) => {
+    console.error("[LiveLocation Socket] ❌ Connection error:", err.message);
+  });
+
+  liveLocationSocket.on("disconnect", (reason) => {
+    console.warn("[LiveLocation Socket] ⚠️ Disconnected:", reason);
+  });
+
+  liveLocationSocket.on("location:updated", (data) => {
+    console.log("[LiveLocation Socket] 📍 Location update received:", data);
   });
 
   return liveLocationSocket;
