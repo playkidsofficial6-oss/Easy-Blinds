@@ -21,12 +21,16 @@ import {
   Radio,
   UserCheck,
   RefreshCw,
+  Pencil,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
 import { UserRole } from "@/lib/auth";
-import { getUsers, type UserRecord, extractLatLng, getUserErrorMessage } from "@/lib/users";
+import { useAuth } from "@/components/providers/auth-provider";
+import { getUsers, updateUser, deleteUser, type UserRecord, extractLatLng, getUserErrorMessage } from "@/lib/users";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -119,13 +123,20 @@ function formatCheckinTime(user: UserRecord): string {
 }
 
 export default function StaffDirectoryPage() {
+  const { user: currentUser } = useAuth();
+  const canManageStaff =
+    currentUser &&
+    [UserRole.SalesManager, UserRole.Admin, UserRole.Owner].includes(
+      currentUser.role as UserRole
+    );
+
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>("all");
   const [selectedCheckinFilter, setSelectedCheckinFilter] = useState<"all" | "checked_in" | "checked_out">("all");
 
-  // Dialog State
+  // Create Staff Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -136,6 +147,77 @@ export default function StaffDirectoryPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Edit Staff Dialog State
+  const [editingUser, setEditingUser] = useState<UserRecord | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhoneNumber, setEditPhoneNumber] = useState("");
+  const [editRole, setEditRole] = useState<UserRole>(UserRole.Salesman);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Delete Staff Dialog State
+  const [deletingUser, setDeletingUser] = useState<UserRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  function openEditDialog(userToEdit: UserRecord) {
+    setEditingUser(userToEdit);
+    setEditName(userToEdit.name);
+    setEditEmail(userToEdit.email);
+    setEditPhoneNumber(userToEdit.phoneNumber || "");
+    setEditRole(userToEdit.role);
+  }
+
+  async function handleUpdateStaff(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingUser) return;
+
+    const cleanName = editName.trim();
+    const cleanEmail = editEmail.trim().toLowerCase();
+
+    if (cleanName.length < 2) {
+      toast.error("Please enter the user's full name.");
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      const updated = await updateUser(editingUser._id, {
+        name: cleanName,
+        email: cleanEmail,
+        phoneNumber: editPhoneNumber.trim() || undefined,
+        role: editRole,
+      });
+
+      toast.success("User updated successfully.");
+      setUsers((prev) =>
+        prev.map((u) => (u._id === editingUser._id ? { ...u, ...updated } : u))
+      );
+      setEditingUser(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
+  async function handleDeleteStaff() {
+    if (!deletingUser) return;
+
+    setIsDeleting(true);
+
+    try {
+      await deleteUser(deletingUser._id);
+      toast.success(`User "${deletingUser.name}" deleted successfully.`);
+      setUsers((prev) => prev.filter((u) => u._id !== deletingUser._id));
+      setDeletingUser(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
@@ -519,19 +601,20 @@ export default function StaffDirectoryPage() {
                 <TableHead className="text-xs font-bold text-slate-700 py-3.5">Last Activity</TableHead>
                 <TableHead className="text-xs font-bold text-slate-700 py-3.5">GPS Location</TableHead>
                 <TableHead className="text-xs font-bold text-slate-700 py-3.5">Date Joined</TableHead>
+                <TableHead className="text-xs font-bold text-slate-700 py-3.5 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-16 text-slate-400 text-xs uppercase tracking-widest font-semibold">
+                  <TableCell colSpan={8} className="text-center py-16 text-slate-400 text-xs uppercase tracking-widest font-semibold">
                     Loading staff directory & presence...
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-16 text-slate-500 text-sm">
+                  <TableCell colSpan={8} className="text-center py-16 text-slate-500 text-sm">
                     No staff members match the selected filters.
                   </TableCell>
                 </TableRow>
@@ -618,6 +701,34 @@ export default function StaffDirectoryPage() {
                       <TableCell className="py-3.5 text-xs text-slate-500 font-medium">
                         {user.createdAt ? format(new Date(user.createdAt), "MMM d, yyyy") : "N/A"}
                       </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="py-3.5 text-right">
+                        {canManageStaff ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditDialog(user)}
+                              className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50"
+                              title="Edit User"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeletingUser(user)}
+                              className="h-8 w-8 text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+                              title="Delete User"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">—</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -626,6 +737,131 @@ export default function StaffDirectoryPage() {
           </Table>
         </div>
       </div>
+
+      {/* Edit Staff Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="sm:max-w-112.5">
+          <DialogHeader>
+            <DialogTitle>Edit Staff Member</DialogTitle>
+            <DialogDescription>
+              Update staff details including name, email, phone number, and assigned role.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateStaff} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Full name</Label>
+              <div className="relative">
+                <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Full Name"
+                  className="pl-10 text-xs"
+                  minLength={2}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email address</Label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="staff@measurepro.com"
+                  className="pl-10 text-xs"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <div className="relative">
+                <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="edit-phone"
+                  type="tel"
+                  value={editPhoneNumber}
+                  onChange={(e) => setEditPhoneNumber(e.target.value)}
+                  placeholder="+971 50 123 4567"
+                  className="pl-10 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-role">System Role</Label>
+              <Select value={editRole} onValueChange={(val) => setEditRole(val as UserRole)}>
+                <SelectTrigger id="edit-role" className="w-full text-xs">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingUser(null)}
+                className="h-9 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdating} className="h-9 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">
+                {isUpdating ? "Saving..." : "Save Changes"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Staff Confirmation Dialog */}
+      <Dialog open={!!deletingUser} onOpenChange={(open) => !open && setDeletingUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <AlertTriangle className="w-5 h-5" />
+              Delete Staff Member
+            </DialogTitle>
+            <DialogDescription className="pt-2 text-slate-600 text-xs leading-relaxed">
+              Are you sure you want to delete <strong className="text-slate-900">{deletingUser?.name}</strong>?
+              <br /><br />
+              This action will remove the user from the active staff directory and immediately revoke their system access.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeletingUser(null)}
+              className="h-9 text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDeleteStaff}
+              disabled={isDeleting}
+              className="h-9 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold"
+            >
+              {isDeleting ? "Deleting..." : "Confirm Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

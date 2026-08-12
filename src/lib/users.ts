@@ -91,6 +91,11 @@ export async function updateUser(id: string, payload: UpdateUserInput): Promise<
   return data as UserRecord;
 }
 
+export async function deleteUser(id: string): Promise<{ message: string }> {
+  const { data } = await api.delete<{ message: string }>(`/users/${id}`);
+  return data;
+}
+
 export async function changePassword(payload: ChangePasswordInput): Promise<{ message: string }> {
   const { data } = await api.patch<{ message: string }>("/users/change-password", payload);
   return data;

@@ -762,7 +762,7 @@ export default function SmartAssignmentsPage() {
   const isLoading = !isLoaded || isLoadingJobs || isLoadingUsers;
 
   return (
-    <div className="flex maxh-screen h-full overflow-hidden bg-white">
+    <div className="flex max-h-screen h-full overflow-hidden bg-white">
       {inspectJobId && (
         <JobDetailSheet jobId={inspectJobId} onClose={() => setInspectJobId(null)} />
       )}
