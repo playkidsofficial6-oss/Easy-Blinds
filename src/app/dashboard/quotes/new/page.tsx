@@ -159,7 +159,7 @@ export default function NewQuotePage() {
     }
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto pb-20">
+        <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -183,13 +183,13 @@ export default function NewQuotePage() {
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
                 {/* Main Form Area */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-6 sm:space-y-8">
 
                     {/* Line Items */}
-                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200">
-                        <CardHeader className="pb-4 border-b border-neutral-100 flex flex-row items-center justify-between">
+                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200 overflow-hidden">
+                        <CardHeader className="p-4 sm:p-6 border-b border-neutral-100 flex flex-row items-center justify-between">
                             <CardTitle className="text-lg font-medium">Line Items</CardTitle>
                             <Button variant="outline" size="sm" onClick={addLineItem} className="h-9">
                                 <Plus className="w-4 h-4 mr-2" />
@@ -258,11 +258,11 @@ export default function NewQuotePage() {
                     </Card>
 
                     {/* Notes */}
-                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200">
-                        <CardHeader className="pb-4 border-b border-neutral-100">
+                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200 overflow-hidden">
+                        <CardHeader className="p-4 sm:p-6 border-b border-neutral-100">
                             <CardTitle className="text-lg font-medium">Notes</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-6">
+                        <CardContent className="p-4 sm:p-6">
                             <Textarea
                                 placeholder="Add any notes or terms for this quote..."
                                 className="min-h-30 resize-none"
@@ -276,14 +276,14 @@ export default function NewQuotePage() {
                 {/* Sidebar Summary */}
                 <div className="lg:col-span-1">
                     <div className="sticky top-8 space-y-6">
-                        <Card className="border-0 shadow-sm ring-1 ring-neutral-200 bg-neutral-900 text-white">
-                            <CardHeader className="pb-4 border-b border-neutral-800">
+                        <Card className="border-0 shadow-sm ring-1 ring-neutral-200 bg-neutral-900 text-white overflow-hidden">
+                            <CardHeader className="p-4 sm:p-6 border-b border-neutral-800">
                                 <CardTitle className="text-lg font-medium flex items-center gap-2">
                                     <Calculator className="w-5 h-5" />
                                     Summary
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="p-6 space-y-4">
+                            <CardContent className="p-4 sm:p-6 space-y-4">
                                 <div className="flex justify-between text-neutral-400">
                                     <span>Subtotal</span>
                                     <span>AED {subtotal.toLocaleString()}</span>
