@@ -159,90 +159,91 @@ export default function NewQuotePage() {
     }
 
     return (
-        <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20">
+        <div className="space-y-3 sm:space-y-6 max-w-5xl mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-6 pb-20">
             {/* Header */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
                 <Link href="/salesman">
-                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100 shrink-0">
-                        <ArrowLeft className="w-5 h-5" />
+                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100 shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                     </Button>
                 </Link>
                 <div>
-                    <h1 className="text-xl sm:text-3xl font-light text-neutral-900 leading-tight">
+                    <h1 className="text-base sm:text-2xl font-semibold sm:font-light text-neutral-900 leading-tight">
                         {existingQuoteId ? `Edit Quote ${existingQuoteId}` : "New Quote"}
                     </h1>
-                    <p className="text-neutral-500 text-xs sm:text-sm">
+                    <p className="text-neutral-500 text-[11px] sm:text-xs">
                         {existingQuoteId ? "Modify an existing quotation" : "Create a new quotation for a client"}
                     </p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
                 {/* Main Form Area */}
-                <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+                <div className="lg:col-span-2 space-y-3 sm:space-y-6">
 
                     {/* Line Items */}
                     <Card className="border-0 shadow-sm ring-1 ring-neutral-200 overflow-hidden">
-                        <CardHeader className="p-4 sm:p-6 border-b border-neutral-100 flex flex-row items-center justify-between">
-                            <CardTitle className="text-lg font-medium">Line Items</CardTitle>
-                            <Button variant="outline" size="sm" onClick={addLineItem} className="h-9">
-                                <Plus className="w-4 h-4 mr-2" />
+                        <CardHeader className="px-3 py-2.5 sm:px-6 sm:py-3.5 border-b border-neutral-100 flex flex-row items-center justify-between">
+                            <CardTitle className="text-sm sm:text-base font-semibold">Line Items</CardTitle>
+                            <Button variant="outline" size="sm" onClick={addLineItem} className="h-7 sm:h-8 text-xs font-semibold px-2.5">
+                                <Plus className="w-3.5 h-3.5 mr-1" />
                                 Add Item
                             </Button>
                         </CardHeader>
-                        <CardContent className="p-4 sm:p-6 space-y-4">
+                        <CardContent className="p-2.5 sm:p-5 space-y-2.5 sm:space-y-4">
                             {lineItems.map((item, idx) => (
-                                <div key={item.id} className="p-3.5 sm:p-4 bg-neutral-50 rounded-xl border border-neutral-200/80 space-y-3">
+                                <div key={item.id} className="p-2.5 sm:p-4 bg-neutral-50/90 rounded-lg border border-neutral-200/80 space-y-2 sm:space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Item #{idx + 1}</span>
+                                        <span className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider">Item #{idx + 1}</span>
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => removeLineItem(item.id)}
-                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 px-2 text-xs"
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-6 sm:h-7 px-1.5 text-[10px] sm:text-xs"
                                             disabled={lineItems.length === 1}
                                         >
-                                            <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
+                                            <Trash2 className="w-3 h-3 mr-1" /> Delete
                                         </Button>
                                     </div>
 
                                     {/* Description */}
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-neutral-500">Description</Label>
+                                    <div className="space-y-0.5">
+                                        <Label className="text-[10px] sm:text-xs font-medium text-neutral-500">Description</Label>
                                         <Input
                                             placeholder="Item description"
                                             value={item.description}
                                             onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                                            className="bg-white"
+                                            className="bg-white h-8 sm:h-9 text-xs sm:text-sm"
                                         />
                                     </div>
 
-                                    {/* Responsive 3-Column Grid for Qty, Unit Price, and Total */}
+                                    {/* Responsive Grid for Qty, Unit Price, and Total */}
                                     <div className="grid grid-cols-12 gap-2 sm:gap-3 items-end">
-                                        <div className="col-span-3 sm:col-span-3 space-y-1">
-                                            <Label className="text-xs text-neutral-500">Qty</Label>
+                                        <div className="col-span-4 sm:col-span-3 space-y-0.5">
+                                            <Label className="text-[10px] sm:text-xs font-medium text-neutral-500">Qty</Label>
                                             <Input
                                                 type="number"
                                                 min="1"
                                                 value={item.quantity === 0 ? "" : item.quantity}
                                                 onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
-                                                className="bg-white px-2 text-center"
+                                                className="bg-white px-2 text-center h-8 sm:h-9 text-xs sm:text-sm font-semibold"
                                             />
                                         </div>
-                                        <div className="col-span-4 sm:col-span-4 space-y-1">
-                                            <Label className="text-xs text-neutral-500">Unit Price</Label>
+                                        <div className="col-span-8 sm:col-span-4 space-y-0.5">
+                                            <Label className="text-[10px] sm:text-xs font-medium text-neutral-500 truncate block">Unit Price (AED)</Label>
                                             <Input
                                                 type="number"
                                                 min="0"
                                                 value={item.unitPrice === 0 ? "" : item.unitPrice}
                                                 onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                                className="bg-white px-2"
+                                                className="bg-white px-2 h-8 sm:h-9 text-xs sm:text-sm font-semibold"
                                             />
                                         </div>
-                                        <div className="col-span-5 sm:col-span-5 space-y-1">
-                                            <Label className="text-xs text-neutral-500">Total</Label>
-                                            <div className="h-10 px-2 sm:px-3 flex items-center bg-neutral-100 rounded-md text-xs sm:text-sm font-semibold text-neutral-900 border border-neutral-200 truncate">
-                                                AED {(item.quantity * item.unitPrice).toLocaleString()}
+                                        <div className="col-span-12 sm:col-span-5 space-y-0.5 mt-0.5 sm:mt-0">
+                                            <Label className="text-[10px] sm:text-xs font-medium text-neutral-500">Line Total</Label>
+                                            <div className="h-8 sm:h-9 px-2.5 flex items-center justify-between sm:justify-start bg-neutral-100/90 rounded-md text-xs sm:text-sm font-bold text-neutral-900 border border-neutral-200">
+                                                <span className="text-[10px] text-neutral-500 font-medium sm:hidden">Total:</span>
+                                                <span>AED {(item.quantity * item.unitPrice).toLocaleString()}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -252,14 +253,14 @@ export default function NewQuotePage() {
                     </Card>
 
                     {/* Notes */}
-                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200 overflow-hidden">
-                        <CardHeader className="p-4 sm:p-6 border-b border-neutral-100">
-                            <CardTitle className="text-lg font-medium">Notes</CardTitle>
+                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200 overflow-hidden py-2! gap-1.5">
+                        <CardHeader className="px-3! py-2! border-b border-neutral-100">
+                            <CardTitle className="text-sm sm:text-base font-semibold">Notes</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-4 sm:p-6">
+                        <CardContent className="p-2.5 sm:p-4">
                             <Textarea
                                 placeholder="Add any notes or terms for this quote..."
-                                className="min-h-30 resize-none"
+                                className="min-h-16 sm:min-h-24 p-2.5 text-xs sm:text-sm resize-none focus:bg-white border-neutral-200 rounded-lg"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                             />
@@ -269,26 +270,25 @@ export default function NewQuotePage() {
 
                 {/* Sidebar Summary */}
                 <div className="lg:col-span-1">
-                    <div className="sticky top-8 space-y-4 sm:space-y-6">
-                        <Card className="border-0 shadow-sm ring-1 ring-neutral-200 bg-neutral-900 text-white overflow-hidden">
-                            <CardHeader className="p-4 sm:p-6 border-b border-neutral-800">
-                                <CardTitle className="text-lg font-medium flex items-center gap-2">
-                                    <Calculator className="w-5 h-5" />
-                                    Summary
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 sm:p-6 space-y-4">
-                                <div className="flex justify-between text-neutral-400">
+                    <div className="sticky top-6 space-y-3 sm:space-y-4">
+                        <Card className="border-0 shadow-sm ring-1 ring-neutral-200 bg-neutral-900 text-white overflow-hidden px-5">                            <CardHeader className="px-3 py-2.5 sm:px-6 sm:py-3.5 border-b border-neutral-800">
+                            <CardTitle className="text-sm sm:text-base font-medium flex items-center gap-2">
+                                <Calculator className="w-4 h-4 text-amber-500" />
+                                Summary
+                            </CardTitle>
+                        </CardHeader>
+                            <CardContent className="p-3 sm:p-5 space-y-2 sm:space-y-3">
+                                <div className="flex justify-between text-xs sm:text-sm text-neutral-400">
                                     <span>Subtotal</span>
                                     <span>AED {subtotal.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between text-neutral-400">
+                                <div className="flex justify-between text-xs sm:text-sm text-neutral-400">
                                     <span>VAT (5%)</span>
                                     <span>AED {vat.toLocaleString()}</span>
                                 </div>
-                                <div className="pt-4 border-t border-neutral-800 flex justify-between items-end">
-                                    <span className="text-lg font-medium">Total</span>
-                                    <span className="text-3xl font-light">AED {total.toLocaleString()}</span>
+                                <div className="pt-2 sm:pt-3 border-t border-neutral-800 flex justify-between items-end">
+                                    <span className="text-sm sm:text-base font-medium">Total</span>
+                                    <span className="text-xl sm:text-2xl font-bold sm:font-light">AED {total.toLocaleString()}</span>
                                 </div>
                             </CardContent>
                         </Card>
@@ -296,7 +296,7 @@ export default function NewQuotePage() {
                         {/* Create Quote Action Button */}
                         <Button
                             onClick={() => setShowInvoiceModal(true)}
-                            className="w-full h-12 sm:h-14 px-6 bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-base rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                            className="w-full h-12 sm:h-12 px-5 bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
                         >
                             <Save className="w-4 h-4 mr-1" />
                             {existingQuoteId ? "Update Quote" : "Create Quote"}

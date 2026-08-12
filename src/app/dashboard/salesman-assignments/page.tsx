@@ -1812,7 +1812,7 @@ export default function SmartSalesmanAssignmentsPage() {
             </div>
             {/* Selected Salesman Details Card */}
             {selectedMapFitter && (
-              <div className="absolute top-6 right-6 z-30 w-96 bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-10rem)] rounded-2xl overflow-hidden ring-1 ring-black/5">
+              <div className="absolute top-18 right-6 z-30 w-96 bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-10rem)] rounded-2xl overflow-hidden ring-1 ring-black/5">
                 {(() => {
                   const fitter = workforceMembers.find((item) => item.id === selectedMapFitter) || (() => {
                     const userObj = allUsers.find(u => u._id === selectedMapFitter);
