@@ -368,7 +368,7 @@ export function AdminFleetMap() {
               setRoleFilter("ALL");
               setStatusFilter("ALL");
             }}
-            className="h-7 sm:h-8 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 whitespace-nowrap shrink-0"
+            className="h-7 sm:h-8 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 whitespace-nowrap shrink-0 text-white"
           >
             All ({counts.total})
           </Button>
@@ -412,7 +412,7 @@ export function AdminFleetMap() {
             )}
           >
             <CheckCircle2 className="w-3 sm:w-3.5 h-3 sm:h-3.5 mr-1" />
-            On ({counts.online})
+            Online ({counts.online})
           </Button>
 
           <Button
@@ -425,7 +425,7 @@ export function AdminFleetMap() {
             )}
           >
             <XCircle className="w-3 sm:w-3.5 h-3 sm:h-3.5 mr-1 text-red-500" />
-            Off ({counts.offline})
+            Offline ({counts.offline})
           </Button>
         </div>
 
