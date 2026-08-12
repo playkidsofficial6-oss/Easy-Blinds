@@ -117,8 +117,9 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
     const getStatusStyle = (status: string) => {
         const s = status.toUpperCase();
         if (s.includes("COMPLETED")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-        if (s.includes("READY FOR FITTING") || s.includes("FITTING")) return "bg-amber-50 text-amber-700 border-amber-200";
-        if (s.includes("MEASURING") || s.includes("QUOTING") || s.includes("WAY")) return "bg-blue-50 text-blue-700 border-blue-200";
+        if (s.includes("READY FOR FITTING") || s.includes("FITTING") || s.includes("ASSIGNED")) return "bg-indigo-50 text-indigo-700 border-indigo-200";
+        if (s.includes("SCHEDULED")) return "bg-purple-50 text-purple-700 border-purple-200";
+        if (s.includes("MEASURING") || s.includes("QUOTING") || s.includes("WAY") || s.includes("REACHED")) return "bg-blue-50 text-blue-700 border-blue-200";
         if (s.includes("CANCEL") || s.includes("DROP")) return "bg-red-50 text-red-700 border-red-200";
         return "bg-slate-100 text-slate-700 border-slate-200";
     };

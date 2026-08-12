@@ -27,7 +27,7 @@ export default function NewQuotePage() {
     const searchParams = useSearchParams();
     const jobId = searchParams.get("jobId") ?? searchParams.get("measurementId") ?? undefined;
     const { user } = useAuth();
-    
+
     const [isLoading, setIsLoading] = useState(false);
     const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
     const [clientName, setClientName] = useState("");
@@ -35,7 +35,7 @@ export default function NewQuotePage() {
     const [clientEmail, setClientEmail] = useState("");
     const [notes, setNotes] = useState("");
     const [originalJobNotes, setOriginalJobNotes] = useState("");
-    
+
     // Invoice preview states
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [tempQuoteId, setTempQuoteId] = useState("");
@@ -122,7 +122,7 @@ export default function NewQuotePage() {
             toast.error("No Job ID provided. Cannot save quote without a job.");
             return;
         }
-        
+
         try {
             const quotation = {
                 id: tempQuoteId || `Q${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
@@ -265,7 +265,7 @@ export default function NewQuotePage() {
                         <CardContent className="p-6">
                             <Textarea
                                 placeholder="Add any notes or terms for this quote..."
-                                className="min-h-[120px] resize-none"
+                                className="min-h-30 resize-none"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                             />
@@ -315,7 +315,7 @@ export default function NewQuotePage() {
                                     <p className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wider mt-0.5">Review and live-edit details before submitting</p>
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setShowInvoiceModal(false)}
                                 className="text-neutral-400 hover:text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition-colors shrink-0"
                             >
@@ -378,8 +378,8 @@ export default function NewQuotePage() {
                                                 <tr key={item.id} className="hover:bg-stone-50/50 transition-colors">
                                                     <td className="p-3 text-center text-neutral-400 font-medium">{idx + 1}</td>
                                                     <td className="p-2">
-                                                        <input 
-                                                            type="text" 
+                                                        <input
+                                                            type="text"
                                                             value={item.description}
                                                             onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
                                                             placeholder="Item description"
@@ -387,8 +387,8 @@ export default function NewQuotePage() {
                                                         />
                                                     </td>
                                                     <td className="p-2">
-                                                        <input 
-                                                            type="number" 
+                                                        <input
+                                                            type="number"
                                                             min="1"
                                                             value={item.quantity}
                                                             onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
@@ -396,8 +396,8 @@ export default function NewQuotePage() {
                                                         />
                                                     </td>
                                                     <td className="p-2">
-                                                        <input 
-                                                            type="number" 
+                                                        <input
+                                                            type="number"
                                                             min="0"
                                                             value={item.unitPrice}
                                                             onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
@@ -444,14 +444,14 @@ export default function NewQuotePage() {
 
                         {/* Modal Actions */}
                         <div className="bg-neutral-50 p-3 sm:px-8 sm:py-5 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t border-stone-200">
-                            <Button 
-                                variant="outline" 
+                            <Button
+                                variant="outline"
                                 onClick={() => setShowInvoiceModal(false)}
                                 className="w-full sm:w-auto h-11 px-5 font-medium border-2"
                             >
                                 Back to Editor
                             </Button>
-                            <Button 
+                            <Button
                                 onClick={() => {
                                     setShowInvoiceModal(false);
                                     void handleSave("Sent");

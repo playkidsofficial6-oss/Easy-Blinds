@@ -24,6 +24,7 @@ import {
   login as loginRequest,
   register as registerRequest,
 } from "@/lib/auth";
+import { checkOutUser } from "@/lib/users";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -33,7 +34,7 @@ interface AuthContextValue {
   login: (payload: LoginPayload) => Promise<AuthResponse>;
   register: (payload: RegisterPayload) => Promise<AuthResponse>;
   refreshProfile: () => Promise<AuthUser | null>;
-  logout: (redirectTo?: string) => void;
+  logout: (redirectTo?: string) => Promise<void> | void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -55,16 +56,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const logout = useCallback(
-    (redirectTo = "/login") => {
-      // Fire-and-forget server-side logout to invalidate the refresh token
-      api.post("/auth/logout").catch(() => {
+    async (redirectTo = "/login") => {
+      try {
+        // Automatically check out user on backend before clearing tokens
+        await checkOutUser().catch(() => {});
+        await api.post("/auth/logout").catch(() => {});
+      } catch {
         // Ignore errors — we're logging out anyway
-      });
-
-      clearSession();
-      setToken(null);
-      setUser(null);
-      router.replace(redirectTo);
+      } finally {
+        clearSession();
+        setToken(null);
+        setUser(null);
+        router.replace(redirectTo);
+      }
     },
     [router],
   );
