@@ -46,7 +46,7 @@ import { isFieldRole, isSalesmanRole } from "@/lib/auth";
 
 const SalesmanMap = dynamic(() => import("@/components/tracking/SalesmanMap"), {
     ssr: false,
-    loading: () => <div className="h-[500px] w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-[0.2em]">LOADING LIVE MAP...</div>
+    loading: () => <div className="h-125 w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-[0.2em]">LOADING LIVE MAP...</div>
 });
 
 function isSalesman(user: UserRecord) {
@@ -342,7 +342,7 @@ export default function SalesmenPage() {
             {/* Tracking Section */}
             <div className="flex border-b border-slate-200 bg-white shadow-sm shrink-0 overflow-hidden" style={{ height: "600px" }}>
                 {/* Sidebar — fixed width, clips horizontal overflow, allows vertical scroll inside ScrollArea */}
-                <div className="w-[400px] shrink-0 border-r border-slate-200 bg-white flex flex-col h-full overflow-x-hidden">
+                <div className="w-100 shrink-0 border-r border-slate-200 bg-white flex flex-col h-full overflow-x-hidden">
                     <FitterList
                         fitters={mappedSalesmen}
                         selectedFitterId={selectedSalesmanId}

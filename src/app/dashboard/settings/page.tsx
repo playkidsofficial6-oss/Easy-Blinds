@@ -178,50 +178,9 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── LEFT COLUMN: USER AVATAR & QUICK SUMMARY CARD ── */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 text-center relative">
-              <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 p-1 shadow-xl">
-                <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-black text-2xl sm:text-3xl text-white">
-                  {getInitials(user?.name)}
-                </div>
-              </div>
-              <h2 className="mt-3 font-bold text-lg text-white truncate">{user?.name || "User"}</h2>
-              <p className="text-xs text-slate-300 truncate">{user?.email}</p>
-            </CardHeader>
-            <CardContent className="p-5 space-y-4 text-xs">
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
-                  <Shield className="w-3.5 h-3.5 text-blue-500" /> Account Type
-                </span>
-                <span className="font-semibold text-slate-900 dark:text-slate-200">{user?.role}</span>
-              </div>
 
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
-                  <Phone className="w-3.5 h-3.5 text-emerald-500" /> Phone
-                </span>
-                <span className="font-mono text-slate-900 dark:text-slate-200 font-medium truncate max-w-[160px]">
-                  {user?.phoneNumber || "Not provided"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Account Status
-                </span>
-                <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5">
-                  Active
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ── RIGHT COLUMN: EDIT PROFILE & EDIT PASSWORD FORMS ── */}
         <div className="lg:col-span-2 space-y-6">
-          {/* ── PROFILE INFORMATION CARD ── */}
+
           <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md">
             <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
               <div className="flex items-center gap-2.5">
@@ -322,7 +281,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* ── SECURITY / CHANGE PASSWORD CARD ── */}
+
           <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md">
             <CardHeader className="border-b border-slate-100 dark:border-slate-800/80 pb-4">
               <div className="flex items-center gap-2.5">
@@ -447,6 +406,50 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </div>
+
+
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 text-center relative">
+              <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 p-1 shadow-xl">
+                <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-black text-2xl sm:text-3xl text-white">
+                  {getInitials(user?.name)}
+                </div>
+              </div>
+              <h2 className="mt-3 font-bold text-lg text-white truncate">{user?.name || "User"}</h2>
+              <p className="text-xs text-slate-300 truncate">{user?.email}</p>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4 text-xs">
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+                  <Shield className="w-3.5 h-3.5 text-blue-500" /> Account Type
+                </span>
+                <span className="font-semibold text-slate-900 dark:text-slate-200">{user?.role}</span>
+              </div>
+
+              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+                  <Phone className="w-3.5 h-3.5 text-emerald-500" /> Phone
+                </span>
+                <span className="font-mono text-slate-900 dark:text-slate-200 font-medium truncate max-w-[160px]">
+                  {user?.phoneNumber || "Not provided"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-2">
+                <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Account Status
+                </span>
+                <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5">
+                  Active
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+
+
       </div>
     </div>
   );
