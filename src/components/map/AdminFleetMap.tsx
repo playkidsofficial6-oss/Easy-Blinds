@@ -621,7 +621,7 @@ export function AdminFleetMap() {
                     Coordinates:
                   </span>
                   <span className="font-mono text-white font-semibold text-[10px] sm:text-xs truncate">
-                    {selectedMember.lat.toFixed(4)}, {selectedMember.lng.toFixed(4)}
+                    {selectedMember.lat.toFixed(6)}, {selectedMember.lng.toFixed(6)}
                   </span>
                 </div>
 
@@ -646,7 +646,13 @@ export function AdminFleetMap() {
                   <span className="text-slate-400 flex items-center gap-1 truncate">
                     <Clock className="w-3 h-3 text-slate-500 shrink-0" />
                     {selectedMember.lastUpdated
-                      ? format(parseISO(selectedMember.lastUpdated), "MMM d, HH:mm")
+                      ? (() => {
+                          try {
+                            return format(parseISO(selectedMember.lastUpdated), "MMM d, HH:mm:ss");
+                          } catch {
+                            return selectedMember.lastUpdated;
+                          }
+                        })()
                       : "Recently"}
                   </span>
                 </div>
