@@ -22,7 +22,7 @@ interface JobDetailSheetProps {
     onClose: () => void;
 }
 
-type TabKey = "measurements" | "quotation" | "assign" | "photos";
+type TabKey = "measurements" | "quotation" | "photos";
 
 export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
     const [job, setJob] = useState<Job | null>(null);
@@ -87,7 +87,6 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
     const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
         { key: "measurements", label: "Measurements", icon: <Ruler className="w-3.5 h-3.5" /> },
         { key: "quotation", label: "Quotation", icon: <FileText className="w-3.5 h-3.5" /> },
-        { key: "assign", label: "Assign Fitter", icon: <UserCheck className="w-3.5 h-3.5" /> },
         { key: "photos", label: "Fitting Photos", icon: <Camera className="w-3.5 h-3.5" /> },
     ];
 
@@ -362,80 +361,6 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                             )}
                                         </>
                                     )}
-                                </div>
-                            )}
-
-                            {/* ── ASSIGN FITTER TAB ── */}
-                            {activeTab === "assign" && (
-                                <div className="p-6 space-y-4">
-                                    {/* Current Assignment */}
-                                    {assignedFitterUser && (
-                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
-                                                <Wrench className="w-4 h-4 text-emerald-600" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600">Currently Assigned Fitter</p>
-                                                <p className="text-sm font-semibold text-emerald-900">{assignedFitterUser.name}</p>
-                                                {assignedFitterUser.phoneNumber && <p className="text-xs text-emerald-700">{assignedFitterUser.phoneNumber}</p>}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
-                                        <div>
-                                            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-3">Select Fitter</p>
-                                            <Select value={selectedFitter} onValueChange={setSelectedFitter}>
-                                                <SelectTrigger className="h-11 border-slate-200">
-                                                    <SelectValue placeholder="Choose a fitter to assign…" />
-                                                </SelectTrigger>
-                                                <SelectContent className="z-9999">
-                                                    {fitters.length === 0 ? (
-                                                        <div className="p-4 text-xs text-slate-400 text-center">No fitters available</div>
-                                                    ) : fitters.map(f => (
-                                                        <SelectItem key={f._id} value={f._id}>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                                                                    {f.name.substring(0, 2).toUpperCase()}
-                                                                </div>
-                                                                <div>
-                                                                    <span className="font-medium">{f.name}</span>
-                                                                    {f.phoneNumber && <span className="text-slate-400 ml-2 text-xs">{f.phoneNumber}</span>}
-                                                                </div>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Job Summary */}
-                                        <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 space-y-1.5">
-                                            {[
-                                                ["Client", job?.customerName],
-                                                ["Address", job?.address],
-                                                ["Product", job?.productType],
-                                                ["Value", job?.projectValue ? `AED ${job.projectValue.toLocaleString()}` : undefined],
-                                            ].filter(([, v]) => v).map(([k, v]) => (
-                                                <div key={String(k)} className="flex gap-2 text-xs">
-                                                    <span className="text-slate-400 font-bold uppercase w-14 shrink-0">{k}</span>
-                                                    <span className="text-slate-700">{String(v)}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <Button
-                                            onClick={handleAssign}
-                                            disabled={!selectedFitter || isAssigning}
-                                            className="w-full h-11 bg-slate-900 hover:bg-slate-700 text-white font-semibold gap-2"
-                                        >
-                                            {isAssigning ? (
-                                                <><Loader2 className="w-4 h-4 animate-spin" /> Assigning…</>
-                                            ) : (
-                                                <><UserCheck className="w-4 h-4" /> Confirm Assignment</>
-                                            )}
-                                        </Button>
-                                    </div>
                                 </div>
                             )}
 

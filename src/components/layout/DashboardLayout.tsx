@@ -36,7 +36,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ModeToggle } from "@/components/mode-toggle";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -107,10 +106,6 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
             items = [
                 { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
             ];
-        }
-
-        if (!items.some((item) => item.href === "/dashboard/settings")) {
-            items.push({ name: "Settings", href: "/dashboard/settings", icon: Settings });
         }
 
         return items;
@@ -216,9 +211,6 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                         <LogOut className="w-4 h-4 mr-2" />
                         Sign Out
                     </Button>
-                    <div className="pt-2 px-2">
-                        <ModeToggle />
-                    </div>
                 </div>
             </div>
         </div>
