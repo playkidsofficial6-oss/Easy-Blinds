@@ -2262,7 +2262,7 @@ export default function SmartSalesmanAssignmentsPage() {
               Delete Job?
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              This action cannot be undone and will remove the job from all lists, calendars, and routes.
+              This action will remove the job from all active lists, calendars, and routes.
             </DialogDescription>
           </DialogHeader>
 

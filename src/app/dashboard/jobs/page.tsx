@@ -1182,7 +1182,7 @@ export default function AdminJobsPage() {
               <strong className="text-slate-900 dark:text-white font-mono">
                 {deletingJob ? getJobDisplayId(deletingJob) : ""}
               </strong>
-              ? This operation cannot be undone.
+              ? This action will remove the job from active job lists.
             </DialogDescription>
           </DialogHeader>
 
@@ -1196,7 +1196,7 @@ export default function AdminJobsPage() {
               disabled={isDeleting}
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
-              {isDeleting ? "Deleting..." : "Delete Permanently"}
+              {isDeleting ? "Deleting..." : "Confirm Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
