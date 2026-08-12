@@ -220,7 +220,7 @@ function LeafletMapResizer({ isFullscreen }: { isFullscreen: boolean }) {
 }
 
 export function AdminFleetMap() {
-  const { locations, reload: reloadSocketLocations } = useLiveLocation();
+  const { locations, reload: reloadSocketLocations, isConnected, isLoaded, onlinePresence } = useLiveLocation();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [selectedMember, setSelectedMember] = useState<CombinedStaffMember | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
@@ -260,7 +260,7 @@ export function AdminFleetMap() {
     loadUsers();
   }, [loadUsers]);
 
-  // Combine REST Users data + Live Socket Location data
+  // Combine REST Users data + Live Socket Location & Presence data
   const combinedMembers: CombinedStaffMember[] = useMemo(() => {
     const liveMapByUserId = new Map(locations.map((loc) => [loc.userId, loc]));
 
@@ -300,20 +300,26 @@ export function AdminFleetMap() {
           lng += (((hash * 3) % 10) - 5) * 0.0015;
         }
 
+        // Live WebSocket presence override if available, else static checkedIn flag
+        const isOnline =
+          onlinePresence[u._id] !== undefined
+            ? onlinePresence[u._id]
+            : Boolean(u.checkedIn);
+
         return {
           id: u._id,
           name: u.name,
           role,
           phone: u.phone,
           email: u.email,
-          checkedIn: Boolean(u.checkedIn),
+          checkedIn: isOnline,
           lat,
           lng,
           lastUpdated,
           isLiveLocation,
         };
       });
-  }, [users, locations]);
+  }, [users, locations, onlinePresence]);
 
   // Filtered members list
   const filteredMembers = useMemo(() => {
@@ -415,18 +421,36 @@ export function AdminFleetMap() {
             Online ({counts.online})
           </Button>
 
-          <Button
-            size="sm"
-            variant={statusFilter === "OFFLINE" ? "default" : "ghost"}
-            onClick={() => setStatusFilter(statusFilter === "OFFLINE" ? "ALL" : "OFFLINE")}
+          <div className="h-4 w-px bg-slate-700 mx-0.5 sm:mx-1 shrink-0" />
+
+          {/* WebSocket Connection Status Badge */}
+          <div
             className={cn(
-              "h-7 sm:h-8 text-[10px] sm:text-xs font-semibold px-2 sm:px-2.5 border border-red-500/30 whitespace-nowrap shrink-0",
-              statusFilter === "OFFLINE" ? "bg-red-600 text-white" : "text-red-400 hover:bg-red-950/40"
+              "flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-semibold whitespace-nowrap shrink-0 border transition-all",
+              isConnected
+                ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-300"
+                : "bg-amber-950/80 border-amber-500/40 text-amber-300"
             )}
+            title={isConnected ? "WebSocket connected: Receiving real-time location & presence updates" : "Connecting to live WebSocket..."}
           >
-            <XCircle className="w-3 sm:w-3.5 h-3 sm:h-3.5 mr-1 text-red-500" />
-            Offline ({counts.offline})
-          </Button>
+            <span className="relative flex h-2 w-2">
+              <span
+                className={cn(
+                  "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
+                  isConnected ? "bg-emerald-400" : "bg-amber-400"
+                )}
+              />
+              <span
+                className={cn(
+                  "relative inline-flex rounded-full h-2 w-2",
+                  isConnected ? "bg-emerald-500" : "bg-amber-500"
+                )}
+              />
+            </span>
+            <span className="font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
+              {isConnected ? "WebSocket Live" : "Connecting Socket..."}
+            </span>
+          </div>
         </div>
 
         {/* Search & Actions — compact on mobile */}

@@ -39,11 +39,15 @@ function upsertLocation(
 export interface UseLiveLocationOptions {
   onJobUpdated?: (job: any) => void;
   onJobDeleted?: (payload: { id: string; jobId?: string }) => void;
+  onUserOnline?: (event: LiveLocationPresenceEvent) => void;
+  onUserOffline?: (event: LiveLocationPresenceEvent) => void;
+  onLocationUpdated?: (location: LiveLocationRecord) => void;
 }
 
 export function useLiveLocation(options?: UseLiveLocationOptions) {
   const { token } = useAuth();
   const [locations, setLocations] = useState<LiveLocationRecord[]>([]);
+  const [onlinePresence, setOnlinePresence] = useState<Record<string, boolean>>({});
   const [isLoaded, setIsLoaded] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +77,7 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
     void reload().catch(() => undefined);
   }, [reload]);
 
-  // Connect socket once and listen for real-time location updates
+  // Connect socket once and listen for real-time location & presence updates
   useEffect(() => {
     const activeToken = token || getStoredAuthToken();
     if (!activeToken) {
@@ -90,6 +94,28 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
       {
         onLocationUpdated: (location) => {
           setLocations((prev) => upsertLocation(prev, location));
+          if (location.userId) {
+            setOnlinePresence((prev) => ({ ...prev, [location.userId]: true }));
+          }
+          options?.onLocationUpdated?.(location);
+        },
+        onUserOnline: (event) => {
+          if (event.userId) {
+            setOnlinePresence((prev) => ({ ...prev, [event.userId]: true }));
+          }
+          options?.onUserOnline?.(event);
+        },
+        onUserOffline: (event) => {
+          if (event.userId) {
+            setOnlinePresence((prev) => ({ ...prev, [event.userId]: false }));
+          }
+          options?.onUserOffline?.(event);
+        },
+        onJobUpdated: (job) => {
+          options?.onJobUpdated?.(job);
+        },
+        onJobDeleted: (payload) => {
+          options?.onJobDeleted?.(payload);
         },
         onConnect: () => {
           setIsConnected(true);
@@ -107,7 +133,7 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
     return () => {
       cleanupListeners();
     };
-  }, [token]);
+  }, [token, options]);
 
   const locationsByUserId = useMemo(() => {
     return locations.reduce<Record<string, LiveLocationRecord>>(
@@ -122,9 +148,11 @@ export function useLiveLocation(options?: UseLiveLocationOptions) {
   return {
     locations,
     locationsByUserId,
+    onlinePresence,
     isLoaded,
     isConnected,
     error,
     reload,
   };
 }
+
