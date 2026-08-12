@@ -634,9 +634,9 @@ export default function SmartAssignmentsPage() {
           const a =
             Math.sin(dLat / 2) * Math.sin(dLat / 2) +
             Math.cos((fitter.location[0] * Math.PI) / 180) *
-              Math.cos((jobLl.lat * Math.PI) / 180) *
-              Math.sin(dLon / 2) *
-              Math.sin(dLon / 2);
+            Math.cos((jobLl.lat * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           dist = R * c;
           duration = (dist / 30) * 3600;
@@ -762,7 +762,7 @@ export default function SmartAssignmentsPage() {
   const isLoading = !isLoaded || isLoadingJobs || isLoadingUsers;
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-white">
+    <div className="flex maxh-screen h-full overflow-hidden bg-white">
       {inspectJobId && (
         <JobDetailSheet jobId={inspectJobId} onClose={() => setInspectJobId(null)} />
       )}

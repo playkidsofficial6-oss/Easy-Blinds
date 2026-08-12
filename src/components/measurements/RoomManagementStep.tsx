@@ -72,12 +72,26 @@ export function RoomManagementStep({
         setRooms(rooms.filter((room) => room.id !== id));
     };
 
+    const scrollToTop = () => {
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.documentElement?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.body?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }
+    };
+
     const handleNext = () => {
         if (rooms.length === 0) {
             alert("Please add at least one room");
             return;
         }
+        scrollToTop();
         onNext();
+    };
+
+    const handleBack = () => {
+        scrollToTop();
+        onBack();
     };
 
     return (
@@ -183,7 +197,7 @@ export function RoomManagementStep({
             )}
 
             <div className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 dark:border-stone-800 sm:flex-row sm:justify-between">
-                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={onBack}>
+                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={handleBack}>
                     Back
                 </Button>
                 <Button type="button" size="lg" onClick={handleNext} className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200 sm:w-auto">

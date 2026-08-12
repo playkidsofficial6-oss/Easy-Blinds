@@ -94,8 +94,8 @@ function NewMeasurementForm() {
                                 return {
                                     id: String(o.id || ""),
                                     name: String(o.name || ""),
-                                    width: Number(o.width || 0),
-                                    height: Number(o.height || 0),
+                                    width: Math.round((Number(o.width || 0) + Number.EPSILON) * 100) / 100,
+                                    height: Math.round((Number(o.height || 0) + Number.EPSILON) * 100) / 100,
                                     mountType: (o.mountType || "Wall") as unknown as MountType,
                                     openingDirection: (o.openingDirection || "Split") as unknown as OpeningDirection,
                                     productType: (o.productType === "Custom Item" || o.type === "Custom" ? "Custom Item" : o.productType) as unknown as ProductType,
@@ -141,13 +141,27 @@ function NewMeasurementForm() {
 
     const progress = (currentStep / steps.length) * 100;
 
+    const scrollToTop = () => {
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.documentElement?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.body?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }
+    };
+
+    useEffect(() => {
+        scrollToTop();
+    }, [currentStep]);
+
     const handleNext = () => {
+        scrollToTop();
         if (currentStep < steps.length) {
             setCurrentStep(currentStep + 1);
         }
     };
 
     const handleBack = () => {
+        scrollToTop();
         if (currentStep > 1) {
             setCurrentStep(currentStep - 1);
         } else {

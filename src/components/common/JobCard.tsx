@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Phone, MapPin, ChevronRight, AlertCircle, ArrowRight, CalendarClock, MoreVertical, Edit2, Trash2, Clock3, CarFront } from "lucide-react";
+import { Phone, MapPin, ChevronRight, AlertCircle, ArrowRight, CalendarClock, MoreVertical, Edit2, Trash2 } from "lucide-react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -99,20 +99,23 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
         return undefined;
     };
 
-    const resolvedAssignedName =
+    const salesmanName =
         resolveName(job.assignedSalesman) ||
+        (typeof job.assignedSalesmanName === "string" && job.assignedSalesmanName ? job.assignedSalesmanName : undefined) ||
+        resolveName(job.assignedSalesManager);
+
+    const fitterName =
         resolveName(job.assignedFitter) ||
-        resolveName(job.assignedSalesManager) ||
-        (typeof job.assignedSalesmanName === "string" ? job.assignedSalesmanName : undefined) ||
-        (typeof job.assignedFitterName === "string" ? job.assignedFitterName : undefined);
+        (typeof job.assignedFitterName === "string" && job.assignedFitterName ? job.assignedFitterName : undefined);
 
     const teamStr = typeof job.team === "string" && job.team !== "Assigned Team" ? job.team : undefined;
     const recNameStr = typeof firstRecommendation?.name === "string" ? firstRecommendation.name : undefined;
 
-    const representativeName = resolvedAssignedName || teamStr || recNameStr || "Unassigned";
+    const representativeName = salesmanName || (!fitterName ? (teamStr || recNameStr) : undefined) || salesmanName || fitterName || teamStr || recNameStr || "Unassigned";
     const representativeInitials = initialsFromName(representativeName);
-    const distanceLabel = typeof firstRecommendation?.dist === "number" ? `${firstRecommendation.dist.toFixed(1)} km` : "Not Started";
-    const etaLabel = typeof firstRecommendation?.duration === "number" ? formatDuration(firstRecommendation.duration) : "Not Available";
+
+    const displayFitterName = fitterName && fitterName !== representativeName ? fitterName : undefined;
+    const fitterInitials = displayFitterName ? initialsFromName(displayFitterName) : "";
 
     const getStatusStyle = (status: string) => {
         const s = status.toUpperCase();
@@ -192,32 +195,29 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
 
             <div className="my-3 h-px bg-slate-100" />
 
-            <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Representative</span>
-                <div className="flex max-w-[58%] items-center gap-1.5 rounded-full border border-slate-100 bg-white px-2 py-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.05)]">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-[12px] font-bold text-slate-950">{representativeInitials}</span>
-                    <span className="truncate text-[13px] font-black text-slate-800">{representativeName}</span>
+            <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Salesman</span>
+                    <div className="flex max-w-[58%] items-center gap-1.5 rounded-full border border-slate-100 bg-white px-2 py-1 shadow-xs">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-white">{representativeInitials}</span>
+                        <span className="truncate text-[11px] font-semibold text-slate-700">{representativeName}</span>
+                    </div>
                 </div>
+
+                {displayFitterName && (
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-500">Assigned Fitter</span>
+                        <div className="flex max-w-[58%] items-center gap-1.5 rounded-full border border-indigo-100 bg-indigo-50/70 px-2 py-1 shadow-xs">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white">{fitterInitials}</span>
+                            <span className="truncate text-[11px] font-semibold text-indigo-900">{displayFitterName}</span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="my-3 h-px bg-slate-100" />
 
-            <div className="rounded-[18px] border border-slate-100 bg-white px-3.5 py-3.5 shadow-[inset_0_0_0_1px_rgba(248,250,252,0.8)]">
-                <div className="flex items-center justify-between gap-3 text-[13px] leading-none">
-                    <div className="flex items-center gap-2 font-semibold text-slate-400">
-                        <CarFront className="h-3.5 w-3.5 text-red-500" />
-                        <span>Distance:</span>
-                    </div>
-                    <span className="font-semibold italic text-slate-400">{distanceLabel}</span>
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-3 text-[13px] leading-none">
-                    <div className="flex items-center gap-2 font-semibold text-slate-400">
-                        <Clock3 className="h-3.5 w-3.5 text-slate-300" />
-                        <span>ETA:</span>
-                    </div>
-                    <span className="font-semibold italic text-slate-400">{etaLabel}</span>
-                </div>
-                <div className="my-3 h-px bg-slate-100" />
+            <div className="rounded-[18px] border border-slate-100 bg-white px-3.5 py-3 shadow-[inset_0_0_0_1px_rgba(248,250,252,0.8)]">
                 <div className="flex items-center justify-between gap-3 text-[13px] leading-none">
                     <div className="flex items-center gap-2 font-black uppercase tracking-widest text-slate-400">
                         <CalendarClock className="h-3.5 w-3.5 text-slate-400" />

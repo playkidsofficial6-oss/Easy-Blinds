@@ -32,6 +32,8 @@ const FABRICS = [
     { id: "F005", name: "Cotton Light - White", price: 40 },
 ];
 
+const round2 = (num: number): number => Math.round((num + Number.EPSILON) * 100) / 100;
+
 export function WindowMeasurementStep({
     rooms,
     setRooms,
@@ -115,6 +117,14 @@ export function WindowMeasurementStep({
         setEditingWindow(null);
     };
 
+    const scrollToTop = () => {
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.documentElement?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.body?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }
+    };
+
     const handleNext = () => {
         if (rooms.length === 0) {
             alert("Please add at least one room first.");
@@ -127,7 +137,13 @@ export function WindowMeasurementStep({
             return;
         }
 
+        scrollToTop();
         onNext();
+    };
+
+    const handleBack = () => {
+        scrollToTop();
+        onBack();
     };
 
     return (
@@ -184,7 +200,7 @@ export function WindowMeasurementStep({
                                                 <div>
                                                     <CardTitle className="text-lg">{window.name}</CardTitle>
                                                     <p className="text-sm text-stone-500 mt-1">
-                                                        {window.width}cm × {window.height}cm • {window.productType}
+                                                        {round2(window.width)}cm × {round2(window.height)}cm • {window.productType}
                                                     </p>
                                                 </div>
                                                 <div className="flex gap-2">
@@ -236,8 +252,8 @@ export function WindowMeasurementStep({
                                                         <Label className="text-base">Width ({measurementUnit})</Label>
                                                         <div className="space-y-3">
                                                             <MeasuringTapeInput
-                                                                value={measurementUnit === "cm" ? window.width : Number((window.width / 2.54))}
-                                                                onChange={(value) => updateWindow(window.id, { width: measurementUnit === "cm" ? value : Number((value * 2.54)) })}
+                                                                value={measurementUnit === "cm" ? round2(window.width) : round2(window.width / 2.54)}
+                                                                onChange={(value) => updateWindow(window.id, { width: measurementUnit === "cm" ? round2(value) : round2(value * 2.54) })}
                                                                 min={measurementUnit === "cm" ? 50 : 20}
                                                                 max={measurementUnit === "cm" ? 500 : 200}
                                                                 step={measurementUnit === "cm" ? 1 : 0.5}
@@ -248,10 +264,10 @@ export function WindowMeasurementStep({
                                                                 <div className="relative w-32">
                                                                     <Input
                                                                         type="number"
-                                                                        value={measurementUnit === "cm" ? (window.width || "") : (Number((window.width / 2.54)) || "")}
+                                                                        value={measurementUnit === "cm" ? (window.width ? round2(window.width) : "") : (window.width ? round2(window.width / 2.54) : "")}
                                                                         onChange={(e) => {
                                                                             const val = e.target.value === "" ? 0 : Number(e.target.value);
-                                                                            updateWindow(window.id, { width: measurementUnit === "cm" ? val : Number((val * 2.54)) });
+                                                                            updateWindow(window.id, { width: measurementUnit === "cm" ? round2(val) : round2(val * 2.54) });
                                                                         }}
                                                                         onFocus={(e) => e.target.select()}
                                                                         onClick={(e) => (e.target as HTMLInputElement).select()}
@@ -273,8 +289,8 @@ export function WindowMeasurementStep({
                                                         <Label className="text-base">Height ({measurementUnit})</Label>
                                                         <div className="space-y-3">
                                                             <MeasuringTapeInput
-                                                                value={measurementUnit === "cm" ? window.height : Number((window.height / 2.54))}
-                                                                onChange={(value) => updateWindow(window.id, { height: measurementUnit === "cm" ? value : Number((value * 2.54)) })}
+                                                                value={measurementUnit === "cm" ? round2(window.height) : round2(window.height / 2.54)}
+                                                                onChange={(value) => updateWindow(window.id, { height: measurementUnit === "cm" ? round2(value) : round2(value * 2.54) })}
                                                                 min={measurementUnit === "cm" ? 100 : 40}
                                                                 max={measurementUnit === "cm" ? 500 : 200}
                                                                 step={measurementUnit === "cm" ? 1 : 0.5}
@@ -285,10 +301,10 @@ export function WindowMeasurementStep({
                                                                 <div className="relative w-32">
                                                                     <Input
                                                                         type="number"
-                                                                        value={measurementUnit === "cm" ? (window.height || "") : (Number((window.height / 2.54)) || "")}
+                                                                        value={measurementUnit === "cm" ? (window.height ? round2(window.height) : "") : (window.height ? round2(window.height / 2.54) : "")}
                                                                         onChange={(e) => {
                                                                             const val = e.target.value === "" ? 0 : Number(e.target.value);
-                                                                            updateWindow(window.id, { height: measurementUnit === "cm" ? val : Number((val * 2.54)) });
+                                                                            updateWindow(window.id, { height: measurementUnit === "cm" ? round2(val) : round2(val * 2.54) });
                                                                         }}
                                                                         onFocus={(e) => e.target.select()}
                                                                         onClick={(e) => (e.target as HTMLInputElement).select()}
@@ -456,7 +472,7 @@ export function WindowMeasurementStep({
             </Tabs>
 
             <div className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 dark:border-stone-800 sm:flex-row sm:justify-between">
-                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={onBack}>
+                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={handleBack}>
                     Back
                 </Button>
                 <Button type="button" size="lg" onClick={handleNext} className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200 sm:w-auto">

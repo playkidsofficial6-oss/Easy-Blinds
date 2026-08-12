@@ -161,26 +161,20 @@ export default function NewQuotePage() {
     return (
         <div className="space-y-6 sm:space-y-8 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                    <Link href="/salesman">
-                        <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100 shrink-0">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-xl sm:text-3xl font-light text-neutral-900 leading-tight">
-                            {existingQuoteId ? `Edit Quote ${existingQuoteId}` : "New Quote"}
-                        </h1>
-                        <p className="text-neutral-500 text-xs sm:text-sm">
-                            {existingQuoteId ? "Modify an existing quotation" : "Create a new quotation for a client"}
-                        </p>
-                    </div>
+            <div className="flex items-center gap-3">
+                <Link href="/salesman">
+                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100 shrink-0">
+                        <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                </Link>
+                <div>
+                    <h1 className="text-xl sm:text-3xl font-light text-neutral-900 leading-tight">
+                        {existingQuoteId ? `Edit Quote ${existingQuoteId}` : "New Quote"}
+                    </h1>
+                    <p className="text-neutral-500 text-xs sm:text-sm">
+                        {existingQuoteId ? "Modify an existing quotation" : "Create a new quotation for a client"}
+                    </p>
                 </div>
-                <Button onClick={() => setShowInvoiceModal(true)} className="w-full sm:w-auto h-11 sm:h-12 px-6 bg-neutral-900 hover:bg-neutral-800 text-white font-medium shrink-0">
-                    <Save className="w-4 h-4 mr-2" />
-                    {existingQuoteId ? "Update Quote" : "Create Quote"}
-                </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -275,7 +269,7 @@ export default function NewQuotePage() {
 
                 {/* Sidebar Summary */}
                 <div className="lg:col-span-1">
-                    <div className="sticky top-8 space-y-6">
+                    <div className="sticky top-8 space-y-4 sm:space-y-6">
                         <Card className="border-0 shadow-sm ring-1 ring-neutral-200 bg-neutral-900 text-white overflow-hidden">
                             <CardHeader className="p-4 sm:p-6 border-b border-neutral-800">
                                 <CardTitle className="text-lg font-medium flex items-center gap-2">
@@ -298,6 +292,15 @@ export default function NewQuotePage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Create Quote Action Button */}
+                        <Button
+                            onClick={() => setShowInvoiceModal(true)}
+                            className="w-full h-12 sm:h-14 px-6 bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-base rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                        >
+                            <Save className="w-4 h-4 mr-1" />
+                            {existingQuoteId ? "Update Quote" : "Create Quote"}
+                        </Button>
                     </div>
                 </div>
             </div>

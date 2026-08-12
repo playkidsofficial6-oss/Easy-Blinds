@@ -1531,7 +1531,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden bg-slate-50 w-full font-sans">
+    <div className="flex flex-col max-h-screen h-full overflow-hidden bg-slate-50 w-full font-sans">
 
 
       {/* ── Main Content Body Split ── */}
