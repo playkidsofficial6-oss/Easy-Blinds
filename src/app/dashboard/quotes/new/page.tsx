@@ -304,7 +304,7 @@ export default function NewQuotePage() {
 
             {/* Invoice Preview Modal UI */}
             {showInvoiceModal && (
-                <div className="fixed inset-0 z-[200] bg-neutral-900/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn">
+                <div className="fixed inset-0 z-200 bg-neutral-900/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn">
                     <div className="bg-white rounded-xl sm:rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden border border-stone-200 animate-slideUp my-2 sm:my-8">
                         {/* Modal Header */}
                         <div className="bg-neutral-900 text-white p-4 sm:p-6 flex justify-between items-center border-b border-neutral-800">
@@ -363,7 +363,7 @@ export default function NewQuotePage() {
                             <div>
                                 <p className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-3 text-left">Line Items (Edit directly below)</p>
                                 <div className="border border-stone-200 rounded-xl overflow-x-auto">
-                                    <table className="w-full text-left border-collapse min-w-[500px]">
+                                    <table className="w-full text-left border-collapse min-w-125">
                                         <thead>
                                             <tr className="bg-neutral-100 border-b border-stone-200 text-xs font-bold text-neutral-700">
                                                 <th className="p-3 w-12 text-center">#</th>

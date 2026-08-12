@@ -153,7 +153,7 @@ export default function SettingsPage() {
       {/* ── HEADER ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl shadow-lg shadow-blue-500/20">
+          <div className="p-3 bg-linear-to-br from-blue-600 to-indigo-600 text-white rounded-2xl shadow-lg shadow-blue-500/20">
             <SettingsIcon className="w-6 h-6" />
           </div>
           <div>
@@ -410,8 +410,8 @@ export default function SettingsPage() {
 
         <div className="lg:col-span-1 space-y-6">
           <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-md overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 text-center relative">
-              <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 p-1 shadow-xl">
+            <CardHeader className="bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 text-center relative">
+              <div className="mx-auto w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 p-1 shadow-xl">
                 <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-black text-2xl sm:text-3xl text-white">
                   {getInitials(user?.name)}
                 </div>
@@ -431,7 +431,7 @@ export default function SettingsPage() {
                 <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
                   <Phone className="w-3.5 h-3.5 text-emerald-500" /> Phone
                 </span>
-                <span className="font-mono text-slate-900 dark:text-slate-200 font-medium truncate max-w-[160px]">
+                <span className="font-mono text-slate-900 dark:text-slate-200 font-medium truncate max-w-40">
                   {user?.phoneNumber || "Not provided"}
                 </span>
               </div>

@@ -546,6 +546,73 @@ export default function SmartAssignmentsPage() {
     [jobs, sortKey, resolveUnifiedJob, matchesDateFilter, matchesStatusFilter]
   );
 
+  const selectedPendingJobForMap = useMemo(() => {
+    if (!selectedJobId) return undefined;
+    const job = jobs.find((j) => j._id === selectedJobId);
+    if (!job) return undefined;
+
+    let lat = 10.8505;
+    let lng = 76.2711;
+    if (job.location?.coordinates && job.location.coordinates.length >= 2) {
+      lng = job.location.coordinates[0];
+      lat = job.location.coordinates[1];
+    }
+
+    const assignedSalesmanId = typeof job.assignedSalesman === "object" ? job.assignedSalesman?._id : job.assignedSalesman;
+    const assignedFitterId = typeof job.assignedFitter === "object" ? job.assignedFitter?._id : job.assignedFitter;
+
+    return {
+      id: job._id,
+      jobId: job.jobId,
+      location: { lat, lng },
+      address: job.address || "Job Location",
+      client: job.customerName || "Client",
+      status: job.status,
+      assignedSalesmanId,
+      assignedFitterId,
+    };
+  }, [selectedJobId, jobs]);
+
+  const unassignedJobsForMap = useMemo(() => jobs
+    .filter((job) => (job.status === JobStatus.ReadyForFitting || (!job.assignedFitter && job.status === JobStatus.Pending)) && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
+    .map((job) => {
+      const coordinates = job.location?.coordinates;
+      const lng = coordinates?.[0] ?? 76.2711;
+      const lat = coordinates?.[1] ?? 10.8505;
+      return {
+        id: job._id,
+        jobId: job.jobId,
+        location: { lat, lng },
+        address: job.address || "Fitting Location",
+        client: job.customerName || "Client",
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
+      };
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
+
+  const scheduledJobsForMap = useMemo(() => jobs
+    .filter((job) => [JobStatus.FitterAssigned, JobStatus.FitterOnTheWay, JobStatus.FitterReached, JobStatus.Fitting, JobStatus.TakingPhotos].includes(job.status) && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
+    .map((job) => {
+      const coordinates = job.location?.coordinates;
+      const lng = coordinates?.[0] ?? 76.2711;
+      const lat = coordinates?.[1] ?? 10.8505;
+      return {
+        id: job._id,
+        jobId: job.jobId,
+        location: { lat, lng },
+        address: job.address || "Scheduled Fitting Location",
+        client: job.customerName || "Client",
+        status: job.status,
+        assignedSalesmanId: typeof job.assignedFitter === "object" ? job.assignedFitter?._id : job.assignedFitter,
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
+      };
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
+
   const recommendedFitters = useMemo(() => {
     if (!selectedJobId) return [];
 
@@ -888,9 +955,25 @@ export default function SmartAssignmentsPage() {
                   key={job.id}
                   job={job}
                   isSelected={selectedJobId === job.id}
-                  onSelect={() => openRescheduleForJob(job)}
+                  onSelect={() => {
+                    if (selectedJobId === job.id) {
+                      setSelectedJobId(null);
+                      setSelectedMapFitter(null);
+                    } else {
+                      setSelectedJobId(job.id);
+                      const sourceJob = jobs.find((j) => j._id === job.id);
+                      if (sourceJob) {
+                        const assignedId =
+                          (typeof sourceJob.assignedFitter === "object" ? sourceJob.assignedFitter?._id : sourceJob.assignedFitter) ||
+                          (typeof sourceJob.assignedSalesman === "object" ? sourceJob.assignedSalesman?._id : sourceJob.assignedSalesman);
+                        if (assignedId && typeof assignedId === "string") {
+                          setSelectedMapFitter(assignedId);
+                        }
+                      }
+                    }
+                  }}
                   onAction={(action) => {
-                    if (action === "manage") {
+                    if (action === "manage" || action === "reschedule") {
                       openRescheduleForJob(job);
                     }
                   }}
@@ -909,7 +992,14 @@ export default function SmartAssignmentsPage() {
       </div>
 
       <div className="flex-1 bg-slate-100 relative">
-        <AssignmentMap fitters={workforceMembers} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} />
+        <AssignmentMap
+          fitters={workforceMembers}
+          selectedFitterId={selectedMapFitter}
+          onSelectFitter={setSelectedMapFitter}
+          selectedJob={selectedPendingJobForMap}
+          unassignedJobs={unassignedJobsForMap}
+          scheduledJobs={scheduledJobsForMap}
+        />
         <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
           <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
           <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-medium text-slate-700">

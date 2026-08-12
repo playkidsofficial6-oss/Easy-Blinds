@@ -376,7 +376,7 @@ export default function StaffRequestsPage() {
                           </span>
                           <div className="font-semibold text-slate-900 text-sm">{job.customerName}</div>
                           {job.address && (
-                            <div className="text-[11px] text-slate-500 flex items-center gap-1 truncate max-w-[240px]">
+                            <div className="text-[11px] text-slate-500 flex items-center gap-1 truncate max-w-60">
                               <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                               <span className="truncate">{job.address}</span>
                             </div>
@@ -407,7 +407,7 @@ export default function StaffRequestsPage() {
                       {/* Reason */}
                       <TableCell className="py-3.5">
                         {job.cancelReason ? (
-                          <div className="inline-flex items-start gap-1.5 p-2 rounded-lg bg-amber-50 text-amber-900 border border-amber-200/80 max-w-[260px]">
+                          <div className="inline-flex items-start gap-1.5 p-2 rounded-lg bg-amber-50 text-amber-900 border border-amber-200/80 max-w-65">
                             <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                             <span className="text-xs font-medium leading-tight line-clamp-2" title={job.cancelReason}>
                               {job.cancelReason}
@@ -455,7 +455,7 @@ export default function StaffRequestsPage() {
 
       {/* Reschedule Modal */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-120">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-slate-900">Reschedule & Reassign Job</DialogTitle>
             <DialogDescription className="text-xs text-slate-500">

@@ -481,7 +481,7 @@ function SalesmanPageContent() {
                 key={tab}
                 onClick={() => handleTabChange(tab)}
                 className={cn(
-                  "shrink-0 min-w-[3.25rem] flex-1 py-2 text-[8px] font-bold uppercase tracking-wide text-center transition-all rounded-lg sm:min-w-[4.5rem] sm:py-2.5 sm:text-[9px] sm:tracking-widest",
+                  "shrink-0 min-w-13 flex-1 py-2 text-[8px] font-bold uppercase tracking-wide text-center transition-all rounded-lg sm:min-w-18 sm:py-2.5 sm:text-[9px] sm:tracking-widest",
                   activeTab === tab
                     ? `text-neutral-900 bg-neutral-100 shadow-sm`
                     : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"
@@ -901,7 +901,7 @@ function JobDetailView({
             </h2>
             <div className="flex min-w-0 items-start gap-2 text-xs text-stone-300 sm:text-sm">
               <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <span className="break-words">{job.address}</span>
+              <span className="wrap-break-word">{job.address}</span>
             </div>
           </div>
 
@@ -1063,7 +1063,7 @@ function JobDetailView({
 
                     {/* Line Items Table */}
                     <div className="overflow-x-auto border border-stone-200 rounded-xl shadow-sm">
-                      <table className="w-full min-w-[32rem] text-left border-collapse text-xs">
+                      <table className="w-full min-w-lg text-left border-collapse text-xs">
                         <thead>
                           <tr className="bg-neutral-100 border-b border-stone-200 font-bold text-neutral-700">
                             <th className="p-3 w-12 text-center">#</th>

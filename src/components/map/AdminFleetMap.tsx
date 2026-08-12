@@ -365,12 +365,12 @@ export function AdminFleetMap() {
       className={cn(
         "relative flex flex-col bg-slate-950 overflow-hidden shadow-2xl transition-all duration-200",
         isFullscreen
-          ? "fixed inset-0 z-[99999] w-screen h-screen rounded-none border-none"
+          ? "fixed inset-0 z-99999 w-screen h-screen rounded-none border-none"
           : "w-full h-full rounded-2xl border border-slate-800"
       )}
     >
       {/* ── TOP CONTROL BAR ── */}
-      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-[400] flex flex-col gap-2 sm:gap-3 pointer-events-none">
+      <div className="absolute top-2 sm:top-4 left-2 sm:left-4 right-2 sm:right-4 z-400 flex flex-col gap-2 sm:gap-3 pointer-events-none">
         {/* Filter Pills — horizontal scroll on mobile, wraps on desktop */}
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar bg-slate-900/90 backdrop-blur-md p-1.5 sm:p-2 rounded-xl border border-slate-800 shadow-xl pointer-events-auto">
           <Button
@@ -578,7 +578,7 @@ export function AdminFleetMap() {
 
       {/* ── SELECTED MEMBER DETAILS DRAWER CARD ── */}
       {selectedMember && (
-        <div className="absolute bottom-3 sm:bottom-6 left-2 right-2 sm:left-auto sm:right-6 sm:w-[380px] z-[450] animate-in slide-in-from-bottom-6 duration-300 pointer-events-auto">
+        <div className="absolute bottom-3 sm:bottom-6 left-2 right-2 sm:left-auto sm:right-6 sm:w-95 z-450 animate-in slide-in-from-bottom-6 duration-300 pointer-events-auto">
           <Card className="bg-slate-900/95 backdrop-blur-xl border border-slate-800 text-white shadow-2xl overflow-hidden">
             <CardContent className="p-3 sm:p-5 relative">
               <button

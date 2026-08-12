@@ -1449,32 +1449,49 @@ export default function SalesmanMap({
                 </div>
               </Popup>
             </Marker>
-            {visibleMapLayers.routes && markers.map((marker) => (
-              <RoutingPolyline
-                key={`selected-route-${marker.id}`}
-                markerId={marker.id}
-                start={marker.position}
-                end={[selectedJob.location.lat, selectedJob.location.lng]}
-                zoomLevel={zoomLevel}
-                routeColor={getJobRouteColor(selectedJob.status)}
-                motionColor={getJobMotionColor(selectedJob.status)}
-              />
-            ))}
+            {visibleMapLayers.routes && markers
+              .filter((marker) => {
+                if (selectedFitterId) {
+                  return marker.id === selectedFitterId;
+                }
+                const assignedId = (selectedJob as any)?.assignedSalesmanId || (selectedJob as any)?.assignedFitterId;
+                if (assignedId) {
+                  return marker.id === assignedId;
+                }
+                return true;
+              })
+              .map((marker) => (
+                <RoutingPolyline
+                  key={`selected-route-${marker.id}`}
+                  markerId={marker.id}
+                  start={marker.position}
+                  end={[selectedJob.location.lat, selectedJob.location.lng]}
+                  zoomLevel={zoomLevel}
+                  routeColor={getJobRouteColor(selectedJob.status)}
+                  motionColor={getJobMotionColor(selectedJob.status)}
+                />
+              ))}
           </>
         )}
 
         {/* Automatic Active Salesman Destinations and Routes */}
         {visibleMapLayers.routes && markers
-          .filter(marker => marker.role === "Salesman" &&
-            marker.destinationCoordinates &&
-            (isOnTheWayStatus(marker.activeJobStatus) ||
+          .filter(marker => {
+            if (marker.role !== "Salesman" || !marker.destinationCoordinates) return false;
+            const isActive =
+              isOnTheWayStatus(marker.activeJobStatus) ||
               (marker.status as string) === "On The Way" ||
               (marker.status as string) === "On Road" ||
               (marker.status as string) === "In Progress" ||
               (marker.status as string) === "In progress" ||
               (marker.status as string) === "Measuring" ||
-              (marker.status as string) === "Working")
-          )
+              (marker.status as string) === "Working";
+            if (!isActive) return false;
+            if (scheduledJobs && scheduledJobs.length >= 0) {
+              return scheduledJobs.some(s => s.id === marker.activeJobId || s.jobId === marker.activeJobId);
+            }
+            return true;
+          })
           .map((marker) => {
             const dest = marker.destinationCoordinates!;
             return (

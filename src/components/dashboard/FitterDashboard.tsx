@@ -77,7 +77,7 @@ export default function FitterPage() {
     };
 
     return (
-        <div className="flex h-[100dvh] min-w-0 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
+        <div className="flex h-dvh min-w-0 flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
 
             {/* Global Header */}
             <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-4 shadow-md sm:h-20 sm:px-8 sm:py-5">

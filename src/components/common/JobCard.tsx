@@ -136,7 +136,7 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                 }
             }}
             className={cn(
-                "group relative cursor-pointer rounded-[24px] border bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.07)] transition-all duration-200 active:scale-[0.99]",
+                "group relative cursor-pointer rounded-3xl border bg-white p-4 shadow-[0_10px_24px_rgba(15,23,42,0.07)] transition-all duration-200 active:scale-[0.99]",
                 "hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.12)]",
                 isSelected ? "border-amber-300 ring-2 ring-amber-200/70" : "border-slate-100"
             )}
@@ -179,7 +179,7 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
 
             <div className="mt-4">
                 <div className="flex items-center gap-2">
-                    <h4 className="min-w-0 flex-1 truncate text-[18px] font-black leading-tight tracking-[-0.025em] text-slate-900">
+                    <h4 className="min-w-0 flex-1 truncate text-[18px] font-black leading-tight tracking-tight text-slate-900">
                         {job.client || "Unknown Unknown"}
                     </h4>
                     {job.priority === "High" && <span className="h-2 w-2 rounded-full bg-red-500 shadow-[0_0_0_5px_rgba(239,68,68,0.14)]" />}
@@ -219,7 +219,7 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                 </div>
                 <div className="my-3 h-px bg-slate-100" />
                 <div className="flex items-center justify-between gap-3 text-[13px] leading-none">
-                    <div className="flex items-center gap-2 font-black uppercase tracking-[0.10em] text-slate-400">
+                    <div className="flex items-center gap-2 font-black uppercase tracking-widest text-slate-400">
                         <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
                         <span>Time Slot:</span>
                     </div>
@@ -247,7 +247,21 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
                         {isSelected ? "Cancel" : "Assign"}
                     </button>
                 )}
-                {variant === "schedule" && <ChevronRight className={cn("h-5 w-5 text-slate-300 transition-transform", isSelected && "rotate-90 text-amber-500")} />}
+                {variant === "schedule" && (
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAction?.("manage", job.id);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200/80 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700 hover:bg-amber-600 hover:text-white transition-colors shadow-sm"
+                        >
+                            <CalendarClock className="h-3.5 w-3.5" />
+                            <span>Reschedule</span>
+                        </button>
+                        <ChevronRight className={cn("h-5 w-5 text-slate-300 transition-transform", isSelected && "rotate-90 text-amber-500")} />
+                    </div>
+                )}
             </div>
 
             {isSelected && variant === "assignment" && job.recommendedFitters && (

@@ -265,7 +265,7 @@ export default function StaffDirectoryPage() {
                 Add Staff Member
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[450px]">
+            <DialogContent className="sm:max-w-112.5">
               <DialogHeader>
                 <DialogTitle>Create Staff Member</DialogTitle>
                 <DialogDescription>

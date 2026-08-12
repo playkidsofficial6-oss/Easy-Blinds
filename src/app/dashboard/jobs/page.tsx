@@ -607,7 +607,7 @@ export default function AdminJobsPage() {
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             {/* Google Review Filter */}
             <Select value={reviewedFilter} onValueChange={setReviewedFilter}>
-              <SelectTrigger className="w-[170px] bg-white dark:bg-slate-900">
+              <SelectTrigger className="w-42.5 bg-white dark:bg-slate-900">
                 <Star className="w-3.5 h-3.5 mr-2 text-amber-500 fill-amber-500" />
                 <SelectValue placeholder="Google Review" />
               </SelectTrigger>
@@ -620,7 +620,7 @@ export default function AdminJobsPage() {
 
             {/* Status Filter */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[170px] bg-white dark:bg-slate-900">
+              <SelectTrigger className="w-42.5 bg-white dark:bg-slate-900">
                 <Filter className="w-3.5 h-3.5 mr-2 text-slate-500" />
                 <SelectValue placeholder="Filter Status" />
               </SelectTrigger>
@@ -640,7 +640,7 @@ export default function AdminJobsPage() {
 
             {/* Priority Filter */}
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-[150px] bg-white dark:bg-slate-900">
+              <SelectTrigger className="w-37.5 bg-white dark:bg-slate-900">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
               <SelectContent>
@@ -744,7 +744,7 @@ export default function AdminJobsPage() {
                             </a>
                           )}
                           {job.customerEmail && (
-                            <span className="flex items-center gap-1 truncate max-w-[180px]">
+                            <span className="flex items-center gap-1 truncate max-w-45">
                               <Mail className="w-3 h-3" /> {job.customerEmail}
                             </span>
                           )}
@@ -753,7 +753,7 @@ export default function AdminJobsPage() {
 
                       {/* Address */}
                       <td className="py-4 px-4 align-top">
-                        <div className="text-xs text-slate-700 dark:text-slate-300 max-w-[220px] line-clamp-2 leading-relaxed">
+                        <div className="text-xs text-slate-700 dark:text-slate-300 max-w-55 line-clamp-2 leading-relaxed">
                           <MapPin className="w-3 h-3 inline mr-1 text-slate-400 shrink-0" />
                           {job.address}
                         </div>
@@ -797,7 +797,7 @@ export default function AdminJobsPage() {
                               </span>
                             </div>
                             {job.reviewMessage ? (
-                              <p className="text-xs text-slate-600 dark:text-slate-400 italic line-clamp-2 max-w-[200px]">
+                              <p className="text-xs text-slate-600 dark:text-slate-400 italic line-clamp-2 max-w-50">
                                 &ldquo;{job.reviewMessage}&rdquo;
                               </p>
                             ) : (
@@ -889,7 +889,7 @@ export default function AdminJobsPage() {
                   setPage(1);
                 }}
               >
-                <SelectTrigger className="h-8 w-[70px] bg-white dark:bg-slate-900 text-xs">
+                <SelectTrigger className="h-8 w-17.5 bg-white dark:bg-slate-900 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1206,7 +1206,7 @@ export default function AdminJobsPage() {
       {activeLightboxImages && (
         <Dialog open={true} onOpenChange={() => setActiveLightboxImages(null)}>
           <DialogContent className="max-w-4xl bg-slate-950 text-white border-slate-800 p-0 overflow-hidden">
-            <div className="relative p-6 flex flex-col items-center justify-center min-h-[400px]">
+            <div className="relative p-6 flex flex-col items-center justify-center min-h-100">
 
 
               <div className="mb-4 text-xs font-mono uppercase tracking-widest text-slate-400">

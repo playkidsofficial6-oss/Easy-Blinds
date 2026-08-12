@@ -458,7 +458,7 @@ export default function SalesmenPage() {
                                                     ) : (
                                                         [...activeSchedule].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map((job) => (
                                                             <div key={job.id} className="pl-6 pb-6 relative last:pb-0 group">
-                                                                <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full border-2 ring-4 ring-white transition-colors bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer"></div>
+                                                                <div className="absolute -left-1.25 top-1.5 w-2.25 h-2.25 rounded-full border-2 ring-4 ring-white transition-colors bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer"></div>
                                                                 <div className="flex items-start justify-between">
                                                                     <div className="flex-1">
                                                                         <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{job.time || "Unscheduled"}</div>

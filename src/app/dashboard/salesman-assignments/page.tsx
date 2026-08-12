@@ -942,7 +942,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
   const selectedPendingJobForMap = useMemo(() => {
     if (!selectedJobId) return undefined;
-    const job = jobs.find((j) => j._id === selectedJobId && j.status === JobStatus.Pending);
+    const job = jobs.find((j) => j._id === selectedJobId);
     if (!job) return undefined;
 
     let lat = 10.8505;
@@ -952,12 +952,18 @@ export default function SmartSalesmanAssignmentsPage() {
       lat = job.location.coordinates[1];
     }
 
+    const assignedSalesmanId = typeof job.assignedSalesman === "object" ? job.assignedSalesman?._id : job.assignedSalesman;
+    const assignedFitterId = typeof job.assignedFitter === "object" ? job.assignedFitter?._id : job.assignedFitter;
+
     return {
       id: job._id,
       jobId: job.jobId,
       location: { lat, lng },
-      address: job.address || "Pending Job Location",
-      client: job.customerName || "Client"
+      address: job.address || "Job Location",
+      client: job.customerName || "Client",
+      status: job.status,
+      assignedSalesmanId,
+      assignedFitterId,
     };
   }, [selectedJobId, jobs]);
 
@@ -1097,7 +1103,7 @@ export default function SmartSalesmanAssignmentsPage() {
   );
 
   const unassignedJobsForMap = useMemo(() => jobs
-    .filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt))
+    .filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
     .map((job) => {
       const coordinates = job.location?.coordinates;
       const lng = coordinates?.[0] ?? 76.2711;
@@ -1113,10 +1119,10 @@ export default function SmartSalesmanAssignmentsPage() {
         property: job.propertyType,
         productType: job.productType,
       };
-    }), [jobs, matchesDateFilter]);
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
 
   const scheduledJobsForMap = useMemo(() => jobs
-    .filter((job) => isSalesmanPhaseJob(job.status) && job.status !== JobStatus.Pending && matchesDateFilter(job.scheduledAt))
+    .filter((job) => isSalesmanPhaseJob(job.status) && job.status !== JobStatus.Pending && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
     .map((job) => {
       const coordinates = job.location?.coordinates;
       const lng = coordinates?.[0] ?? 76.2711;
@@ -1134,7 +1140,7 @@ export default function SmartSalesmanAssignmentsPage() {
         property: job.propertyType,
         productType: job.productType,
       };
-    }), [jobs, matchesDateFilter]);
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
 
 
 
@@ -1533,7 +1539,7 @@ export default function SmartSalesmanAssignmentsPage() {
         {/* VIEW 1: LIVE FLEET VIEW (Default Dispatch Side panel + Map) */}
 
         <>
-          <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
+          <div className="w-full xl:w-125 flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
             <div className="p-5 sm:p-6 border-b border-slate-100 shrink-0 bg-white">
               <div>
                 <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
@@ -1743,9 +1749,25 @@ export default function SmartSalesmanAssignmentsPage() {
                       key={job.id}
                       job={job}
                       isSelected={selectedJobId === job.id}
-                      onSelect={() => openRescheduleForJob(job)}
+                      onSelect={() => {
+                        if (selectedJobId === job.id) {
+                          setSelectedJobId(null);
+                          setSelectedMapFitter(null);
+                        } else {
+                          setSelectedJobId(job.id);
+                          const sourceJob = jobs.find((j) => j._id === job.id);
+                          if (sourceJob) {
+                            const assignedId =
+                              (typeof sourceJob.assignedSalesman === "object" ? sourceJob.assignedSalesman?._id : sourceJob.assignedSalesman) ||
+                              (typeof sourceJob.assignedFitter === "object" ? sourceJob.assignedFitter?._id : sourceJob.assignedFitter);
+                            if (assignedId && typeof assignedId === "string") {
+                              setSelectedMapFitter(assignedId);
+                            }
+                          }
+                        }
+                      }}
                       onAction={(action) => {
-                        if (action === "manage") {
+                        if (action === "manage" || action === "reschedule") {
                           openRescheduleForJob(job);
                         } else {
                           handleCardAction(action, job.id);
@@ -2217,7 +2239,7 @@ export default function SmartSalesmanAssignmentsPage() {
                 value={editJobFormState.notes}
                 onChange={(e) => setEditJobFormState(prev => ({ ...prev, notes: e.target.value }))}
                 placeholder="Additional instructions or notes"
-                className="text-xs rounded-xl border-slate-200 resize-none min-h-[80px]"
+                className="text-xs rounded-xl border-slate-200 resize-none min-h-20"
               />
             </div>
           </div>

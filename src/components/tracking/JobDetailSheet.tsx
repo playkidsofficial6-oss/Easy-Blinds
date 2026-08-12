@@ -104,10 +104,10 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
             {/* Sheet */}
-            <div className="relative z-10 w-full sm:w-[560px] h-full sm:h-[90vh] bg-white sm:rounded-l-3xl shadow-2xl flex flex-col animate-in slide-in-from-right-10 duration-300">
+            <div className="relative z-10 w-full sm:w-140 h-full sm:h-[90vh] bg-white sm:rounded-l-3xl shadow-2xl flex flex-col animate-in slide-in-from-right-10 duration-300">
 
                 {/* Header */}
-                <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 sm:rounded-tl-3xl text-white shrink-0">
+                <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-linear-to-br from-slate-900 to-slate-800 sm:rounded-tl-3xl text-white shrink-0">
                     <div className="flex items-start justify-between mb-4">
                         <div>
                             <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-1">Completed Job</p>
@@ -150,7 +150,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                         <span>Google Review: {job.reviewRating || 5}.0 Stars</span>
                                     </div>
                                     {job.reviewMessage && (
-                                        <span className="text-[11px] text-amber-200/80 italic max-w-[240px] truncate ml-2">
+                                        <span className="text-[11px] text-amber-200/80 italic max-w-60 truncate ml-2">
                                             &ldquo;{job.reviewMessage}&rdquo;
                                         </span>
                                     )}
@@ -389,7 +389,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                 <SelectTrigger className="h-11 border-slate-200">
                                                     <SelectValue placeholder="Choose a fitter to assign…" />
                                                 </SelectTrigger>
-                                                <SelectContent className="z-[9999]">
+                                                <SelectContent className="z-9999">
                                                     {fitters.length === 0 ? (
                                                         <div className="p-4 text-xs text-slate-400 text-center">No fitters available</div>
                                                     ) : fitters.map(f => (
