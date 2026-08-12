@@ -222,7 +222,7 @@ function LeafletMapResizer({ isFullscreen }: { isFullscreen: boolean }) {
 export function AdminFleetMap() {
   const { locations, reload: reloadSocketLocations, isConnected, isLoaded, onlinePresence } = useLiveLocation();
   const [users, setUsers] = useState<UserRecord[]>([]);
-  const [selectedMember, setSelectedMember] = useState<CombinedStaffMember | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -349,8 +349,14 @@ export function AdminFleetMap() {
     return { total, salesmen, fitters, online, offline };
   }, [combinedMembers]);
 
+  // Dynamically resolve selected member from combinedMembers so drawer updates on live WebSocket events
+  const selectedMember = useMemo(() => {
+    if (!selectedMemberId) return null;
+    return combinedMembers.find((m) => m.id === selectedMemberId) ?? null;
+  }, [combinedMembers, selectedMemberId]);
+
   const handleSelectMember = (member: CombinedStaffMember) => {
-    setSelectedMember(member);
+    setSelectedMemberId(member.id);
     setMapCenter([member.lat, member.lng]);
   };
 
@@ -576,7 +582,7 @@ export function AdminFleetMap() {
           <Card className="bg-slate-900/95 backdrop-blur-xl border border-slate-800 text-white shadow-2xl overflow-hidden">
             <CardContent className="p-3 sm:p-5 relative">
               <button
-                onClick={() => setSelectedMember(null)}
+                onClick={() => setSelectedMemberId(null)}
                 className="absolute top-2.5 sm:top-4 right-2.5 sm:right-4 p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white transition-colors"
               >
                 <X className="w-4 h-4" />
@@ -671,7 +677,7 @@ export function AdminFleetMap() {
                   size="sm"
                   variant="outline"
                   className="bg-slate-800 border-slate-700 text-slate-200 hover:text-white text-[11px] sm:text-xs h-8 sm:h-9"
-                  onClick={() => setSelectedMember(null)}
+                  onClick={() => setSelectedMemberId(null)}
                 >
                   Close
                 </Button>
