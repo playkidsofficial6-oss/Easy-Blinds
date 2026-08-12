@@ -55,7 +55,7 @@ interface LiveMapMarker {
   status: LiveMarkerStatus;
   position: [number, number];
   avatar?: string;
-  phone?: string;
+  phoneNumber?: string;
   lastUpdated: string;
   lastUpdatedAt?: string;
   isLate: boolean;
@@ -347,7 +347,7 @@ function buildFitterMarker(
     status,
     position,
     avatar: fitter.avatar,
-    phone: fitter.phone,
+    phoneNumber: fitter.phoneNumber,
     lastUpdated: lastUpdatedAt ? toReadableLastUpdated(lastUpdatedAt) : fitter.lastUpdated,
     lastUpdatedAt,
     isLate: isLate(fitter),
@@ -356,7 +356,7 @@ function buildFitterMarker(
     activeJobId: activeJob?.id || activeJob?.jobId,
     customerName: activeJob?.client,
     customerAddress: activeJob?.address,
-    customerPhone: activeJob?.phone,
+    customerPhone: activeJob?.phoneNumber,
     destinationCoordinates,
     locationLabel: fitter.locationLabel,
   };
@@ -365,7 +365,7 @@ function buildFitterMarker(
 function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter): LiveMapMarker {
   const lastUpdatedAt = location.updatedAt;
   const userName = location.user?.name ?? `User ${location.userId.slice(-6)}`;
-  const userPhone = (location.user as { phone?: string } | undefined)?.phone;
+  const userPhone = (location.user as { phoneNumber?: string } | undefined)?.phoneNumber;
 
   const activeJob = fitter
     ? (fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
@@ -388,7 +388,7 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
     role: normalizeRole(location.role),
     status: normalizeStatus(location.role),
     position: [location.lat, location.lng],
-    phone: userPhone,
+    phoneNumber: userPhone,
     lastUpdated: toReadableLastUpdated(lastUpdatedAt),
     lastUpdatedAt,
     isLate: false,
@@ -397,7 +397,7 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
     activeJobId: activeJob?.id || activeJob?.jobId,
     customerName: activeJob?.client,
     customerAddress: activeJob?.address,
-    customerPhone: activeJob?.phone,
+    customerPhone: activeJob?.phoneNumber,
     destinationCoordinates,
     locationLabel: fitter?.locationLabel,
   };
@@ -631,7 +631,7 @@ function SmoothLiveMarker({
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <span className="font-medium text-slate-500">Phone</span>
-            <span className="text-right">{marker.phone || "Not available"}</span>
+            <span className="text-right">{marker.phoneNumber || "Not available"}</span>
             <span className="font-medium text-slate-500">Current status</span>
             <span className="text-right">{statusLabel}</span>
             <span className="font-medium text-slate-500">Distance</span>

@@ -51,7 +51,7 @@ export interface UnifiedJob {
     client: string;
     value?: number;
     email?: string;
-    phone?: string;
+    phoneNumber?: string;
     brand?: string;
     property?: string;
     productType?: string;
@@ -228,10 +228,10 @@ export function JobCard({ job, isSelected, onSelect, onAction, variant = "assign
 
             <div className="mt-3 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                    {job.phone && (
-                        <a href={`tel:${job.phone}`} className="inline-flex max-w-full items-center gap-2 truncate text-[11px] font-semibold text-slate-400 hover:text-amber-600" onClick={(e) => e.stopPropagation()}>
+                    {job.phoneNumber && (
+                        <a href={`tel:${job.phoneNumber}`} className="inline-flex max-w-full items-center gap-2 truncate text-[11px] font-semibold text-slate-400 hover:text-amber-600" onClick={(e) => e.stopPropagation()}>
                             <Phone className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{job.phone}</span>
+                            <span className="truncate">{job.phoneNumber}</span>
                         </a>
                     )}
                 </div>

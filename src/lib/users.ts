@@ -44,7 +44,7 @@ export interface UserRecord {
   name: string;
   email: string;
   role: UserRole;
-  phone?: string;
+  phoneNumber?: string;
   avatar?: string;
   location?: UserLocation;
   checkedIn?: boolean;
@@ -52,9 +52,15 @@ export interface UserRecord {
   updatedAt?: string;
 }
 
-export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "location" | "checkedIn">> & {
+export type UpdateUserInput = Partial<Pick<UserRecord, "name" | "email" | "role" | "location" | "checkedIn" | "phoneNumber">> & {
   password?: string;
 };
+
+export interface ChangePasswordInput {
+  oldPassword: string;
+  password: string;
+  confirmPassword: string;
+}
 
 type UsersListPayload = UserRecord[] | { items?: UserRecord[]; users?: UserRecord[]; data?: UserRecord[] };
 
@@ -83,6 +89,11 @@ export async function updateUser(id: string, payload: UpdateUserInput): Promise<
   if ("user" in data && data.user) return data.user;
   if ("data" in data && data.data) return data.data;
   return data as UserRecord;
+}
+
+export async function changePassword(payload: ChangePasswordInput): Promise<{ message: string }> {
+  const { data } = await api.patch<{ message: string }>("/users/change-password", payload);
+  return data;
 }
 
 export async function checkInUser(userId?: string): Promise<UserRecord> {

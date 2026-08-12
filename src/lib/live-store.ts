@@ -46,7 +46,7 @@ export interface FitterJob {
   coordinates?: [number, number];
   value?: number;
   email?: string;
-  phone?: string;
+  phoneNumber?: string;
   notes?: string;
   brand?: string;
   property?: string;
@@ -71,7 +71,7 @@ export interface Fitter {
   lastUpdated: string;
   avatar?: string;
   email?: string;
-  phone?: string;
+  phoneNumber?: string;
   history: FitterEvent[];
   schedule: {
     today: FitterJob[];
@@ -198,7 +198,7 @@ function toFitterJob(job: Job): FitterJob {
     status: toFitterJobStatus(job.status),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
-    phone: job.customerPhone,
+    phoneNumber: job.customerPhone,
     notes: job.notes,
     brand: "Easy Blinds",
     property: `Qty ${job.quantity ?? 1}`,
@@ -292,7 +292,7 @@ function buildFitter(
     name: (profile as any).name || (profile as any).email || "Fitter",
     email: (profile as any).email || "",
     role: UserRole.Fitter,
-    phone: profile.phone,
+    phone: profile.phoneNumber,
     location: profile.location,
     checkedIn: true,
   };
@@ -325,7 +325,7 @@ function buildFitter(
     lastUpdated: getLastUpdated(profile, liveLocation),
     avatar: user.avatar,
     email: user.email,
-    phone: profile.phone ?? user.phone,
+    phoneNumber: user.phoneNumber,
     history: buildInitialHistory(liveLocation),
     schedule: {
       yesterday: [],
@@ -350,7 +350,7 @@ function buildProfilesFromUsers(users: UserRecord[]): FitterProfileRecord[] {
     .map((user) => ({
       userId: user._id,
       user,
-      phone: user.phone,
+      phone: user.phoneNumber,
       location: user.location,
       status: FitterProfileStatus.Available,
       capacity: 5,

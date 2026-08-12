@@ -65,8 +65,9 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
         : "EB";
 
     const getNavItems = (role?: UserRole | null) => {
+        let items: Array<{ name: string; href: string; icon: any }> = [];
         if (isOwnerRole(role)) {
-            return [
+            items = [
                 { name: 'Executive Dashboard', href: '/dashboard', icon: BarChart3 },
                 { name: 'Fleet Map', href: '/dashboard/map', icon: MapPin },
                 { name: 'All Jobs', href: '/dashboard/jobs', icon: Briefcase },
@@ -76,11 +77,9 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                 { name: 'Team Rankings', href: '/dashboard/analytics/rankings', icon: Award },
                 { name: 'Team Management', href: '/dashboard/team', icon: Users },
                 { name: 'Area Analysis', href: '/dashboard/areas', icon: MapPin },
-                { name: 'Settings', href: '/dashboard/settings', icon: Settings },
             ];
-        }
-        if (isSalesManagerRole(role)) {
-            return [
+        } else if (isSalesManagerRole(role)) {
+            items = [
                 { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
                 { name: "Fleet Map", href: "/dashboard/map", icon: MapPin },
                 { name: "All Jobs", href: "/dashboard/jobs", icon: Briefcase },
@@ -89,29 +88,32 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                 { name: "Staff Directory", href: "/dashboard/staff", icon: Users },
                 { name: "Staff Requests", href: "/dashboard/staff-request", icon: Users },
             ];
-        }
-        if (isSalesmanRole(role) || isFieldRole(role)) {
-            return [
+        } else if (isSalesmanRole(role) || isFieldRole(role)) {
+            items = [
                 { name: "Field Work", href: "/dashboard", icon: Ruler },
                 { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
             ];
-        }
-        if (role === UserRole.Stitching || String(role).toLowerCase() === "stitching") {
-            return [
+        } else if (role === UserRole.Stitching || String(role).toLowerCase() === "stitching") {
+            items = [
                 { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
                 { name: 'Active Jobs', href: '/dashboard/active', icon: Scissors },
                 { name: 'History', href: '/dashboard/history', icon: History },
-                { name: 'Settings', href: '/dashboard/settings', icon: Settings },
             ];
-        }
-        if (isFitterRole(role)) {
-            return [
+        } else if (isFitterRole(role)) {
+            items = [
                 { name: "My Tasks", href: "/dashboard", icon: ClipboardList },
             ];
+        } else {
+            items = [
+                { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+            ];
         }
-        return [
-            { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        ];
+
+        if (!items.some((item) => item.href === "/dashboard/settings")) {
+            items.push({ name: "Settings", href: "/dashboard/settings", icon: Settings });
+        }
+
+        return items;
     };
 
     const navItems = getNavItems(user?.role);
@@ -204,9 +206,11 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <Button variant="ghost" size="sm" className="w-full justify-start text-neutral-400 hover:text-white hover:bg-neutral-800">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
+                    <Button asChild variant="ghost" size="sm" className="w-full justify-start text-neutral-400 hover:text-white hover:bg-neutral-800">
+                        <Link href="/dashboard/settings" onClick={() => setIsMobileOpen(false)}>
+                            <Settings className="w-4 h-4 mr-2" />
+                            Settings
+                        </Link>
                     </Button>
                     <Button onClick={() => logout("/")} variant="ghost" size="sm" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
                         <LogOut className="w-4 h-4 mr-2" />

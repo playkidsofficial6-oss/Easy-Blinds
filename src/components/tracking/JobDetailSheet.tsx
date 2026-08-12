@@ -377,7 +377,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                             <div>
                                                 <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600">Currently Assigned Fitter</p>
                                                 <p className="text-sm font-semibold text-emerald-900">{assignedFitterUser.name}</p>
-                                                {assignedFitterUser.phone && <p className="text-xs text-emerald-700">{assignedFitterUser.phone}</p>}
+                                                {assignedFitterUser.phoneNumber && <p className="text-xs text-emerald-700">{assignedFitterUser.phoneNumber}</p>}
                                             </div>
                                         </div>
                                     )}
@@ -400,7 +400,7 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                                 </div>
                                                                 <div>
                                                                     <span className="font-medium">{f.name}</span>
-                                                                    {f.phone && <span className="text-slate-400 ml-2 text-xs">{f.phone}</span>}
+                                                                    {f.phoneNumber && <span className="text-slate-400 ml-2 text-xs">{f.phoneNumber}</span>}
                                                                 </div>
                                                             </div>
                                                         </SelectItem>

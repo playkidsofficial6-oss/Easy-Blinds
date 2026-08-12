@@ -82,7 +82,7 @@ function toFitterJob(job: Job): FitterJob {
         status: job.status === JobStatus.Completed ? "Done" : (job.status === JobStatus.Measuring || job.status === JobStatus.SalesmanOnTheWay) ? "In Progress" : "Pending",
         value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
         email: job.customerEmail,
-        phone: job.customerPhone,
+        phoneNumber: job.customerPhone,
         notes: job.notes,
         brand: "Easy Blinds",
         property: `Qty ${job.quantity ?? 1}`,
@@ -236,7 +236,7 @@ export default function SalesmenPage() {
                 lastUpdated: (() => { const u = salesman.location?.updatedAt; if (!u) return "Not updated"; try { return format(typeof u === "string" ? parseISO(u) : new Date(u), "MMM d, HH:mm"); } catch { return "Not updated"; } })(),
                 avatar: salesman.avatar,
                 email: salesman.email,
-                phone: salesman.phone,
+                phoneNumber: salesman.phoneNumber,
                 history: [],
                 schedule: {
                     today: todayJobs,

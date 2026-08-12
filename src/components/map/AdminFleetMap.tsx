@@ -46,7 +46,7 @@ interface CombinedStaffMember {
   id: string;
   name: string;
   role: "Salesman" | "Fitter";
-  phone?: string;
+  phoneNumber?: string;
   email?: string;
   checkedIn: boolean;
   lat: number;
@@ -310,7 +310,7 @@ export function AdminFleetMap() {
           id: u._id,
           name: u.name,
           role,
-          phone: u.phone,
+          phoneNumber: u.phoneNumber,
           email: u.email,
           checkedIn: isOnline,
           lat,
@@ -331,7 +331,7 @@ export function AdminFleetMap() {
         const q = searchQuery.toLowerCase().trim();
         return (
           m.name.toLowerCase().includes(q) ||
-          (m.phone && m.phone.toLowerCase().includes(q)) ||
+          (m.phoneNumber && m.phoneNumber.toLowerCase().includes(q)) ||
           m.role.toLowerCase().includes(q)
         );
       }
@@ -631,16 +631,16 @@ export function AdminFleetMap() {
                   </span>
                 </div>
 
-                {selectedMember.phone && (
+                {selectedMember.phoneNumber && (
                   <div className="flex items-center justify-between text-slate-300 gap-2">
                     <span className="text-slate-500 uppercase tracking-wider font-bold text-[9px] sm:text-[10px] shrink-0">
                       Phone:
                     </span>
                     <a
-                      href={`tel:${selectedMember.phone}`}
+                      href={`tel:${selectedMember.phoneNumber}`}
                       className="text-blue-400 font-medium hover:underline flex items-center gap-1 truncate"
                     >
-                      <Phone className="w-3 h-3 shrink-0" /> {selectedMember.phone}
+                      <Phone className="w-3 h-3 shrink-0" /> {selectedMember.phoneNumber}
                     </a>
                   </div>
                 )}
@@ -653,12 +653,12 @@ export function AdminFleetMap() {
                     <Clock className="w-3 h-3 text-slate-500 shrink-0" />
                     {selectedMember.lastUpdated
                       ? (() => {
-                          try {
-                            return format(parseISO(selectedMember.lastUpdated), "MMM d, HH:mm:ss");
-                          } catch {
-                            return selectedMember.lastUpdated;
-                          }
-                        })()
+                        try {
+                          return format(parseISO(selectedMember.lastUpdated), "MMM d, HH:mm:ss");
+                        } catch {
+                          return selectedMember.lastUpdated;
+                        }
+                      })()
                       : "Recently"}
                   </span>
                 </div>
