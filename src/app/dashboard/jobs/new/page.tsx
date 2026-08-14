@@ -633,7 +633,7 @@ export default function NewJobPage() {
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center gap-4 mb-8">
-        <Link href="/sales-manager/salesman-assignments" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+        <Link href="/dashboard" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
           <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
         </Link>
         <div>
