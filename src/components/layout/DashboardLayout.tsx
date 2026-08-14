@@ -149,7 +149,10 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
 
             <nav className="flex-1 overflow-y-auto px-4 py-8 space-y-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#525252 transparent" }}>
                 {navItems.map((item) => {
-                    const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`));
+                    const isNewJobRoute = pathname === "/dashboard/jobs/new";
+                    const isActive =
+                        (pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`))) &&
+                        !(item.href === "/dashboard/jobs" && isNewJobRoute);
                     return (
                         <Link
                             key={item.href}
@@ -177,7 +180,12 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                     <Link
                         href="/dashboard/jobs/new"
                         onClick={() => setIsMobileOpen(false)}
-                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white rounded-r-md"
+                        className={cn(
+                            "flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 rounded-r-md",
+                            pathname === "/dashboard/jobs/new"
+                                ? selectedBrand.styles.sidebarActive
+                                : "border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white"
+                        )}
                     >
                         <PlusCircle className="w-5 h-5 shrink-0" />
                         <span>New Job</span>

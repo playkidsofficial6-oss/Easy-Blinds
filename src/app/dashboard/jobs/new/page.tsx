@@ -704,7 +704,7 @@ export default function NewJobPage() {
                         variant="outline"
                         role="combobox"
                         aria-expanded={openCountry}
-                        className="w-[140px] justify-between bg-white dark:bg-slate-900 px-3 font-normal"
+                        className="w-35 justify-between bg-white dark:bg-slate-900 px-3 font-normal"
                       >
                         <span className="truncate flex items-center gap-2">
                           <span className="text-lg">{selectedCountry.flag}</span>
@@ -713,7 +713,7 @@ export default function NewJobPage() {
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0" align="start">
+                    <PopoverContent className="w-75 p-0" align="start">
                       <Command>
                         <CommandInput placeholder="Search country..." />
                         <CommandList>
@@ -757,7 +757,7 @@ export default function NewJobPage() {
                     </PopoverContent>
                   </Popover>
                 ) : (
-                  <div className="flex gap-1 items-center w-[140px]">
+                  <div className="flex gap-1 items-center w-35">
                     <Input
                       name="customCountryCode"
                       value={customCountryCode}
@@ -1028,14 +1028,14 @@ export default function NewJobPage() {
             variant="outline"
             onClick={() => router.back()}
             disabled={isLoading}
-            className="w-full sm:w-auto min-w-[120px]"
+            className="w-full sm:w-auto min-w-30"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             disabled={isLoading}
-            className="w-full sm:w-auto min-w-[160px] bg-blue-600 hover:bg-blue-700 text-white font-medium"
+            className="w-full sm:w-auto min-w-40 bg-blue-600 hover:bg-blue-700 text-white font-medium"
           >
             {isLoading ? "Saving Details..." : "Work Order"}
           </Button>
