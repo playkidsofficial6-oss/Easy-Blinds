@@ -37,19 +37,17 @@ export function LegalTableOfContents({
                                     <button
                                         key={section.id}
                                         onClick={() => onSectionClick(section.id)}
-                                        className={`w-full text-left px-3 py-2 text-xs rounded-lg font-medium transition-all flex items-center justify-between group cursor-pointer ${
-                                            isActive
+                                        className={`w-full text-left px-3 py-2 text-xs rounded-lg font-medium transition-all flex items-center justify-between group cursor-pointer ${isActive
                                                 ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold shadow-xs"
                                                 : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white"
-                                        }`}
+                                            }`}
                                     >
                                         <span className="truncate">{section.title}</span>
                                         <ChevronRight
-                                            className={`w-3.5 h-3.5 shrink-0 transition-transform ${
-                                                isActive
+                                            className={`w-3.5 h-3.5 shrink-0 transition-transform ${isActive
                                                     ? "opacity-100 translate-x-0.5"
                                                     : "opacity-0 group-hover:opacity-100"
-                                            }`}
+                                                }`}
                                         />
                                     </button>
                                 );
@@ -66,10 +64,10 @@ export function LegalTableOfContents({
                             Questions regarding tablet laser pairing or staff access permissions?
                         </p>
                         <a
-                            href="mailto:support@company.internal"
+                            href="mailto:hello@measurepro.co"
                             className="inline-flex items-center text-xs font-medium text-blue-400 hover:text-blue-300 underline underline-offset-4"
                         >
-                            Email support@company.internal &rarr;
+                            Email hello@measurepro.co &rarr;
                         </a>
                     </div>
                 </div>
@@ -99,11 +97,10 @@ export function LegalTableOfContents({
                                         onSectionClick(section.id);
                                         setMobileOpen(false);
                                     }}
-                                    className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all ${
-                                        isActive
+                                    className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all ${isActive
                                             ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold"
                                             : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                    }`}
+                                        }`}
                                 >
                                     {section.title}
                                 </button>

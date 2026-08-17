@@ -100,11 +100,10 @@ export function LegalContent({ sections, searchQuery }: LegalContentProps) {
                             return (
                                 <p
                                     key={pIdx}
-                                    className={`${
-                                        isBullet
-                                            ? "pl-4 text-neutral-600 dark:text-neutral-400 font-normal"
-                                            : ""
-                                    }`}
+                                    className={`${isBullet
+                                        ? "pl-4 text-neutral-600 dark:text-neutral-400 font-normal"
+                                        : ""
+                                        }`}
                                 >
                                     {highlightText(paragraph, searchQuery)}
                                 </p>
@@ -129,13 +128,13 @@ export function LegalContent({ sections, searchQuery }: LegalContentProps) {
 
                     <div className="flex flex-col gap-2.5 w-full sm:w-auto shrink-0">
                         <a
-                            href="mailto:support@company.internal"
+                            href="mailto:hello@measurepro.co"
                             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white text-neutral-900 hover:bg-neutral-100 text-xs font-bold transition-colors shadow-xs"
                         >
                             <Mail className="w-4 h-4" /> Internal IT Helpdesk
                         </a>
                         <a
-                            href="mailto:privacy@company.internal"
+                            href="mailto:hello@measurepro.co"
                             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-neutral-700 text-neutral-300 hover:text-white hover:border-neutral-500 text-xs font-medium transition-colors"
                         >
                             <Mail className="w-4 h-4" /> Data Compliance

@@ -196,7 +196,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
             <div className="p-4 border-t border-neutral-800">
                 <div className="flex items-center gap-3 mb-4 px-2">
                     <Avatar className="h-10 w-10">
-                        <AvatarImage src="/placeholder-user.jpg" />
+                        {/* <AvatarImage src="/placeholder-user.jpg" /> */}
                         <AvatarFallback className="bg-amber-600 text-white">{initials}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
