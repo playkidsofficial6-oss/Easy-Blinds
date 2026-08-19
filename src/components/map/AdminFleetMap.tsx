@@ -13,7 +13,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isToday } from "date-fns";
 import {
   MapPin,
   Phone,
@@ -124,6 +124,32 @@ function isJobOnTheWay(status?: string | JobStatus): boolean {
     status === JobStatus.FitterOnTheWay ||
     /on\s*the\s*way|travelling|en\s*route/i.test(String(status))
   );
+}
+
+// Helper to check if a completed job was completed today
+function isCompletedJobCompletedToday(job: Job): boolean {
+  const dateCandidates = [
+    job.fittingCompletedAt,
+    (job as any).fitterJobCompletedAt,
+    (job as any).salemanJobCompletedAt,
+    job.measurementCompletedAt,
+    job.updatedAt,
+    job.scheduledAt,
+  ].filter(Boolean);
+
+  for (const dateVal of dateCandidates) {
+    if (!dateVal) continue;
+    try {
+      const parsed = typeof dateVal === "string" ? parseISO(dateVal) : new Date(dateVal);
+      if (!isNaN(parsed.getTime())) {
+        return isToday(parsed);
+      }
+    } catch {
+      // Continue to next candidate date
+    }
+  }
+
+  return false;
 }
 
 // 2-letter Initial Generator for Jobs (Square Marker)
@@ -622,7 +648,19 @@ export function AdminFleetMap() {
       .filter((job) => {
         if (!job.location) return false;
         const coords = extractLatLng(job.location as any);
-        return coords !== null;
+        if (!coords) return false;
+
+        // Do not show past completed jobs; only show jobs completed today
+        const isCompleted =
+          job.status === JobStatus.Completed ||
+          (job.status as any) === "Completed" ||
+          String(job.status).toLowerCase() === "completed";
+
+        if (isCompleted && !isCompletedJobCompletedToday(job)) {
+          return false;
+        }
+
+        return true;
       })
       .map((job) => {
         const coords = extractLatLng(job.location as any)!;
@@ -1052,7 +1090,7 @@ export function AdminFleetMap() {
             >
               {/* Full Job Details Tooltip on Hover */}
               <Tooltip direction="top" offset={[0, -28]} opacity={0.98}>
-                <div className="p-1 min-w-[210px] max-w-[290px] text-slate-900 font-sans space-y-1.5">
+                <div className="p-1 min-w-52.5 max-w-72.5 text-slate-900 font-sans space-y-1.5">
                   <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-1">
                     <span className="font-mono font-bold text-[11px] text-slate-800">
                       {job.jobId}
@@ -1064,7 +1102,9 @@ export function AdminFleetMap() {
                           ? "bg-emerald-600"
                           : job.status === "Fitting" || job.status === "Measuring"
                             ? "bg-blue-600"
-                            : "bg-amber-600"
+                            : job.status === JobStatus.Completed || job.status === "Completed"
+                              ? "bg-emerald-600"
+                              : "bg-amber-600"
                       )}
                     >
                       {job.status}
@@ -1297,7 +1337,9 @@ export function AdminFleetMap() {
                           "text-[9px] sm:text-[10px] uppercase font-extrabold px-1.5 sm:px-2 py-0.5 shrink-0",
                           isJobOnTheWay(selectedJob.status)
                             ? "bg-emerald-600 text-white border-emerald-500"
-                            : "bg-amber-600 text-white border-amber-500"
+                            : selectedJob.status === JobStatus.Completed || selectedJob.status === "Completed"
+                              ? "bg-emerald-600 text-white border-emerald-500"
+                              : "bg-amber-600 text-white border-amber-500"
                         )}
                       >
                         {selectedJob.status}

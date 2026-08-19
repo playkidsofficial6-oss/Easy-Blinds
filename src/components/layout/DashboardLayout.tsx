@@ -183,7 +183,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                             <span className="truncate">{item.name}</span>
                             {isStaffRequestsItem && staffRequestUnreadCount > 0 && (
                                 <span
-                                    className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-bold text-white bg-[#E17100] rounded-full shadow-sm ring-1 ring-[#E17100]/30 animate-in fade-in zoom-in-75 duration-200"
+                                    className="ml-auto flex items-center justify-center min-w-5 h-5 px-1.5 text-[11px] font-bold text-white bg-[#E17100] rounded-full shadow-sm ring-1 ring-[#E17100]/30 animate-in fade-in zoom-in-75 duration-200"
                                     title={`${staffRequestUnreadCount} unread staff request${staffRequestUnreadCount > 1 ? 's' : ''}`}
                                 >
                                     {staffRequestUnreadCount > 99 ? "99+" : staffRequestUnreadCount}
