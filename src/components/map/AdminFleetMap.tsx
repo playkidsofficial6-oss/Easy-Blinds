@@ -622,10 +622,15 @@ export function AdminFleetMap() {
           lng += (((hash * 3) % 10) - 5) * 0.0015;
         }
 
+        // DB checkedIn field is the authoritative source for check-in status.
+        // If checkedIn is explicitly false (user checked out), always show offline
+        // regardless of WebSocket presence, since checkout may not emit a socket event.
         const isOnline =
-          onlinePresence[u._id] !== undefined
-            ? onlinePresence[u._id]
-            : Boolean(u.checkedIn);
+          u.checkedIn === false
+            ? false
+            : onlinePresence[u._id] !== undefined
+              ? onlinePresence[u._id]
+              : u.checkedIn === true;
 
         return {
           id: u._id,
