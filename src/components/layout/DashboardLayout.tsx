@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/static-components */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -47,6 +47,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useStaffRequestsNotification } from "@/hooks/use-staff-requests-notification";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -58,6 +59,13 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { selectedBrand, setSelectedBrand } = useBrand();
     const { user, logout } = useAuth();
+    const { unreadCount: staffRequestUnreadCount, markAsSeen: markStaffRequestsSeen } = useStaffRequestsNotification();
+
+    useEffect(() => {
+        if (pathname === "/dashboard/staff-request") {
+            markStaffRequestsSeen();
+        }
+    }, [pathname, markStaffRequestsSeen]);
 
     const initials = user?.name
         ? user.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()
@@ -153,20 +161,34 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                     const isActive =
                         (pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`))) &&
                         !(item.href === "/dashboard/jobs" && isNewJobRoute);
+                    const isStaffRequestsItem = item.href === "/dashboard/staff-request";
                     return (
                         <Link
                             key={item.href}
                             href={item.href}
-                            onClick={() => setIsMobileOpen(false)}
+                            onClick={() => {
+                                setIsMobileOpen(false);
+                                if (isStaffRequestsItem) {
+                                    markStaffRequestsSeen();
+                                }
+                            }}
                             className={cn(
-                                "flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 rounded-r-md",
+                                "flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 rounded-r-md group",
                                 isActive
                                     ? selectedBrand.styles.sidebarActive
                                     : "border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white"
                             )}
                         >
                             <item.icon className="w-5 h-5 shrink-0" />
-                            <span>{item.name}</span>
+                            <span className="truncate">{item.name}</span>
+                            {isStaffRequestsItem && staffRequestUnreadCount > 0 && (
+                                <span
+                                    className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-bold text-white bg-[#E17100] rounded-full shadow-sm ring-1 ring-[#E17100]/30 animate-in fade-in zoom-in-75 duration-200"
+                                    title={`${staffRequestUnreadCount} unread staff request${staffRequestUnreadCount > 1 ? 's' : ''}`}
+                                >
+                                    {staffRequestUnreadCount > 99 ? "99+" : staffRequestUnreadCount}
+                                </span>
+                            )}
                             {item.name === "Pending Reviews" && (
                                 <span className="ml-auto bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full leading-none">
                                     12

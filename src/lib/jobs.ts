@@ -279,3 +279,20 @@ export function getJobErrorMessage(error: unknown, fallback = "Unable to process
 
   return fallback;
 }
+
+export interface StaffRequestsUnreadResponse {
+  unreadCount: number;
+  totalPending: number;
+  lastSeenAt?: string | null;
+}
+
+export async function getStaffRequestsUnreadCount(): Promise<StaffRequestsUnreadResponse> {
+  const { data } = await api.get<StaffRequestsUnreadResponse>("/jobs/staff-requests/unread-count");
+  return data;
+}
+
+export async function markStaffRequestsSeen(): Promise<{ success: boolean; lastSeenAt: string }> {
+  const { data } = await api.post<{ success: boolean; lastSeenAt: string }>("/jobs/staff-requests/mark-seen");
+  return data;
+}
+

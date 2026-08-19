@@ -51,6 +51,9 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
+import { markStaffRequestsSeen } from "@/lib/jobs";
+import { triggerStaffRequestsSync } from "@/hooks/use-staff-requests-notification";
+
 function getInitials(name?: string): string {
   if (!name) return "SR";
   const clean = name.trim();
@@ -76,8 +79,8 @@ export default function StaffRequestsPage() {
   const [newTime, setNewTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchRequests = useCallback(async () => {
-    setIsLoading(true);
+  const fetchRequests = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const [jobsRes, usersRes] = await Promise.all([
         getJobs({ limit: 1000 }),
@@ -88,16 +91,24 @@ export default function StaffRequestsPage() {
       );
       setRequests(pendingRequests);
       setUsers(usersRes);
+      // Mark as seen when actively viewing/fetching requests
+      markStaffRequestsSeen().catch(() => {});
     } catch (error) {
-      toast.error("Failed to fetch staff requests.");
+      if (!silent) {
+        toast.error("Failed to fetch staff requests.");
+      }
       console.error(error);
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchRequests();
+    fetchRequests(false);
+    const interval = setInterval(() => {
+      fetchRequests(true);
+    }, 10000);
+    return () => clearInterval(interval);
   }, [fetchRequests]);
 
   const handleOpenDialog = (job: Job) => {
@@ -196,6 +207,7 @@ export default function StaffRequestsPage() {
 
       toast.success("Job rescheduled & updated successfully.");
       setRequests((prev) => prev.filter((j) => j._id !== selectedJob._id));
+      triggerStaffRequestsSync("refresh");
       setIsDialogOpen(false);
     } catch (error) {
       toast.error("Failed to reschedule job.");
