@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import { createCompanyMarkerIcon, EASYBLINDS_HQ } from "@/components/tracking/map-icons";
+import { createCompanyMarkerIcon, EASYBLINDS_HQ, MAP_TILE_LAYER } from "@/components/tracking/map-icons";
 
 export interface SalesmanRouteMapJob {
   id: string;
@@ -227,8 +227,8 @@ export default function SalesmanJobsRouteMap({
         style={{ background: "#eef2f7" }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution={MAP_TILE_LAYER.attribution}
+          url={MAP_TILE_LAYER.url}
         />
         <MapBounds points={allPoints} selected={selectedJob?.coordinates} />
 

@@ -15,8 +15,16 @@ export const MARKER_STATUS_CONFIG: Record<LiveMarkerStatus | "Late", { color: st
 
 export const EASYBLINDS_HQ = {
   name: "EasyBlinds HQ",
-  address: "Nilambur, Kerala",
-  position: [11.2766, 76.2258] as [number, number],
+  address: "Y23 England Cluster, International City, Dubai",
+  position: [25.174382, 55.401287] as [number, number],
+};
+
+const CARTO_API_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY || "cb1_2w4k_1_9fee5a01e2f727fc02acc5fa";
+
+export const MAP_TILE_LAYER = {
+  url: `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`,
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 };
 
 interface LiveMarkerIconOptions {

@@ -123,9 +123,14 @@ const ADDRESS_QUERY_ALIASES: Record<string, string> = {
   "up hill": "Up Hill Malappuram Kerala",
   "calicut airport": "Calicut International Airport Karipur Malappuram Kerala",
   calicutairport: "Calicut International Airport Karipur Malappuram Kerala",
+  "england cluster": "England Cluster International City Dubai",
+  "international city": "International City Dubai",
+  y23: "Y23 England Cluster International City Dubai",
+  "y 23": "Y23 England Cluster International City Dubai",
 };
 
 const CURATED_ADDRESS_SUGGESTIONS: AddressSuggestion[] = [
+  { id: "curated-y23-england-cluster", display_name: "Y23 England Cluster, International City, Dubai", lat: "25.1744", lon: "55.4013", primary: "Y23 England Cluster", secondary: "EasyBlinds HQ / International City, Dubai", category: "HQ", regionScore: 195, matchScore: 0, importance: 1, source: "curated" },
   { id: "curated-malappuram-town", display_name: "Malappuram Town, Malappuram, Kerala, India", lat: "11.0510", lon: "76.0711", primary: "Malappuram Town", secondary: "Kottappadi / Civil Station area, Malappuram", category: "Town Centre", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
   { id: "curated-down-hill", display_name: "Down Hill, Malappuram, Kerala, India", lat: "11.0448", lon: "76.0708", primary: "Down Hill", secondary: "Malappuram local area", category: "Area", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },
   { id: "curated-up-hill", display_name: "Up Hill, Malappuram, Kerala, India", lat: "11.0581", lon: "76.0740", primary: "Up Hill", secondary: "Malappuram local area", category: "Area", regionScore: 190, matchScore: 0, importance: 1, source: "curated" },

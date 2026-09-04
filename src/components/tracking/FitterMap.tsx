@@ -23,6 +23,7 @@ import {
   createCompanyMarkerIcon,
   createLiveMarkerIcon,
   EASYBLINDS_HQ,
+  MAP_TILE_LAYER,
   MARKER_STATUS_CONFIG,
   type LiveMarkerRole,
   type LiveMarkerStatus,
@@ -1143,8 +1144,8 @@ export default function FitterMap({
         markerZoomAnimation
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution={MAP_TILE_LAYER.attribution}
+          url={MAP_TILE_LAYER.url}
         />
 
         <MapCameraController selectedJob={selectedJob} selectedMarker={selectedMarker} />
@@ -1152,12 +1153,12 @@ export default function FitterMap({
 
         <Marker position={EASYBLINDS_HQ.position} icon={companyMarkerIcon} zIndexOffset={500}>
           <Tooltip permanent={zoomLevel >= 10} direction="top" offset={[0, -34]} opacity={1} className="bg-white/95 border border-orange-200 shadow-md rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-slate-900">
-            EasyBlinds HQ
+            {EASYBLINDS_HQ.name}
           </Tooltip>
           <Popup closeButton={false}>
             <div className="space-y-1 text-xs text-slate-600">
-              <div className="text-sm font-bold text-slate-900">EasyBlinds HQ</div>
-              <div>Nilambur, Kerala</div>
+              <div className="text-sm font-bold text-slate-900">{EASYBLINDS_HQ.name}</div>
+              <div>{EASYBLINDS_HQ.address}</div>
             </div>
           </Popup>
         </Marker>

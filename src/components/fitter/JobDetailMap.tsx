@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
 import "leaflet-routing-machine";
+import { MAP_TILE_LAYER } from "@/components/tracking/map-icons";
 
 // Premium Custom Customer Icon using Tailwind + Inline SVG
 const customerIcon = typeof window !== 'undefined' ? L.divIcon({
@@ -175,8 +176,8 @@ export default function JobDetailMap({
                 style={{ background: "#f5f5f5" }}
             >
                 <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    attribution={MAP_TILE_LAYER.attribution}
+                    url={MAP_TILE_LAYER.url}
                 />
 
                 {onMapClick && <MapClickHandler onMapClick={onMapClick} />}

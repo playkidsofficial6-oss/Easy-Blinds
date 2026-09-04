@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-lea
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { toast } from "sonner";
+import { EASYBLINDS_HQ, MAP_TILE_LAYER } from "@/components/tracking/map-icons";
 
 const markerIcon = typeof window !== "undefined" ? L.divIcon({
     html: `<div class="relative flex h-6 w-6">
@@ -59,8 +60,8 @@ function LocationMarker({ onAddressSelect, externalCoords }: AddressPickerMapPro
 }
 
 export default function AddressPickerMap({ onAddressSelect, externalCoords }: AddressPickerMapProps) {
-    // Default to Kerala center
-    const defaultCenter: [number, number] = [10.8505, 76.2711];
+    // Default to HQ center
+    const defaultCenter: [number, number] = EASYBLINDS_HQ.position;
 
     return (
         <div className="h-64 w-full rounded-xl border-2 border-slate-200 overflow-hidden relative z-0 mt-2 shadow-sm">
@@ -75,8 +76,8 @@ export default function AddressPickerMap({ onAddressSelect, externalCoords }: Ad
                 style={{ background: "#f5f5f5" }}
             >
                 <TileLayer
-                    attribution='&copy; OpenStreetMap'
-                    url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                    attribution={MAP_TILE_LAYER.attribution}
+                    url={MAP_TILE_LAYER.url}
                 />
                 <LocationMarker onAddressSelect={onAddressSelect} externalCoords={externalCoords} />
             </MapContainer>

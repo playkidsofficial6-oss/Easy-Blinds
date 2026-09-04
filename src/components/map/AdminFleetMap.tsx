@@ -48,8 +48,9 @@ import { getUsers, UserRecord, extractLatLng } from "@/lib/users";
 import { getJobs, Job, JobStatus, JobPriority } from "@/lib/jobs";
 import { isSalesmanRole, isFieldRole, isFitterRole } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+import { EASYBLINDS_HQ as EASYBLINDS_HQ_DATA, MAP_TILE_LAYER } from "@/components/tracking/map-icons";
 
-const EASYBLINDS_HQ: [number, number] = [11.2766, 76.2258];
+const EASYBLINDS_HQ: [number, number] = EASYBLINDS_HQ_DATA.position;
 const AUTO_REFRESH_INTERVAL_MS = 5000; // 5 seconds
 
 interface CombinedStaffMember {
@@ -1058,16 +1059,16 @@ export function AdminFleetMap() {
         <LeafletMapResizer isFullscreen={isFullscreen} />
 
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          attribution={MAP_TILE_LAYER.attribution}
+          url={MAP_TILE_LAYER.url}
         />
 
         {/* Company HQ Marker */}
         <Marker position={EASYBLINDS_HQ} icon={createCompanyHqIcon()}>
           <Popup className="custom-popup">
             <div className="p-2 text-slate-900 font-sans">
-              <h4 className="font-bold text-sm text-slate-900">EasyBlinds HQ</h4>
-              <p className="text-xs text-slate-500">Nilambur, Kerala</p>
+              <h4 className="font-bold text-sm text-slate-900">{EASYBLINDS_HQ_DATA.name}</h4>
+              <p className="text-xs text-slate-500">{EASYBLINDS_HQ_DATA.address}</p>
             </div>
           </Popup>
         </Marker>
