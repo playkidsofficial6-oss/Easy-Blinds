@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { MapPin, RefreshCw } from "lucide-react";
 
-// Dynamically import Leaflet Fleet Map (CSR only, no SSR)
+// Dynamically import Google Maps Fleet Map (CSR only, no SSR)
 const AdminFleetMap = dynamic(
   () => import("@/components/map/AdminFleetMap").then((m) => m.AdminFleetMap),
   {
