@@ -45,6 +45,9 @@ export interface Job {
   quantity?: number;
   status: JobStatus;
   priority: JobPriority;
+  isReviewed?: boolean;
+  reviewRating?: number;
+  reviewMessage?: string;
   notes?: string;
   scheduledAt?: string;
   photos?: string[];
@@ -124,6 +127,9 @@ export interface CreateJobInput {
   quantity?: number;
   status?: JobStatus;
   priority?: JobPriority;
+  isReviewed?: boolean;
+  reviewRating?: number;
+  reviewMessage?: string;
   notes?: string;
   scheduledAt?: string;
   measurementCompletedAt?: string;
@@ -162,9 +168,18 @@ export interface SalesmanWorkflowInput {
 export interface JobsQuery {
   page?: number;
   limit?: number;
+  all?: boolean;
   status?: JobStatus;
   priority?: JobPriority;
+  isReviewed?: boolean;
   search?: string;
+}
+
+export interface JobStats {
+  total: number;
+  completed: number;
+  reviewed: number;
+  pendingReview: number;
 }
 
 export interface JobsResponse {
@@ -175,6 +190,7 @@ export interface JobsResponse {
     limit: number;
     totalPages: number;
   };
+  stats?: JobStats;
 }
 
 export async function createJob(input: CreateJobInput): Promise<Job> {
@@ -184,6 +200,11 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
 
 export async function getJobs(query: JobsQuery = {}): Promise<JobsResponse> {
   const { data } = await api.get<JobsResponse>("/jobs", { params: query });
+  return data;
+}
+
+export async function getJobStats(): Promise<JobStats> {
+  const { data } = await api.get<JobStats>("/jobs/stats");
   return data;
 }
 
@@ -258,3 +279,20 @@ export function getJobErrorMessage(error: unknown, fallback = "Unable to process
 
   return fallback;
 }
+
+export interface StaffRequestsUnreadResponse {
+  unreadCount: number;
+  totalPending: number;
+  lastSeenAt?: string | null;
+}
+
+export async function getStaffRequestsUnreadCount(): Promise<StaffRequestsUnreadResponse> {
+  const { data } = await api.get<StaffRequestsUnreadResponse>("/jobs/staff-requests/unread-count");
+  return data;
+}
+
+export async function markStaffRequestsSeen(): Promise<{ success: boolean; lastSeenAt: string }> {
+  const { data } = await api.post<{ success: boolean; lastSeenAt: string }>("/jobs/staff-requests/mark-seen");
+  return data;
+}
+

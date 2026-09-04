@@ -78,49 +78,49 @@ export default function SalesManagerDashboard() {
       title: "Active Salesmen",
       value: isLoading ? "..." : activeSalesmen,
       icon: Users,
-      href: "/dashboard/salesmen",
+      href: "/dashboard/salesman-assignments",
     },
   ];
 
   const recentJobs = jobs.slice(0, 5);
 
   return (
-    <div className="px-8 py-8 space-y-12">
+    <div className="px-4 sm:px-8 py-4 sm:py-8 space-y-6 sm:space-y-12">
       {selectedJobId && (
         <JobDetailSheet jobId={selectedJobId} onClose={() => setSelectedJobId(null)} />
       )}
 
       {/* Header */}
-      <div className="flex items-end justify-between">
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-neutral-500 font-semibold">
-            <div className="w-12 h-px bg-linear-to-r from-transparent via-amber-600 to-transparent" />
+      <div className="flex items-end justify-between gap-3">
+        <div className="space-y-2 sm:space-y-3 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs uppercase tracking-[0.2em] text-neutral-500 font-semibold">
+            <div className="w-8 sm:w-12 h-px bg-linear-to-r from-transparent via-amber-600 to-transparent" />
             <span>Operations Overview</span>
           </div>
-          <h1 className="text-5xl font-light tracking-tight text-neutral-900 dark:text-white leading-tight">
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-light tracking-tight text-neutral-900 dark:text-white leading-tight">
             Sales
             <span className="block font-bold">Assignments</span>
           </h1>
         </div>
         <Link href="/dashboard/jobs/new">
-          <button className="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white px-10 py-5 text-base font-semibold transition-all duration-150 flex items-center gap-3 rounded-sm shadow-lg shadow-amber-900/30">
-            <PlusCircle className="w-6 h-6" />
-            New Job
+          <button className="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white px-4 py-3 sm:px-10 sm:py-5 text-sm sm:text-base font-semibold transition-all duration-150 flex items-center gap-2 sm:gap-3 rounded-sm shadow-lg shadow-amber-900/30 shrink-0 whitespace-nowrap">
+            <PlusCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className="hidden sm:inline">New Job</span>
           </button>
         </Link>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-neutral-300 dark:bg-neutral-700 border border-neutral-300 dark:border-neutral-700 rounded-sm overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-neutral-300 dark:bg-neutral-700 border border-neutral-300 dark:border-neutral-700 rounded-sm overflow-hidden">
         {stats.map((stat, index) => {
           const content = (
             <Card className="border-0 rounded-none bg-neutral-100 dark:bg-neutral-900 hover:bg-white dark:hover:bg-neutral-800 transition-colors cursor-pointer group h-full">
-              <CardContent className="p-8">
-                <div className="w-10 h-10 mb-5 border border-neutral-300 dark:border-neutral-700 rounded-sm flex items-center justify-center">
-                  <stat.icon className="w-5 h-5 text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors" />
+              <CardContent className="p-4 sm:p-8">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 mb-3 sm:mb-5 border border-neutral-300 dark:border-neutral-700 rounded-sm flex items-center justify-center">
+                  <stat.icon className="w-4 h-4 sm:w-5 sm:h-5 text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-900 dark:group-hover:text-white transition-colors" />
                 </div>
-                <div className="text-[11px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400 mb-2 font-semibold">{stat.title}</div>
-                <div className="text-5xl font-light text-neutral-900 dark:text-white mb-3">{stat.value}</div>
+                <div className="text-[9px] sm:text-[11px] uppercase tracking-widest text-neutral-500 dark:text-neutral-400 mb-1 sm:mb-2 font-semibold">{stat.title}</div>
+                <div className="text-3xl sm:text-5xl font-light text-neutral-900 dark:text-white mb-1 sm:mb-3">{stat.value}</div>
               </CardContent>
             </Card>
           );
@@ -134,17 +134,17 @@ export default function SalesManagerDashboard() {
       </div>
 
       {/* Recent Jobs */}
-      <div className="space-y-5">
-        <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-light text-neutral-900 dark:text-white">Recent Jobs</h2>
+      <div className="space-y-3 sm:space-y-5">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <h2 className="text-xl sm:text-2xl font-light text-neutral-900 dark:text-white whitespace-nowrap">Recent Jobs</h2>
           <div className="h-px flex-1 bg-linear-to-r from-neutral-300 dark:from-neutral-700 to-transparent" />
         </div>
         <div className="rounded-sm overflow-hidden border border-neutral-300 dark:border-neutral-700 divide-y divide-neutral-200 dark:divide-neutral-800">
           {isLoading && (
-            <div className="bg-white dark:bg-neutral-900 px-8 py-6 text-sm text-neutral-500">Loading jobs...</div>
+            <div className="bg-white dark:bg-neutral-900 px-4 sm:px-8 py-6 text-sm text-neutral-500">Loading jobs...</div>
           )}
           {!isLoading && recentJobs.length === 0 && (
-            <div className="bg-white dark:bg-neutral-900 px-8 py-6 text-sm text-neutral-500">
+            <div className="bg-white dark:bg-neutral-900 px-4 sm:px-8 py-6 text-sm text-neutral-500">
               No jobs found yet. Create a new job to see it here.
             </div>
           )}
@@ -152,17 +152,17 @@ export default function SalesManagerDashboard() {
             <div
               key={job._id}
               onClick={() => setSelectedJobId(job._id)}
-              className="bg-white dark:bg-neutral-900 px-8 py-5 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between cursor-pointer"
+              className="bg-white dark:bg-neutral-900 px-4 sm:px-8 py-3.5 sm:py-5 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 cursor-pointer"
             >
-              <div>
-                <p className="text-base font-medium text-neutral-900 dark:text-white mb-0.5">{job.customerName}</p>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">{job.address}</p>
+              <div className="min-w-0">
+                <p className="text-sm sm:text-base font-medium text-neutral-900 dark:text-white mb-0.5 truncate">{job.customerName}</p>
+                <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 truncate">{job.address}</p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-neutral-400 uppercase tracking-widest">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <span className="text-[10px] sm:text-xs font-semibold text-neutral-400 uppercase tracking-widest">
                   {job.status.replace("_", " ")}
                 </span>
-                <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded border border-amber-200">
+                <span className="text-[10px] sm:text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border border-amber-200">
                   View Details
                 </span>
               </div>

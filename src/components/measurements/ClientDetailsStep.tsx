@@ -57,6 +57,11 @@ export function ClientDetailsStep({
 }: ClientDetailsStepProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.documentElement?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.body?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }
         onNext();
     };
 

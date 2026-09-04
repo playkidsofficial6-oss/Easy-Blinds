@@ -36,6 +36,8 @@ interface FitterMeasurementViewProps {
     availableJobs?: Array<{ id: string; customerName: string; address: string }>;
 }
 
+const round2 = (num: number): number => Math.round((num + Number.EPSILON) * 100) / 100;
+
 export function FitterMeasurementView({
     jobId,
     clientDetails,
@@ -440,13 +442,13 @@ function WindowSpecCard({
                 <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">Dimensions (Width &times; Drop)</span>
                     <div className="text-xl sm:text-2xl font-mono font-bold text-stone-900 mt-0.5">
-                        {win.width || 0} <span className="text-stone-500 text-sm font-normal">cm</span> &times; {win.height || 0} <span className="text-stone-500 text-sm font-normal">cm</span>
+                        {round2(win.width || 0)} <span className="text-stone-500 text-sm font-normal">cm</span> &times; {round2(win.height || 0)} <span className="text-stone-500 text-sm font-normal">cm</span>
                     </div>
                 </div>
                 <div className="text-left sm:text-right border-t sm:border-t-0 sm:border-l border-stone-200 pt-2 sm:pt-0 sm:pl-3 w-full sm:w-auto">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400">In Millimeters</span>
                     <div className="text-xs font-mono font-semibold text-stone-600 mt-0.5">
-                        {(win.width || 0) * 10} &times; {(win.height || 0) * 10} mm
+                        {round2((win.width || 0) * 10)} &times; {round2((win.height || 0) * 10)} mm
                     </div>
                 </div>
             </div>

@@ -55,7 +55,7 @@ interface LiveMapMarker {
   status: LiveMarkerStatus;
   position: [number, number];
   avatar?: string;
-  phone?: string;
+  phoneNumber?: string;
   lastUpdated: string;
   lastUpdatedAt?: string;
   isLate: boolean;
@@ -414,7 +414,7 @@ function buildFitterMarker(
     status,
     position,
     avatar: fitter.avatar,
-    phone: fitter.phone,
+    phoneNumber: fitter.phoneNumber,
     lastUpdated: lastUpdatedAt ? toReadableLastUpdated(lastUpdatedAt) : fitter.lastUpdated,
     lastUpdatedAt,
     isLate: isLate(fitter),
@@ -424,7 +424,7 @@ function buildFitterMarker(
     activeJobStatus: activeJob?.status,
     customerName: activeJob?.client,
     customerAddress: activeJob?.address,
-    customerPhone: activeJob?.phone,
+    customerPhone: activeJob?.phoneNumber,
     destinationCoordinates,
     locationLabel: fitter.locationLabel,
   };
@@ -433,7 +433,7 @@ function buildFitterMarker(
 function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter): LiveMapMarker {
   const lastUpdatedAt = location.updatedAt;
   const userName = location.user?.name ?? `User ${location.userId.slice(-6)}`;
-  const userPhone = (location.user as { phone?: string } | undefined)?.phone;
+  const userPhone = (location.user as { phoneNumber?: string } | undefined)?.phoneNumber;
 
   const activeJob = fitter
     ? (fitter.schedule.today.find(j => j.id === fitter.jobRef) ??
@@ -456,7 +456,7 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
     role: normalizeRole(location.role),
     status: normalizeStatus(location.role),
     position: [location.lat, location.lng],
-    phone: userPhone,
+    phoneNumber: userPhone,
     lastUpdated: toReadableLastUpdated(lastUpdatedAt),
     lastUpdatedAt,
     isLate: false,
@@ -466,7 +466,7 @@ function buildLiveLocationMarker(location: LiveLocationRecord, fitter?: Fitter):
     activeJobStatus: activeJob?.status,
     customerName: activeJob?.client,
     customerAddress: activeJob?.address,
-    customerPhone: activeJob?.phone,
+    customerPhone: activeJob?.phoneNumber,
     destinationCoordinates,
     locationLabel: fitter?.locationLabel,
   };
@@ -632,14 +632,8 @@ function SmoothLiveMarker({
   useEffect(() => {
     let active = true;
 
-    async function runSnappingAndAnimate() {
-      let targetPosition = marker.position;
-      if (marker.role === "Salesman" && marker.status === "On The Way") {
-        targetPosition = await snapToRoad(marker.position[0], marker.position[1]);
-      }
-
-      if (!active) return;
-
+    function runAnimate() {
+      const targetPosition = marker.position;
       const start = currentPositionRef.current;
       const end = targetPosition;
       if (start[0] === end[0] && start[1] === end[1]) {
@@ -684,7 +678,7 @@ function SmoothLiveMarker({
       animationFrameRef.current = requestAnimationFrame(animate);
     }
 
-    runSnappingAndAnimate();
+    runAnimate();
 
     return () => {
       active = false;
@@ -735,7 +729,7 @@ function SmoothLiveMarker({
             </div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               <span className="font-medium text-slate-500">Phone</span>
-              <span className="text-right">{marker.phone || "Not available"}</span>
+              <span className="text-right">{marker.phoneNumber || "Not available"}</span>
               <span className="font-medium text-slate-500">Current status</span>
               <span className="text-right">{statusLabel}</span>
               <span className="font-medium text-slate-500">Distance</span>
@@ -1455,32 +1449,49 @@ export default function SalesmanMap({
                 </div>
               </Popup>
             </Marker>
-            {visibleMapLayers.routes && markers.map((marker) => (
-              <RoutingPolyline
-                key={`selected-route-${marker.id}`}
-                markerId={marker.id}
-                start={marker.position}
-                end={[selectedJob.location.lat, selectedJob.location.lng]}
-                zoomLevel={zoomLevel}
-                routeColor={getJobRouteColor(selectedJob.status)}
-                motionColor={getJobMotionColor(selectedJob.status)}
-              />
-            ))}
+            {visibleMapLayers.routes && markers
+              .filter((marker) => {
+                if (selectedFitterId) {
+                  return marker.id === selectedFitterId;
+                }
+                const assignedId = (selectedJob as any)?.assignedSalesmanId || (selectedJob as any)?.assignedFitterId;
+                if (assignedId) {
+                  return marker.id === assignedId;
+                }
+                return true;
+              })
+              .map((marker) => (
+                <RoutingPolyline
+                  key={`selected-route-${marker.id}`}
+                  markerId={marker.id}
+                  start={marker.position}
+                  end={[selectedJob.location.lat, selectedJob.location.lng]}
+                  zoomLevel={zoomLevel}
+                  routeColor={getJobRouteColor(selectedJob.status)}
+                  motionColor={getJobMotionColor(selectedJob.status)}
+                />
+              ))}
           </>
         )}
 
         {/* Automatic Active Salesman Destinations and Routes */}
         {visibleMapLayers.routes && markers
-          .filter(marker => marker.role === "Salesman" &&
-            marker.destinationCoordinates &&
-            (isOnTheWayStatus(marker.activeJobStatus) ||
+          .filter(marker => {
+            if (marker.role !== "Salesman" || !marker.destinationCoordinates) return false;
+            const isActive =
+              isOnTheWayStatus(marker.activeJobStatus) ||
               (marker.status as string) === "On The Way" ||
               (marker.status as string) === "On Road" ||
               (marker.status as string) === "In Progress" ||
               (marker.status as string) === "In progress" ||
               (marker.status as string) === "Measuring" ||
-              (marker.status as string) === "Working")
-          )
+              (marker.status as string) === "Working";
+            if (!isActive) return false;
+            if (scheduledJobs && scheduledJobs.length >= 0) {
+              return scheduledJobs.some(s => s.id === marker.activeJobId || s.jobId === marker.activeJobId);
+            }
+            return true;
+          })
           .map((marker) => {
             const dest = marker.destinationCoordinates!;
             return (
@@ -1596,172 +1607,7 @@ export default function SalesmanMap({
         </div>
       )}
 
-      {/* Live Field Status Panel */}
-      <div className={cn(
-        "absolute bottom-16 right-4 z-1000 flex w-80 md:w-96 flex-col rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-2xl backdrop-blur-md text-slate-800 transition-all duration-200 ring-1 ring-black/5",
-        hideStatusPanel && "hidden"
-      )}>
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <h3 className="text-xs font-bold tracking-wider text-slate-700 uppercase">Live Field Status</h3>
-            </div>
-            <p className="text-[9px] text-slate-400 mt-0.5 tracking-wide font-semibold">
-              {salesmenMarkers.filter(s => s.status === "Available").length} Avail •{' '}
-              {salesmenMarkers.filter(s => s.status === "On The Way").length} Way •{' '}
-              {salesmenMarkers.filter(s => s.status === "Measuring" || s.status === "Working").length} Meas •{' '}
-              {salesmenMarkers.filter(s => s.status === "Offline").length} Off
-            </p>
-          </div>
-          <button
-            onClick={() => setIsPanelCollapsed(!isPanelCollapsed)}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-            title={isPanelCollapsed ? "Expand Panel" : "Collapse Panel"}
-          >
-            {isPanelCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </div>
 
-        {!isPanelCollapsed && (
-          <div className="mt-2.5 flex flex-col flex-1 min-h-0 space-y-2">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search salesmen..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200/80 rounded-xl py-1.5 pl-8 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-300 focus:bg-white transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-2 text-[10px] font-bold text-slate-400 hover:text-slate-600"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {/* Salesmen List */}
-            <div className="overflow-y-auto pr-1 space-y-2 max-h-[250px] status-panel-scrollbar">
-              {filteredSalesmen.length === 0 ? (
-                <div className="text-center py-6 text-slate-400 text-xs italic">
-                  {searchQuery ? "No matching salesmen found." : "No salesmen currently active."}
-                </div>
-              ) : (
-                filteredSalesmen.map((salesman) => {
-                  const isSelected = selectedFitterId === salesman.id;
-
-                  // Status Icon Mapping
-                  let statusIcon = "🔴";
-                  let statusText = "Offline";
-                  if (salesman.status === "Available") {
-                    statusIcon = "🟢";
-                    statusText = "Available";
-                  } else if (salesman.status === "On The Way") {
-                    statusIcon = "🚗";
-                    statusText = "On The Way";
-                  } else if (salesman.status === "Measuring" || salesman.status === "Working") {
-                    statusIcon = "📏";
-                    statusText = "Measuring";
-                  }
-
-                  // Fallbacks for telemetry
-                  const isTravelling = salesman.status === "On The Way";
-                  const dest = salesman.destinationCoordinates;
-                  let distStr = "";
-                  let etaStr = "";
-
-                  if (isTravelling && dest) {
-                    const fallbackDistance = distanceKm(salesman.position, dest);
-                    const fallbackEta = estimateEtaMinutes(fallbackDistance);
-                    distStr = telemetryMap[salesman.id]?.distance || `~${formatDistance(fallbackDistance)}`;
-                    etaStr = telemetryMap[salesman.id]?.eta || formatEta(fallbackEta);
-                  }
-
-                  return (
-                    <div
-                      key={salesman.id}
-                      onClick={() => {
-                        onSelectFitter(salesman.id);
-                      }}
-                      className={cn(
-                        "group flex flex-col rounded-xl p-2.5 cursor-pointer border transition-all duration-150",
-                        isSelected
-                          ? "bg-blue-50/40 border-blue-200/80 shadow-[0_2px_8px_rgba(59,130,246,0.05)]"
-                          : "bg-white/60 border-slate-100 hover:bg-slate-50/50 hover:border-slate-200/80"
-                      )}
-                    >
-                      {/* First line: status indicator, name */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                          <span>{statusIcon}</span>
-                          <span className="group-hover:text-blue-600 transition-colors uppercase tracking-wide">{salesman.name}</span>
-                        </span>
-
-                        {/* Speed indication for moving salesmen */}
-                        {isTravelling && salesman.speed !== undefined && salesman.speed > 0 && (
-                          <span className="text-[9px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60 flex items-center gap-1">
-                            <Navigation className="h-2.5 w-2.5 text-blue-500 rotate-45" />
-                            {formatSpeed(salesman.speed)}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Second line and third line depending on status */}
-                      <div className="mt-1.5 text-[10px] text-slate-500">
-                        {salesman.status === "Available" && (
-                          <div className="pl-5 space-y-0.5">
-                            <div className="font-semibold text-emerald-600">{statusText}</div>
-                            <div className="text-slate-400 truncate max-w-[280px] flex items-center gap-1">
-                              <MapPin className="h-2.5 w-2.5 text-slate-300 shrink-0" />
-                              <span className="truncate">{salesman.locationLabel || `Coordinates: ${salesman.position[0].toFixed(4)}, ${salesman.position[1].toFixed(4)}`}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {isTravelling && (
-                          <>
-                            <div className="text-xs md:text-sm font-semibold text-slate-900 dark:text-slate-100 tracking-wide truncate block mt-1 pl-5">
-                              → {(salesman.customerName || "Customer").toUpperCase()}
-                            </div>
-                            <div className="text-[10px] font-medium text-slate-500 space-y-0.5 mt-1 pl-5">
-                              <div>Distance: <span className="font-bold font-mono text-slate-700">{distStr}</span></div>
-                              <div>ETA: <span className="font-bold font-mono text-slate-700">{etaStr}</span></div>
-                            </div>
-                          </>
-                        )}
-
-                        {(salesman.status === "Measuring" || salesman.status === "Working") && (
-                          <>
-                            <div className="text-xs md:text-sm font-semibold text-slate-900 dark:text-slate-100 tracking-wide truncate block mt-1 pl-5">
-                              → {(salesman.customerName || "Customer").toUpperCase()}
-                            </div>
-                            <div className="font-semibold text-blue-600 pl-5 text-[10px] mt-0.5">
-                              Measuring
-                            </div>
-                          </>
-                        )}
-
-                        {salesman.status === "Offline" && (
-                          <div className="font-semibold text-slate-400 pl-5">{statusText}</div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* <DiagnosticsPanel
         socketConnected={socketConnected}

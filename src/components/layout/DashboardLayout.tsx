@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/static-components */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -29,13 +29,13 @@ import {
     Scissors,
     History,
     ChevronDown,
-    Check
+    Check,
+    Briefcase
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ModeToggle } from "@/components/mode-toggle";
 import { useBrand } from "@/components/providers/brand-provider";
 import { useAuth } from "@/components/providers/auth-provider";
 import { ProtectedRoute } from "@/components/auth/protected-route";
@@ -47,6 +47,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useStaffRequestsNotification } from "@/hooks/use-staff-requests-notification";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -58,65 +59,64 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const { selectedBrand, setSelectedBrand } = useBrand();
     const { user, logout } = useAuth();
+    const { unreadCount: staffRequestUnreadCount, markAsSeen: markStaffRequestsSeen } = useStaffRequestsNotification();
+
+    useEffect(() => {
+        if (pathname === "/dashboard/staff-request") {
+            markStaffRequestsSeen();
+        }
+    }, [pathname, markStaffRequestsSeen]);
 
     const initials = user?.name
         ? user.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()
         : "EB";
 
     const getNavItems = (role?: UserRole | null) => {
+        let items: Array<{ name: string; href: string; icon: any }> = [];
         if (isOwnerRole(role)) {
-            return [
+            items = [
                 { name: 'Executive Dashboard', href: '/dashboard', icon: BarChart3 },
+                { name: 'Fleet Map', href: '/dashboard/map', icon: MapPin },
+                { name: 'All Jobs', href: '/dashboard/jobs', icon: Briefcase },
                 { name: 'Sales Insights', href: '/dashboard/analytics/sales', icon: TrendingUp },
                 { name: 'Fitting Efficiency', href: '/dashboard/performance', icon: PieChart },
                 { name: 'Review Performance', href: '/dashboard/analytics/reviews', icon: Star },
                 { name: 'Team Rankings', href: '/dashboard/analytics/rankings', icon: Award },
                 { name: 'Team Management', href: '/dashboard/team', icon: Users },
                 { name: 'Area Analysis', href: '/dashboard/areas', icon: MapPin },
-                { name: 'Settings', href: '/dashboard/settings', icon: Settings },
             ];
-        }
-        if (isSalesManagerRole(role)) {
-            return [
+        } else if (isSalesManagerRole(role)) {
+            items = [
                 { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+                { name: "Fleet Map", href: "/dashboard/map", icon: MapPin },
+                { name: "All Jobs", href: "/dashboard/jobs", icon: Briefcase },
                 { name: "Salesman Assignments", href: "/dashboard/salesman-assignments", icon: ClipboardList },
                 { name: "Fitter Assignments", href: "/dashboard/fitter-assignments", icon: ClipboardList },
-                { name: "Salesmen", href: "/dashboard/salesmen", icon: UserCheck },
-                { name: "Fitters", href: "/dashboard/fitter", icon: NavigationIcon },
-                { name: "Fittings Analytics", href: "/dashboard/analytics", icon: LineChart },
-                { name: "Fitter Performance", href: "/dashboard/performance", icon: BarChart3 },
-                { name: "Review Tracking", href: "/dashboard/reviews", icon: Star },
-                { name: "Pending Reviews", href: "/dashboard/reviews/pending", icon: PlayCircle },
-                { name: "Catalogue", href: "/dashboard/catalogue", icon: BookOpen },
                 { name: "Staff Directory", href: "/dashboard/staff", icon: Users },
                 { name: "Staff Requests", href: "/dashboard/staff-request", icon: Users },
             ];
-        }
-        if (isSalesmanRole(role) || isFieldRole(role)) {
-            return [
+        } else if (isSalesmanRole(role) || isFieldRole(role)) {
+            items = [
                 { name: "Field Work", href: "/dashboard", icon: Ruler },
                 { name: "Quotes", href: "/dashboard/quotes", icon: FileText },
-                { name: "Products", href: "/dashboard/products", icon: Package },
-                { name: "Our Gallery", href: "/dashboard/gallery", icon: LayoutDashboard },
-                { name: "Reviews", href: "/dashboard/reviews", icon: Star },
             ];
-        }
-        if (role === UserRole.Stitching || String(role).toLowerCase() === "stitching") {
-            return [
+        } else if (role === UserRole.Stitching || String(role).toLowerCase() === "stitching") {
+            items = [
                 { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
                 { name: 'Active Jobs', href: '/dashboard/active', icon: Scissors },
                 { name: 'History', href: '/dashboard/history', icon: History },
-                { name: 'Settings', href: '/dashboard/settings', icon: Settings },
             ];
-        }
-        if (isFitterRole(role)) {
-            return [
+        } else if (isFitterRole(role)) {
+            items = [
                 { name: "My Tasks", href: "/dashboard", icon: ClipboardList },
             ];
+        } else {
+            items = [
+                { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+            ];
         }
-        return [
-            { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-        ];
+
+        return items;
     };
 
     const navItems = getNavItems(user?.role);
@@ -157,21 +157,38 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
 
             <nav className="flex-1 overflow-y-auto px-4 py-8 space-y-2" style={{ scrollbarWidth: "thin", scrollbarColor: "#525252 transparent" }}>
                 {navItems.map((item) => {
-                    const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard');
+                    const isNewJobRoute = pathname === "/dashboard/jobs/new";
+                    const isActive =
+                        (pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`))) &&
+                        !(item.href === "/dashboard/jobs" && isNewJobRoute);
+                    const isStaffRequestsItem = item.href === "/dashboard/staff-request";
                     return (
                         <Link
                             key={item.href}
                             href={item.href}
-                            onClick={() => setIsMobileOpen(false)}
+                            onClick={() => {
+                                setIsMobileOpen(false);
+                                if (isStaffRequestsItem) {
+                                    markStaffRequestsSeen();
+                                }
+                            }}
                             className={cn(
-                                "flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 rounded-r-md",
+                                "flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 rounded-r-md group",
                                 isActive
                                     ? selectedBrand.styles.sidebarActive
                                     : "border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white"
                             )}
                         >
                             <item.icon className="w-5 h-5 shrink-0" />
-                            <span>{item.name}</span>
+                            <span className="truncate">{item.name}</span>
+                            {isStaffRequestsItem && staffRequestUnreadCount > 0 && (
+                                <span
+                                    className="ml-auto flex items-center justify-center min-w-5 h-5 px-1.5 text-[11px] font-bold text-white bg-[#E17100] rounded-full shadow-sm ring-1 ring-[#E17100]/30 animate-in fade-in zoom-in-75 duration-200"
+                                    title={`${staffRequestUnreadCount} unread staff request${staffRequestUnreadCount > 1 ? 's' : ''}`}
+                                >
+                                    {staffRequestUnreadCount > 99 ? "99+" : staffRequestUnreadCount}
+                                </span>
+                            )}
                             {item.name === "Pending Reviews" && (
                                 <span className="ml-auto bg-rose-600 text-white text-[11px] font-bold px-2 py-0.5 rounded-full leading-none">
                                     12
@@ -185,7 +202,12 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                     <Link
                         href="/dashboard/jobs/new"
                         onClick={() => setIsMobileOpen(false)}
-                        className="flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white rounded-r-md"
+                        className={cn(
+                            "flex items-center gap-4 px-4 py-4 text-sm font-medium transition-all duration-200 border-l-4 rounded-r-md",
+                            pathname === "/dashboard/jobs/new"
+                                ? selectedBrand.styles.sidebarActive
+                                : "border-transparent text-neutral-400 hover:border-neutral-500 hover:bg-neutral-800/50 hover:text-white"
+                        )}
                     >
                         <PlusCircle className="w-5 h-5 shrink-0" />
                         <span>New Job</span>
@@ -196,7 +218,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
             <div className="p-4 border-t border-neutral-800">
                 <div className="flex items-center gap-3 mb-4 px-2">
                     <Avatar className="h-10 w-10">
-                        <AvatarImage src="/placeholder-user.jpg" />
+                        {/* <AvatarImage src="/placeholder-user.jpg" /> */}
                         <AvatarFallback className="bg-amber-600 text-white">{initials}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -209,17 +231,16 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <Button variant="ghost" size="sm" className="w-full justify-start text-neutral-400 hover:text-white hover:bg-neutral-800">
-                        <Settings className="w-4 h-4 mr-2" />
-                        Settings
+                    <Button asChild variant="ghost" size="sm" className="w-full justify-start text-neutral-400 hover:text-white hover:bg-neutral-800">
+                        <Link href="/dashboard/settings" onClick={() => setIsMobileOpen(false)}>
+                            <Settings className="w-4 h-4 mr-2" />
+                            Settings
+                        </Link>
                     </Button>
                     <Button onClick={() => logout("/")} variant="ghost" size="sm" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
                         <LogOut className="w-4 h-4 mr-2" />
                         Sign Out
                     </Button>
-                    <div className="pt-2 px-2">
-                        <ModeToggle />
-                    </div>
                 </div>
             </div>
         </div>
@@ -227,15 +248,15 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
 
     return (
         <ProtectedRoute allowedRoles={allowedRoles}>
-            <div className="min-h-screen bg-stone-50 dark:bg-neutral-950 flex">
+            <div className="min-h-screen bg-stone-50 dark:bg-neutral-950 flex w-full max-w-[100vw] overflow-x-hidden">
                 <aside className="hidden md:flex flex-col w-64 border-r border-neutral-800 bg-neutral-900 fixed inset-y-0 z-50">
                     <NavContent />
                 </aside>
 
-                <div className="flex-1 md:ml-64 flex flex-col min-h-screen bg-stone-50 dark:bg-neutral-950">
-                    <header className="md:hidden h-16 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between px-4 sticky top-0 z-40">
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-lg font-bold text-white">{selectedBrand.name}</h1>
+                <div className="flex min-h-screen min-w-0 flex-1 flex-col bg-stone-50 dark:bg-neutral-950 md:ml-64">
+                    <header className="md:hidden sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-neutral-800 bg-neutral-900 px-4">
+                        <div className="min-w-0 flex-1 pr-3">
+                            <h1 className="truncate text-lg font-bold text-white">{selectedBrand.name}</h1>
                         </div>
                         <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
                             <SheetTrigger asChild>
@@ -249,7 +270,7 @@ export function DashboardLayout({ children, allowedRoles }: DashboardLayoutProps
                         </Sheet>
                     </header>
 
-                    <main className="flex-1 overflow-x-hidden p-0 m-0">
+                    <main className="m-0 min-w-0 flex-1 overflow-x-hidden p-0">
                         {children}
                     </main>
                 </div>

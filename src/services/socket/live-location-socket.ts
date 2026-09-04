@@ -72,34 +72,53 @@ export function connectSocket(token = getStoredAuthToken()): Socket | null {
     return null;
   }
 
-  if (!token) {
-    disconnectSocket();
+  const effectiveToken = token || getStoredAuthToken();
+  if (!effectiveToken) {
     return null;
   }
 
   if (liveLocationSocket) {
     const currentAuth = liveLocationSocket.auth as { token?: string } | undefined;
-    if (currentAuth?.token !== token) {
+    if (currentAuth?.token && currentAuth.token !== effectiveToken) {
       // Token changed, update auth and reconnect
-      liveLocationSocket.auth = { token };
+      liveLocationSocket.auth = { token: effectiveToken };
       if (liveLocationSocket.connected) {
         liveLocationSocket.disconnect();
       }
       liveLocationSocket.connect();
-    } else if (!liveLocationSocket.connected && !(liveLocationSocket as any).active) {
+    } else if (!liveLocationSocket.connected) {
       liveLocationSocket.connect();
     }
     return liveLocationSocket;
   }
 
+  console.log("[LiveLocation Socket] Connecting to:", LIVE_LOCATION_SOCKET_URL);
+  console.log("[LiveLocation Socket] Token present:", !!effectiveToken);
+
   liveLocationSocket = io(LIVE_LOCATION_SOCKET_URL, {
     ...SOCKET_RECONNECTION_CONFIG,
-    auth: { token },
+    auth: { token: effectiveToken },
+    query: { token: effectiveToken },
     autoConnect: true,
-    // WebSocket first — polling is fallback only. This is the #1 cause of
-    // delayed real-time updates when left as ["polling", "websocket"].
+    // WebSocket preferred on pure VPS setup
     transports: ["websocket", "polling"],
     forceNew: false,
+  });
+
+  liveLocationSocket.on("connect", () => {
+    console.log("[LiveLocation Socket] ✅ Connected! Socket ID:", liveLocationSocket?.id);
+  });
+
+  liveLocationSocket.on("connect_error", (err) => {
+    console.error("[LiveLocation Socket] ❌ Connection error:", err.message);
+  });
+
+  liveLocationSocket.on("disconnect", (reason) => {
+    console.warn("[LiveLocation Socket] ⚠️ Disconnected:", reason);
+  });
+
+  liveLocationSocket.on("location:updated", (data) => {
+    console.log("[LiveLocation Socket] 📍 Location update received:", data);
   });
 
   return liveLocationSocket;
@@ -117,8 +136,9 @@ export function disconnectSocket(): void {
 
 export function listenToLocationUpdates(
   listeners: LiveLocationSocketListeners,
+  token?: string,
 ): () => void {
-  const socket = connectSocket();
+  const socket = connectSocket(token || getStoredAuthToken());
 
   if (!socket) {
     return () => undefined;

@@ -21,18 +21,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { getJobs, getJob, updateJob, startSalesmanTravel, startSalesmanMeasuring, completeSalesmanWorkflow, getJobErrorMessage, isAssignedToUser, JobStatus, type Job } from "@/lib/jobs";
 import { api } from "@/lib/api";
 import { updateUser } from "@/lib/users";
-import { sendLiveLocationUpdate, connectSocket, disconnectSocket, logDiagnostic } from "@/services/socket";
 import { useRef } from "react";
-
-const JobDetailMap = dynamic(() => import("@/components/fitter/JobDetailMap"), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400 font-light italic">Initializing Map...</div>
-});
-
-const SalesmanJobsRouteMap = dynamic(() => import("@/components/salesman/SalesmanJobsRouteMap"), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-400 font-light italic">Loading route map...</div>
-});
 
 type Tab = "today" | "tomorrow" | "upcoming" | "delayed" | "completed";
 
@@ -187,12 +176,7 @@ function SalesmanPageContent() {
   const lastKnownPositionRef = useRef<{ lat: number; lng: number } | null>(null);
   const [currentPosition, setCurrentPosition] = useState<[number, number] | null>(null);
 
-  useEffect(() => {
-    return () => {
-      // Full page unmount — safe to disconnect
-      disconnectSocket();
-    };
-  }, []);
+
 
   useEffect(() => {
     if (!activeJobId) return;
@@ -303,78 +287,6 @@ function SalesmanPageContent() {
 
     void loadAssignedJobs();
   }, [user?._id, user?.name, user?.email]);
-
-  useEffect(() => {
-    if (!user?._id) return;
-
-    const socket = connectSocket();
-    if (!socket) return;
-
-    const handleJobAssigned = (job: any) => {
-      console.info("[Socket] job:assigned event received:", job);
-      const isStillAssigned = isAssignedToUser(job, user);
-
-      if (!isStillAssigned) {
-        setSchedule((prev) => {
-          const updated = { ...prev };
-          const tabs: Tab[] = ["today", "tomorrow", "upcoming", "delayed", "completed"];
-          for (const tab of tabs) {
-            updated[tab] = updated[tab].filter((j) => j.id !== job._id);
-          }
-          return updated;
-        });
-        setSelectedJob((prev) => prev?.id === job._id ? null : prev);
-        return;
-      }
-
-      const scheduleJob = toScheduleJob(job);
-      setSchedule((prev) => {
-        const updated = { ...prev };
-        let found = false;
-        const tabs: Tab[] = ["today", "tomorrow", "upcoming", "delayed", "completed"];
-
-        for (const tab of tabs) {
-          if (updated[tab].some((j) => j.id === scheduleJob.id)) {
-            updated[tab] = updated[tab].map((j) => j.id === scheduleJob.id ? scheduleJob : j);
-            found = true;
-          } else {
-            updated[tab] = updated[tab].filter((j) => j.id !== scheduleJob.id);
-          }
-        }
-
-        if (!found) {
-          if (isSalesmanWorkFinished(job.status)) {
-            updated.completed = [scheduleJob, ...updated.completed];
-          } else if (job.scheduledAt) {
-            const date = new Date(job.scheduledAt);
-            if (isToday(date)) {
-              updated.today = [scheduleJob, ...updated.today];
-            } else if (isTomorrow(date)) {
-              updated.tomorrow = [scheduleJob, ...updated.tomorrow];
-            } else {
-              const jobDate = parse(`${scheduleJob.date || "9999-12-31"} ${scheduleJob.time || "11:59 PM"}`, "yyyy-MM-dd hh:mm aa", new Date());
-              if (isPast(jobDate)) {
-                updated.delayed = [scheduleJob, ...updated.delayed];
-              } else {
-                updated.upcoming = [scheduleJob, ...updated.upcoming];
-              }
-            }
-          } else {
-            updated.upcoming = [scheduleJob, ...updated.upcoming];
-          }
-        }
-        return updated;
-      });
-
-      setSelectedJob((prev) => prev?.id === job._id ? scheduleJob : prev);
-    };
-
-    socket.on("job:assigned", handleJobAssigned);
-
-    return () => {
-      socket.off("job:assigned", handleJobAssigned);
-    };
-  }, [user?._id]);
 
 
 
@@ -547,22 +459,7 @@ function SalesmanPageContent() {
 
       console.info(`Salesman workflow updated to ${savedLiveStatus}`);
 
-      // After successful workflow API call, sync liveStatus
-      // This ensures the LiveLocation document is updated even
-      // if GPS tracking hasn't started yet
-      try {
-        const currentLat = lastKnownPositionRef.current?.lat;
-        const currentLng = lastKnownPositionRef.current?.lng;
 
-        if (currentLat && currentLng) {
-          await sendLiveLocationUpdate({
-            lat: currentLat,
-            lng: currentLng,
-          });
-        }
-      } catch {
-        // Non-critical — GPS tracking handles this continuously anyway
-      }
     } catch (error) {
       console.error("Unable to update salesman job status", error);
     }
@@ -570,25 +467,21 @@ function SalesmanPageContent() {
 
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] md:h-screen overflow-hidden select-none bg-stone-50/50">
-      <div className="flex flex-1 overflow-hidden relative">
+    <div className="flex h-[calc(100dvh-4rem)] min-w-0 flex-col overflow-hidden bg-stone-50/50 select-none md:h-[calc(100vh-0px)]">
+      <div className="relative flex min-w-0 flex-1 overflow-hidden">
         {/* Sidebar Filtered List */}
         <aside className={cn(
-          "w-full md:w-80 bg-white/80 backdrop-blur-xl border-r border-stone-200 flex flex-col z-40 transition-transform duration-500 absolute md:relative h-full",
+          "absolute z-40 flex h-full w-full min-w-0 flex-col border-r border-stone-200 bg-white/80 backdrop-blur-xl transition-transform duration-500 md:relative md:w-80 md:translate-x-0",
           selectedJob ? "-translate-x-full md:translate-x-0" : "translate-x-0"
         )}>
-          <SalesmanGpsControl onPosition={(lat, lng) => {
-            lastKnownPositionRef.current = { lat, lng };
-            setCurrentPosition([lat, lng]);
-          }} />
           {/* Tabs */}
-          <div className="flex border-b border-stone-200 bg-white p-1 gap-1 overflow-x-auto no-scrollbar">
+          <div className="flex border-b border-stone-200 bg-white p-1 gap-0.5 overflow-x-auto no-scrollbar shrink-0">
             {(["today", "tomorrow", "upcoming", "delayed", "completed"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
                 className={cn(
-                  "flex-1 min-w-[70px] py-2.5 text-[9px] font-bold uppercase tracking-widest text-center transition-all rounded-lg",
+                  "shrink-0 min-w-13 flex-1 py-2 text-[8px] font-bold uppercase tracking-wide text-center transition-all rounded-lg sm:min-w-18 sm:py-2.5 sm:text-[9px] sm:tracking-widest",
                   activeTab === tab
                     ? `text-neutral-900 bg-neutral-100 shadow-sm`
                     : "text-neutral-400 hover:text-neutral-600 hover:bg-neutral-50"
@@ -651,8 +544,8 @@ function SalesmanPageContent() {
 
         {/* Main Content Area */}
         <main className={cn(
-          "flex-1 bg-white overflow-hidden flex flex-col transition-all duration-500 w-full md:w-auto absolute md:relative h-full",
-          selectedJob ? "opacity-100 z-50 pointer-events-auto" : "opacity-100 z-10 md:z-0"
+          "absolute flex h-full min-w-0 w-full flex-1 flex-col overflow-hidden bg-white transition-all duration-500 md:relative md:w-auto",
+          selectedJob ? "z-50 opacity-100 pointer-events-auto" : "z-10 opacity-100 md:z-0"
         )}>
           {selectedJob ? (
             <div className="h-full overflow-hidden flex flex-col animate-fadeIn bg-stone-50/30">
@@ -685,26 +578,23 @@ function WorkspaceOverview({
   schedule: SalesmanSchedule;
 }) {
   return (
-    <div className="h-full relative flex flex-col bg-stone-50">
-      <div className="absolute inset-0 z-0 opacity-10">
-        <JobDetailMap coordinates={[25.07, 55.14]} />
-      </div>
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12 text-center">
-        <div className="w-20 h-20 bg-white border border-stone-200 rounded-xl flex items-center justify-center mb-8 shadow-xl">
-          <MousePointer2 className="w-8 h-8 text-neutral-900" />
+    <div className="relative flex h-full min-w-0 flex-col bg-stone-50">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-6 text-center sm:p-12">
+        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-xl border border-stone-200 bg-white shadow-xl sm:mb-8 sm:h-20 sm:w-20">
+          <MousePointer2 className="h-7 w-7 text-neutral-900 sm:h-8 sm:w-8" />
         </div>
-        <h2 className="text-5xl font-light text-neutral-900 tracking-tight mb-4">Select Workspace</h2>
-        <p className="text-neutral-500 max-w-sm mt-0 text-lg font-light leading-snug">Pick an assignment from the sidebar to begin.</p>
+        <h2 className="mb-3 text-3xl font-light tracking-tight text-neutral-900 sm:mb-4 sm:text-5xl">Select Workspace</h2>
+        <p className="mt-0 max-w-sm text-base font-light leading-snug text-neutral-500 sm:text-lg">Pick an assignment from the sidebar to begin.</p>
 
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-5xl">
+        <div className="mt-10 grid w-full max-w-5xl grid-cols-2 gap-3 sm:mt-16 sm:gap-4 md:grid-cols-4">
           {[
             { val: String(schedule.today.length), label: "Today's Work" },
             { val: String(schedule.tomorrow.length + schedule.upcoming.length), label: "Upcoming" },
             { val: String(schedule.delayed.length), label: "Delayed" },
             { val: String(schedule.completed.length), label: "Completed" }
           ].map((stat, i) => (
-            <div key={i} className="p-6 bg-white rounded-xl border border-stone-100 shadow-md transition-all cursor-default">
-              <div className="text-3xl font-light text-neutral-900 tracking-tight mb-1">{stat.val}</div>
+            <div key={i} className="cursor-default rounded-xl border border-stone-100 bg-white p-4 shadow-md transition-all sm:p-6">
+              <div className="mb-1 text-2xl font-light tracking-tight text-neutral-900 sm:text-3xl">{stat.val}</div>
               <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em]">{stat.label}</div>
             </div>
           ))}
@@ -728,10 +618,10 @@ function JobCard({ job, onSelect, isSelected }: { job: SalesmanScheduleJob; onSe
     <div
       onClick={onSelect}
       className={cn(
-        "p-5 cursor-pointer transition-all border rounded-xl relative group",
+        "relative cursor-pointer rounded-xl border p-4 transition-all sm:p-5",
         isSelected
-          ? `bg-[#0F172A] border-neutral-900 shadow-xl scale-[1.01] z-10`
-          : "bg-white border-stone-200 hover:border-stone-300"
+          ? "z-10 border-neutral-900 bg-[#0F172A] shadow-xl sm:scale-[1.01]"
+          : "border-stone-200 bg-white hover:border-stone-300"
       )}
     >
       <div className="flex justify-between items-start mb-3">
@@ -976,148 +866,81 @@ function JobDetailView({
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white h-full relative">
-      {/* Visual Context Header - Full Screen Map with Glassmorphism Overlay */}
-      <div className="h-[58vh] min-h-[380px] max-h-[640px] bg-stone-100 relative shrink-0 border-b border-stone-200 group overflow-hidden">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => setIsMapExpanded(true)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              setIsMapExpanded(true);
-            }
-          }}
-          className="absolute inset-0 z-0 cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-          aria-label="Open full map"
-        >
-          <SalesmanJobsRouteMap
-            jobs={routeJobs}
-            selectedJobId={job.id}
-            currentPosition={currentPosition}
-            routeEnabled={showTravelRoute || job.status === "On the way"}
-            interactive={false}
-            onSelectJob={onSelectRouteJob}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsMapExpanded(true)}
-          className="absolute top-4 right-4 z-60 bg-white/90 backdrop-blur-md text-stone-800 px-3 py-2 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
-        >
-          <Maximize2 className="w-4 h-4" />
-          Full Map
-        </button>
-
+      {/* Customer Details & Actions Header Card */}
+      <div className="bg-stone-900 shrink-0 p-4 sm:p-6 md:p-8 border-b border-stone-800 text-white shadow-lg relative">
         <button
           onClick={(event) => {
             event.stopPropagation();
             onBack();
           }}
-          className="absolute top-4 left-4 z-60 bg-white/90 backdrop-blur-md text-stone-800 p-2.5 rounded-lg border border-stone-200 shadow-md hover:bg-stone-50 transition-colors"
+          className="md:hidden mb-3 bg-white/10 text-white p-2 rounded-lg border border-white/20 hover:bg-white/20 transition-colors inline-flex items-center gap-2 text-xs font-semibold"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4" /> Back to Schedule
         </button>
 
-        {/* Floating Customer Details & Actions Glass Card */}
-        <div className="absolute bottom-4 left-4 z-20 max-w-sm w-[calc(100%-2rem)] bg-white/95 backdrop-blur-md border border-stone-200/80 p-5 rounded-2xl shadow-xl animate-fadeIn flex flex-col gap-4">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] font-bold uppercase tracking-[0.15em] rounded border border-indigo-100">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold uppercase tracking-[0.15em] rounded border border-amber-400/30 shrink-0">
                 Task {job.jobId ?? job.shortRef}
               </span>
-              <div className="text-[9px] font-bold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400 flex flex-wrap items-center gap-1.5 sm:gap-2">
                 {job.formattedDate && (
                   <>
-                    <Calendar className="w-3 h-3 text-stone-400" />
+                    <Calendar className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                     <span>{job.formattedDate}</span>
                     <span className="opacity-50">•</span>
                   </>
                 )}
-                <Clock className="w-3 h-3 text-stone-400" />
+                <Clock className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                 <span>{job.time}</span>
               </div>
             </div>
-            <h2 className="text-2xl font-light text-stone-800 tracking-tight mb-2.5 capitalize">
+            <h2 className="text-2xl sm:text-3xl font-light text-white tracking-tight mb-2 capitalize">
               {job.client}
             </h2>
-            <div className="space-y-2 text-xs text-stone-600 font-medium">
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
-                <span className="leading-snug">{job.address}</span>
-              </div>
-              {job.customerPhone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-stone-400 shrink-0" />
-                  <span>{job.customerPhone}</span>
-                </div>
-              )}
+            <div className="flex min-w-0 items-start gap-2 text-xs text-stone-300 sm:text-sm">
+              <MapPin className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span className="wrap-break-word">{job.address}</span>
             </div>
           </div>
 
-          <div className="flex gap-2 w-full pt-2.5 border-t border-stone-100">
-            <Button variant="outline" className="flex-1 bg-white hover:bg-stone-50 border-stone-200 text-stone-700 shadow-sm rounded-lg h-9 text-xs font-semibold transition-colors">
-              <Phone className="w-4 h-4 mr-2 text-stone-500" /> Call
-            </Button>
-            <Button variant="outline" className="flex-1 bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white shadow-sm rounded-lg h-9 text-xs font-semibold transition-colors">
-              <MessageSquare className="w-4 h-4 mr-2" /> WhatsApp
-            </Button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {job.customerPhone && (
+              <a href={`tel:${job.customerPhone}`} className="flex-1 sm:flex-initial">
+                <Button variant="outline" className="w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/20 rounded-lg text-xs font-semibold px-3 py-2">
+                  <Phone className="w-4 h-4 mr-1.5" /> Call
+                </Button>
+              </a>
+            )}
+            <a href={`https://wa.me/${job.customerPhone?.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="flex-1 sm:flex-initial">
+              <Button className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold px-3 py-2">
+                <MessageSquare className="w-4 h-4 mr-1.5" /> WhatsApp
+              </Button>
+            </a>
           </div>
         </div>
       </div>
 
-      {isMapExpanded && (
-        <div className="fixed inset-0 z-999 bg-neutral-950/90 backdrop-blur-sm p-4 md:p-6">
-          <div className="relative h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-stone-100 shadow-[0_30px_80px_rgba(0,0,0,0.55)]">
-            <SalesmanJobsRouteMap
-              jobs={routeJobs}
-              selectedJobId={job.id}
-              currentPosition={currentPosition}
-              routeEnabled={showTravelRoute || job.status === "On the way"}
-              interactive
-              scrollWheelZoom
-              onSelectJob={onSelectRouteJob}
-            />
-            <div className="absolute left-4 top-4 z-1000 rounded-xl bg-white/95 px-4 py-3 shadow-xl border border-stone-200 backdrop-blur-md">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-stone-400">Selected Job</p>
-              <p className="text-sm font-bold text-neutral-900 mt-1">{job.client}</p>
-              <p className="text-xs text-stone-500 max-w-[280px] truncate">{job.address}</p>
-              {(showTravelRoute || job.status === "On the way") && (
-                <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-amber-600">Travel route active</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsMapExpanded(false)}
-              className="absolute right-4 top-4 z-1000 rounded-xl bg-neutral-900 px-4 py-3 text-white shadow-xl hover:bg-neutral-800 transition-colors flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
-            >
-              <X className="w-4 h-4" />
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="flex-1 overflow-y-auto w-full pb-32 sm:pb-48 custom-scrollbar">
 
-      <div className="flex-1 overflow-y-auto w-full pb-48 custom-scrollbar">
-
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
           {/* Stats Bar */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[
               { label: "Travel Time", val: travelVal, color: "bg-amber-500", mono: isTravelMono && travelVal !== "Not Tracked" },
               { label: "Measuring Time", val: measVal, color: "bg-purple-500", mono: isMeasMono && measVal !== "Not Tracked" },
-              // { label: "Estimated", val: "1h 15m", color: "bg-neutral-300" },
               { label: "Status", val: job.status, color: "bg-emerald-500" }
             ].map((node, i) => {
               const isMuted = node.val === "Not Started" || node.val === "Not Tracked";
               return (
-                <div key={i} className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm relative overflow-hidden">
+                <div key={i} className="bg-white p-3 sm:p-5 rounded-xl border border-stone-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
                   <div className={cn("absolute top-0 left-0 w-1 h-full", node.color)}></div>
-                  <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-2">{node.label}</div>
+                  <div className="text-[9px] sm:text-[10px] font-bold text-neutral-400 uppercase tracking-wider sm:tracking-[0.2em] mb-1 truncate">{node.label}</div>
                   <div className={cn(
-                    "text-2xl font-light",
+                    "text-sm sm:text-2xl font-light tracking-tight leading-snug",
                     node.mono ? "font-mono" : "",
-                    isMuted ? "text-neutral-400 text-lg font-normal" : "text-neutral-900"
+                    isMuted ? "text-neutral-400 text-xs sm:text-lg font-normal" : "text-neutral-900"
                   )}>
                     {node.val}
                   </div>
@@ -1129,7 +952,7 @@ function JobDetailView({
           {job.status === "Done" && (
             <div className="space-y-6 text-left">
               {/* Measurements Detail Block */}
-              <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+              <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm sm:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center shrink-0">
@@ -1192,7 +1015,7 @@ function JobDetailView({
               </div>
 
               {/* Quotation Detail Block */}
-              <div className="bg-white border border-stone-200 rounded-xl p-8 shadow-sm">
+              <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm sm:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-neutral-900 text-white rounded flex items-center justify-center shrink-0">
@@ -1239,8 +1062,8 @@ function JobDetailView({
                     </div>
 
                     {/* Line Items Table */}
-                    <div className="border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                      <table className="w-full text-left border-collapse text-xs">
+                    <div className="overflow-x-auto border border-stone-200 rounded-xl shadow-sm">
+                      <table className="w-full min-w-lg text-left border-collapse text-xs">
                         <thead>
                           <tr className="bg-neutral-100 border-b border-stone-200 font-bold text-neutral-700">
                             <th className="p-3 w-12 text-center">#</th>
@@ -1305,16 +1128,16 @@ function JobDetailView({
 
       {/* Action Bar */}
       {job.status !== "Done" && job.status !== "Completed" && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-100 w-[95%] max-w-5xl">
-          <div className="bg-neutral-900 border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-2 backdrop-blur-xl flex items-stretch gap-2 h-20 md:h-24">
+        <div className="sticky bottom-0 left-0 right-0 z-40 w-full p-2 sm:p-3 bg-stone-900/95 backdrop-blur-xl border-t border-white/10 shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+          <div className="max-w-4xl mx-auto flex items-stretch gap-1.5 sm:gap-2 h-16 sm:h-20 md:h-24">
             {(!isJobToday || isLate) ? (
-              <div className="flex-1 flex items-center justify-center p-2">
+              <div className="flex-1 flex items-center justify-center p-1 sm:p-2">
                 <Button
                   onClick={handleRequestReschedule}
                   disabled={isRequestingReschedule}
-                  className="w-full max-w-md h-full text-base font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-white rounded-xl"
+                  className="w-full max-w-md h-full text-xs sm:text-base font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-700 text-white rounded-xl"
                 >
-                  <Calendar className="w-5 h-5 mr-3" />
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 mr-2 sm:mr-3" />
                   {isRequestingReschedule ? "Requesting..." : "Request Reschedule"}
                 </Button>
               </div>
@@ -1352,11 +1175,11 @@ function JobDetailView({
                     router.push(`/dashboard/measurements/new?jobId=${job.id}`);
                   }}
                 />
-                <div className="flex-[1.5] group">
+                <div className="flex-[1.2] sm:flex-[1.5] group">
                   <button
                     disabled={!(job.status === "In Progress" || job.status === "In progress")}
                     className={cn(
-                      "w-full h-full rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm border",
+                      "w-full h-full rounded-xl flex items-center justify-center gap-1.5 sm:gap-2 transition-all shadow-sm border px-2 sm:px-4",
                       (job.status === "In Progress" || job.status === "In progress")
                         ? "bg-white text-neutral-900 border-white/20 hover:bg-neutral-100 hover:scale-[1.02]"
                         : "bg-white/5 text-white/40 border-transparent cursor-not-allowed"
@@ -1367,8 +1190,8 @@ function JobDetailView({
                       router.push(`/dashboard/quotes/new?jobId=${job.id}`);
                     }}
                   >
-                    <FileText className="w-4 h-4" />
-                    <span className="text-sm font-bold tracking-wide">New Quote</span>
+                    <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                    <span className="text-xs sm:text-sm font-bold tracking-wide whitespace-nowrap">New Quote</span>
                   </button>
                 </div>
                 <ActionButton
@@ -1418,13 +1241,13 @@ function ActionButton({ icon: Icon, label, activeLabel, isActive, disabled, vari
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-300 border border-transparent",
+        "flex-1 rounded-xl flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-1 sm:p-2 transition-all duration-300 border border-transparent min-w-0",
         variants[variant],
         disabled ? "opacity-10 cursor-not-allowed scale-[0.98]" : "hover:scale-[1.02] active:scale-[0.98] cursor-pointer",
       )}
     >
-      <Icon className={cn("w-5 h-5 md:w-6 md:h-6 transition-transform", isActive ? "scale-110" : "")} />
-      <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{isActive ? activeLabel : label}</span>
+      <Icon className={cn("w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 transition-transform shrink-0", isActive ? "scale-110" : "")} />
+      <span className="text-[8px] sm:text-[9px] md:text-[10px] font-bold uppercase tracking-wider whitespace-nowrap truncate max-w-full px-0.5">{isActive ? activeLabel : label}</span>
     </button>
   );
 }
@@ -1469,245 +1292,6 @@ function getDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: numbe
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c;
-}
-
-interface SalesmanGpsControlProps {
-  onPosition?: (lat: number, lng: number) => void;
-}
-
-function SalesmanGpsControl({ onPosition }: SalesmanGpsControlProps) {
-  const { user, logout } = useAuth();
-  const router = useRouter();
-  const [status, setStatus] = useState<GpsTrackingStatus>("idle");
-  const [lastFix, setLastFix] = useState<GpsSnapshot | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const lastFixRef = useRef<GpsSnapshot | null>(null);
-  const mountedRef = useRef(true);
-  const consecutiveErrorsRef = useRef(0);
-
-  const userRef = useRef(user);
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-
-  useEffect(() => {
-    if (!user || !isSalesmanRole(user.role)) {
-      if (watchIdRef.current !== null && "geolocation" in navigator) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      disconnectSocket();
-      if (status === "tracking" || status === "requesting") {
-        setStatus("idle");
-        router.replace("/login");
-      }
-    }
-  }, [user, status, router]);
-
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      if (watchIdRef.current !== null && "geolocation" in navigator) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-        watchIdRef.current = null;
-      }
-      // Do NOT call disconnectSocket() here
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      user &&
-      isSalesmanRole(user.role) &&
-      status === "idle" &&
-      "geolocation" in navigator
-    ) {
-      startTracking();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.role]);
-
-  async function stopTracking() {
-    if (watchIdRef.current !== null && "geolocation" in navigator) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-
-    setStatus("idle");
-    disconnectSocket();
-
-    const lastKnownFix = lastFixRef.current;
-    if (!lastKnownFix) return;
-
-    const currentUser = userRef.current;
-    if (!currentUser || !isSalesmanRole(currentUser.role)) {
-      setErrorMessage("Session expired. Please sign in again.");
-      logout("/login");
-      return;
-    }
-
-    try {
-      await sendLiveLocationUpdate({
-        lat: lastKnownFix.lat,
-        lng: lastKnownFix.lng,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to mark GPS as offline.";
-      setErrorMessage(message);
-    }
-  }
-
-  function startTracking() {
-    const currentUser = userRef.current;
-    if (!currentUser || !isSalesmanRole(currentUser.role)) {
-      setStatus("error");
-      setErrorMessage("You must be signed in as a salesman to share your location.");
-      logout("/login");
-      return;
-    }
-
-    if (!("geolocation" in navigator)) {
-      setStatus("error");
-      setErrorMessage("This browser does not support GPS location access.");
-      return;
-    }
-
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-
-    setStatus("requesting");
-    setErrorMessage(null);
-    connectSocket();
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      async (position) => {
-        const innerUser = userRef.current;
-        if (!innerUser || !isSalesmanRole(innerUser.role)) {
-          if (watchIdRef.current !== null) {
-            navigator.geolocation.clearWatch(watchIdRef.current);
-            watchIdRef.current = null;
-          }
-          disconnectSocket();
-          setStatus("error");
-          setErrorMessage("Session changed. GPS tracking stopped.");
-          logout("/login");
-          return;
-        }
-
-        const nextFix: GpsSnapshot = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : undefined,
-          syncedAt: new Date().toISOString(),
-        };
-
-        // Noise filtering — relaxed thresholds for urban GPS:
-        // 120m accuracy limit (urban GPS is typically 10-40m, but can spike on tunnel exits)
-        // 0.5m minimum movement (avoids pure stationary jitter but allows slow walking)
-        if (nextFix.accuracy !== undefined && nextFix.accuracy > 120) {
-          logDiagnostic("GPS", `⚠️ Discarded GPS fix: poor accuracy (${nextFix.accuracy.toFixed(1)}m > 120m limit)`, nextFix);
-          return;
-        }
-
-        const lastFixVal = lastFixRef.current;
-        if (lastFixVal) {
-          const distanceMoved = getDistanceMeters(lastFixVal.lat, lastFixVal.lng, nextFix.lat, nextFix.lng);
-          if (distanceMoved < 0.5) {
-            logDiagnostic("GPS", `⚠️ Discarded GPS update: pure jitter (${distanceMoved.toFixed(2)}m < 0.5m)`, nextFix);
-            return;
-          }
-          logDiagnostic("GPS", `✅ GPS update accepted: moved ${distanceMoved.toFixed(1)}m, accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
-        } else {
-          logDiagnostic("GPS", `✅ Initial GPS fix: accuracy ±${nextFix.accuracy?.toFixed(0) ?? "??"}m`, nextFix);
-        }
-
-        lastFixRef.current = nextFix;
-        setLastFix(nextFix);
-        onPosition?.(nextFix.lat, nextFix.lng);
-
-        try {
-          await sendLiveLocationUpdate({
-            lat: nextFix.lat,
-            lng: nextFix.lng,
-          });
-
-          if (!mountedRef.current) return;
-          consecutiveErrorsRef.current = 0;
-          setStatus("tracking");
-          setErrorMessage(null);
-        } catch (error) {
-          if (!mountedRef.current) return;
-          consecutiveErrorsRef.current += 1;
-          const message = error instanceof Error ? error.message : "Unable to save your GPS location.";
-          logDiagnostic("ERROR", `GPS send failed (${consecutiveErrorsRef.current}/3): ${message}`, error);
-
-          if (consecutiveErrorsRef.current >= 3) {
-            if (watchIdRef.current !== null) {
-              navigator.geolocation.clearWatch(watchIdRef.current);
-              watchIdRef.current = null;
-            }
-            disconnectSocket();
-            setStatus("error");
-            setErrorMessage(`GPS stopped after repeated failures: ${message}`);
-          } else {
-            setErrorMessage(`Send failed, retrying... (${message})`);
-          }
-        }
-      },
-      (error) => {
-        const message = error.code === error.PERMISSION_DENIED
-          ? "GPS permission was denied. Please allow location access for this site."
-          : error.message || "Unable to read GPS location.";
-
-        if (watchIdRef.current !== null) {
-          navigator.geolocation.clearWatch(watchIdRef.current);
-          watchIdRef.current = null;
-        }
-        disconnectSocket();
-
-        setStatus("error");
-        setErrorMessage(message);
-      },
-      {
-        enableHighAccuracy: false,
-        maximumAge: 10000,
-        timeout: 30000,
-      },
-    );
-  }
-
-  const isTracking = status === "tracking" || status === "requesting";
-  const statusLabel = status === "requesting"
-    ? "Starting GPS"
-    : status === "tracking"
-      ? "GPS On"
-      : status === "error"
-        ? "GPS Error"
-        : "Enable GPS";
-
-  return (
-    <div className="flex flex-col items-stretch gap-1 p-4 border-b border-stone-200 bg-white">
-      <button
-        type="button"
-        onClick={isTracking ? stopTracking : startTracking}
-        className={cn(
-          "flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-[10px] font-bold uppercase tracking-[0.16em] transition-colors w-full",
-          status === "tracking" ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20" :
-            status === "error" ? "border-red-400/40 bg-red-500/10 text-red-600 hover:bg-red-500/20" :
-              "border-blue-400/40 bg-blue-500/10 text-blue-600 hover:bg-blue-500/20",
-        )}
-      >
-        {status === "tracking" ? <CheckCircle className="h-4 w-4" /> : status === "error" ? <AlertCircle className="h-4 w-4" /> : <Navigation className="h-4 w-4" />}
-        {statusLabel}
-      </button>
-      <div className="text-center text-[9px] font-medium text-stone-400 uppercase tracking-widest mt-1">
-        {errorMessage ? errorMessage : lastFix ? `Synced ${lastFix.lat.toFixed(5)}, ${lastFix.lng.toFixed(5)}` : "Share location with manager"}
-      </div>
-    </div>
-  );
 }
 
 export default function SalesmanPage() {

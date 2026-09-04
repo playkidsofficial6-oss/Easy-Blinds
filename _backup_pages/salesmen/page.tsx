@@ -46,7 +46,7 @@ import { isFieldRole, isSalesmanRole } from "@/lib/auth";
 
 const SalesmanMap = dynamic(() => import("@/components/tracking/SalesmanMap"), {
     ssr: false,
-    loading: () => <div className="h-[500px] w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-[0.2em]">LOADING LIVE MAP...</div>
+    loading: () => <div className="h-125 w-full bg-slate-100 flex items-center justify-center text-slate-400 font-light tracking-[0.2em]">LOADING LIVE MAP...</div>
 });
 
 function isSalesman(user: UserRecord) {
@@ -82,7 +82,7 @@ function toFitterJob(job: Job): FitterJob {
         status: job.status === JobStatus.Completed ? "Done" : (job.status === JobStatus.Measuring || job.status === JobStatus.SalesmanOnTheWay) ? "In Progress" : "Pending",
         value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
         email: job.customerEmail,
-        phone: job.customerPhone,
+        phoneNumber: job.customerPhone,
         notes: job.notes,
         brand: "Easy Blinds",
         property: `Qty ${job.quantity ?? 1}`,
@@ -236,7 +236,7 @@ export default function SalesmenPage() {
                 lastUpdated: (() => { const u = salesman.location?.updatedAt; if (!u) return "Not updated"; try { return format(typeof u === "string" ? parseISO(u) : new Date(u), "MMM d, HH:mm"); } catch { return "Not updated"; } })(),
                 avatar: salesman.avatar,
                 email: salesman.email,
-                phone: salesman.phone,
+                phoneNumber: salesman.phoneNumber,
                 history: [],
                 schedule: {
                     today: todayJobs,
@@ -342,7 +342,7 @@ export default function SalesmenPage() {
             {/* Tracking Section */}
             <div className="flex border-b border-slate-200 bg-white shadow-sm shrink-0 overflow-hidden" style={{ height: "600px" }}>
                 {/* Sidebar — fixed width, clips horizontal overflow, allows vertical scroll inside ScrollArea */}
-                <div className="w-[400px] shrink-0 border-r border-slate-200 bg-white flex flex-col h-full overflow-x-hidden">
+                <div className="w-100 shrink-0 border-r border-slate-200 bg-white flex flex-col h-full overflow-x-hidden">
                     <FitterList
                         fitters={mappedSalesmen}
                         selectedFitterId={selectedSalesmanId}
@@ -458,7 +458,7 @@ export default function SalesmenPage() {
                                                     ) : (
                                                         [...activeSchedule].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map((job) => (
                                                             <div key={job.id} className="pl-6 pb-6 relative last:pb-0 group">
-                                                                <div className="absolute -left-[5px] top-1.5 w-[9px] h-[9px] rounded-full border-2 ring-4 ring-white transition-colors bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer"></div>
+                                                                <div className="absolute -left-1.25 top-1.5 w-2.25 h-2.25 rounded-full border-2 ring-4 ring-white transition-colors bg-white border-slate-400 group-hover:border-slate-600 cursor-pointer"></div>
                                                                 <div className="flex items-start justify-between">
                                                                     <div className="flex-1">
                                                                         <div className="text-xs font-mono font-medium text-slate-400 mb-0.5">{job.time || "Unscheduled"}</div>

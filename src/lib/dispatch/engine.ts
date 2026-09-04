@@ -167,7 +167,7 @@ function toFitterJob(job: DispatchJob): FitterJob {
     coordinates: [job.coordinates.lat, job.coordinates.lng] as [number, number],
     value: job.quotationAmount,
     email: job.email,
-    phone: job.phone,
+    phoneNumber: job.phone,
     property: job.propertyType,
     productType: job.productCategory === "AC" ? "Blinds" : job.productCategory,
     priority: job.priority,

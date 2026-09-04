@@ -26,6 +26,8 @@ const FABRICS = [
     { id: "F005", name: "Cotton Light - White", price: 40 },
 ];
 
+const round2 = (num: number): number => Math.round((num + Number.EPSILON) * 100) / 100;
+
 export function ReviewStep({
     clientDetails,
     rooms,
@@ -77,8 +79,8 @@ export function ReviewStep({
                         id: w.id || `win_${Math.random().toString(36).substring(2, 9)}`,
                         type,
                         name: w.name || "Window 1",
-                        width: Number(w.width) > 0 ? Number(w.width) : 100,
-                        height: Number(w.height) > 0 ? Number(w.height) : 100,
+                        width: Number(w.width) > 0 ? round2(Number(w.width)) : 100,
+                        height: Number(w.height) > 0 ? round2(Number(w.height)) : 100,
                         measurementUnit: "cm",
                         mountType: w.mountType || "Wall",
                         openingDirection: w.openingDirection || "Split",
@@ -156,8 +158,22 @@ export function ReviewStep({
         }
     };
 
+    const scrollToTop = () => {
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.documentElement?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.body?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }
+    };
+
+    const handleBack = () => {
+        scrollToTop();
+        onBack();
+    };
+
     const handleComplete = async () => {
         try {
+            scrollToTop();
             await persistMeasurement("Completed");
             toast.success("Measurement completed successfully!");
             router.push(jobId ? `/dashboard/quotes/new?jobId=${jobId}` : "/dashboard/measurements");
@@ -271,7 +287,7 @@ export function ReviewStep({
                                                         <div>
                                                             <p className="font-medium text-stone-900">{window.name}</p>
                                                             <div className="text-sm text-stone-600 mt-1 space-y-1">
-                                                                <p>Size: {window.width}cm × {window.height}cm</p>
+                                                                <p>Size: {round2(window.width)}cm × {round2(window.height)}cm</p>
                                                                 <p>Product: {displayProduct}</p>
                                                                 <p>Mount: {window.mountType} • Opening: {window.openingDirection}</p>
                                                                 {displayFabric && <p>Fabric: {displayFabric}</p>}
@@ -295,13 +311,13 @@ export function ReviewStep({
                 </CardContent>
             </Card>
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-stone-200">
-                <Button type="button" variant="outline" size="lg" onClick={onBack}>
+            <div className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:justify-between">
+                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={handleBack}>
                     Back
                 </Button>
-                <div className="flex gap-3">
-                    <Button type="button" size="lg" onClick={handleComplete} className="bg-green-600 hover:bg-green-700">
-                        <CheckCircle className="w-4 h-4 mr-2" />
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                    <Button type="button" size="lg" onClick={handleComplete} className="w-full bg-green-600 hover:bg-green-700 sm:w-auto">
+                        <CheckCircle className="mr-2 h-4 w-4" />
                         Complete Measurement
                     </Button>
                 </div>

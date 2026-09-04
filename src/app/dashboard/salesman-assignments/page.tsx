@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { format, addDays, isSameDay, parseISO } from "date-fns";
+import { format, addDays, subDays, isSameDay, isSameWeek, isSameMonth, parseISO } from "date-fns";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { CalendarDays, X, MapPin, AlertCircle } from "lucide-react";
@@ -24,7 +24,6 @@ import { getJobErrorMessage, getJobs, JobPriority, JobStatus, updateJob, deleteJ
 import { useLiveFitters, isAssignedToFitter, type Fitter, type FitterJob, type FitterStatus } from "@/lib/live-store";
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { useLiveLocation } from "@/hooks";
-import { getLiveLocationSocket } from "@/services/socket";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/SalesmanMap"), {
   ssr: false,
@@ -436,20 +435,8 @@ function isSalesmanPhaseJob(status: JobStatus): boolean {
   ].includes(status);
 }
 
-function getSalesmanWorkflowDisplayStatus(job: Job): FitterJob["status"] | string {
-  if (job.status === JobStatus.SalesmanOnTheWay) return "On the way";
-  if (job.status === JobStatus.Measuring || job.status === JobStatus.Quoting) return "In Progress";
-  if (
-    job.status === JobStatus.ReadyForFitting ||
-    job.status === JobStatus.FitterAssigned ||
-    job.status === JobStatus.FitterOnTheWay ||
-    job.status === JobStatus.FitterReached ||
-    job.status === JobStatus.Fitting ||
-    job.status === JobStatus.Completed
-  ) {
-    return job.status;
-  }
-  return "Pending";
+function getSalesmanWorkflowDisplayStatus(job: Job): string {
+  return job.status || "Pending";
 }
 
 function getSalesmanMapStatus(job?: Job, fallback: FitterStatus = "Available"): FitterStatus {
@@ -477,7 +464,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     jobId: job.jobId,
     client: job.customerName,
     email: job.customerEmail,
-    phone: job.customerPhone,
+    phoneNumber: job.customerPhone,
     brand: "Easy Blinds",
     productType: job.productType,
     priority: priorityLabel,
@@ -508,7 +495,7 @@ function toFitterJob(job: Job): FitterJob {
     status: getSalesmanWorkflowDisplayStatus(job),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
-    phone: job.customerPhone,
+    phoneNumber: job.customerPhone,
     notes: job.notes,
     brand: "Easy Blinds",
     property: job.propertyType,
@@ -563,25 +550,10 @@ export default function SmartSalesmanAssignmentsPage() {
   const [selectedMapFitter, setSelectedMapFitter] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [viewDate, setViewDate] = useState<Date>(new Date());
-  const [dateFilterType, setDateFilterType] = useState<"today" | "tomorrow" | "custom">("today");
+  const [dateFilterType, setDateFilterType] = useState<"all" | "today" | "tomorrow" | "yesterday" | "week" | "month" | "custom">("today");
+  const [statusFilter, setStatusFilter] = useState<string>(JobStatus.Pending);
 
-  const { locations: liveLocations } = useLiveLocation({
-    onJobUpdated: (updatedJob) => {
-      setJobs((prev) => {
-        const exists = prev.some((j) => j._id === updatedJob._id);
-        if (exists) {
-          return prev.map((j) => (j._id === updatedJob._id ? updatedJob : j));
-        }
-        return [updatedJob, ...prev];
-      });
-    },
-    onJobDeleted: (payload) => {
-      setJobs((prev) => prev.filter((j) => j._id !== payload.id));
-      if (selectedJobId === payload.id) {
-        setSelectedJobId(null);
-      }
-    },
-  });
+  const { locations: liveLocations } = useLiveLocation();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editJobFormState, setEditJobFormState] = useState({
@@ -810,10 +782,8 @@ export default function SmartSalesmanAssignmentsPage() {
       toast.success("Job updated successfully!");
       setIsEditOpen(false);
 
-      const socket = getLiveLocationSocket();
-      if (socket?.connected) {
-        socket.emit("job:updated", updated);
-      }
+      toast.success("Job updated successfully!");
+      setIsEditOpen(false);
     } catch (error) {
       toast.error(getJobErrorMessage(error, "Failed to update job."));
     }
@@ -835,11 +805,6 @@ export default function SmartSalesmanAssignmentsPage() {
       toast.success(`Job ${getJobDisplayId(deleteJobTarget)} deleted successfully.`);
       setIsDeleteOpen(false);
       setDeleteJobTarget(null);
-
-      const socket = getLiveLocationSocket();
-      if (socket?.connected) {
-        socket.emit("job:deleted", { id, assignedSalesman: originalAssignedSalesman });
-      }
     } catch (error) {
       toast.error(getJobErrorMessage(error, "Failed to delete job."));
     }
@@ -849,6 +814,9 @@ export default function SmartSalesmanAssignmentsPage() {
   const isTomorrow = isSameDay(viewDate, addDays(new Date(), 1));
 
   const matchesDateFilter = useCallback((scheduledAtStr: string | undefined) => {
+    if (dateFilterType === "all") {
+      return true;
+    }
     if (!scheduledAtStr) {
       return false;
     }
@@ -856,12 +824,22 @@ export default function SmartSalesmanAssignmentsPage() {
       const jobDate = parseISO(scheduledAtStr);
       const today = new Date();
       const tomorrow = addDays(today, 1);
+      const yesterday = subDays(today, 1);
 
       if (dateFilterType === "today") {
         return isSameDay(jobDate, today);
       }
       if (dateFilterType === "tomorrow") {
         return isSameDay(jobDate, tomorrow);
+      }
+      if (dateFilterType === "yesterday") {
+        return isSameDay(jobDate, yesterday);
+      }
+      if (dateFilterType === "week") {
+        return isSameWeek(jobDate, today, { weekStartsOn: 1 });
+      }
+      if (dateFilterType === "month") {
+        return isSameMonth(jobDate, today);
       }
       if (dateFilterType === "custom") {
         return isSameDay(jobDate, viewDate);
@@ -871,6 +849,11 @@ export default function SmartSalesmanAssignmentsPage() {
     }
     return false;
   }, [dateFilterType, viewDate]);
+
+  const matchesStatusFilter = useCallback((status: JobStatus) => {
+    if (statusFilter === "all") return true;
+    return status === statusFilter;
+  }, [statusFilter]);
 
   const loadJobs = useCallback(async () => {
     setIsLoadingJobs(true);
@@ -959,7 +942,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
   const selectedPendingJobForMap = useMemo(() => {
     if (!selectedJobId) return undefined;
-    const job = jobs.find((j) => j._id === selectedJobId && j.status === JobStatus.Pending);
+    const job = jobs.find((j) => j._id === selectedJobId);
     if (!job) return undefined;
 
     let lat = 10.8505;
@@ -969,12 +952,18 @@ export default function SmartSalesmanAssignmentsPage() {
       lat = job.location.coordinates[1];
     }
 
+    const assignedSalesmanId = typeof job.assignedSalesman === "object" ? job.assignedSalesman?._id : job.assignedSalesman;
+    const assignedFitterId = typeof job.assignedFitter === "object" ? job.assignedFitter?._id : job.assignedFitter;
+
     return {
       id: job._id,
       jobId: job.jobId,
       location: { lat, lng },
-      address: job.address || "Pending Job Location",
-      client: job.customerName || "Client"
+      address: job.address || "Job Location",
+      client: job.customerName || "Client",
+      status: job.status,
+      assignedSalesmanId,
+      assignedFitterId,
     };
   }, [selectedJobId, jobs]);
 
@@ -1024,13 +1013,23 @@ export default function SmartSalesmanAssignmentsPage() {
         })(),
         locationLabel: (() => {
           const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
-          if (liveLoc) return "Live GPS Tracking";
-          return "Simulated Location";
+          if (liveLoc) return `${liveLoc.lat.toFixed(6)}, ${liveLoc.lng.toFixed(6)}`;
+          const ll = extractLatLng(user.location);
+          if (ll) return `${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
+          return undefined;
         })(),
-        lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
+        lastUpdated: (() => {
+          const liveLoc = liveLocations?.find(loc => loc.userId === user._id);
+          if (liveLoc?.updatedAt) {
+            try { return toReadableLastUpdated(liveLoc.updatedAt); } catch { /* fallback */ }
+          }
+          const u = user.location?.updatedAt;
+          if (!u) return "Not updated";
+          try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; }
+        })(),
         avatar: user.avatar,
         email: user.email,
-        phone: user.phone,
+        phoneNumber: user.phoneNumber,
         history: [],
         schedule: {
           yesterday: [],
@@ -1095,16 +1094,16 @@ export default function SmartSalesmanAssignmentsPage() {
   }, [userNameById]);
 
   const pendingJobs = useMemo(
-    () => sortUnifiedJobs(jobs.filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt)).map(resolveUnifiedJob), sortKey),
-    [jobs, sortKey, resolveUnifiedJob, matchesDateFilter]
+    () => sortUnifiedJobs(jobs.filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status)).map(resolveUnifiedJob), sortKey),
+    [jobs, sortKey, resolveUnifiedJob, matchesDateFilter, matchesStatusFilter]
   );
   const activeJobs = useMemo(
-    () => sortUnifiedJobs(jobs.filter((job) => isSalesmanPhaseJob(job.status) && job.status !== JobStatus.Pending && matchesDateFilter(job.scheduledAt)).map(resolveUnifiedJob), sortKey),
-    [jobs, sortKey, resolveUnifiedJob, matchesDateFilter],
+    () => sortUnifiedJobs(jobs.filter((job) => isSalesmanPhaseJob(job.status) && job.status !== JobStatus.Pending && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status)).map(resolveUnifiedJob), sortKey),
+    [jobs, sortKey, resolveUnifiedJob, matchesDateFilter, matchesStatusFilter],
   );
 
   const unassignedJobsForMap = useMemo(() => jobs
-    .filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt))
+    .filter((job) => job.status === JobStatus.Pending && !job.quotation && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
     .map((job) => {
       const coordinates = job.location?.coordinates;
       const lng = coordinates?.[0] ?? 76.2711;
@@ -1120,10 +1119,10 @@ export default function SmartSalesmanAssignmentsPage() {
         property: job.propertyType,
         productType: job.productType,
       };
-    }), [jobs, matchesDateFilter]);
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
 
   const scheduledJobsForMap = useMemo(() => jobs
-    .filter((job) => isSalesmanPhaseJob(job.status) && job.status !== JobStatus.Pending && matchesDateFilter(job.scheduledAt))
+    .filter((job) => isSalesmanPhaseJob(job.status) && job.status !== JobStatus.Pending && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
     .map((job) => {
       const coordinates = job.location?.coordinates;
       const lng = coordinates?.[0] ?? 76.2711;
@@ -1141,7 +1140,7 @@ export default function SmartSalesmanAssignmentsPage() {
         property: job.propertyType,
         productType: job.productType,
       };
-    }), [jobs, matchesDateFilter]);
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
 
 
 
@@ -1532,7 +1531,7 @@ export default function SmartSalesmanAssignmentsPage() {
 
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] overflow-hidden bg-slate-50 w-full font-sans">
+    <div className="flex flex-col max-h-screen h-full overflow-hidden bg-slate-50 w-full font-sans">
 
 
       {/* ── Main Content Body Split ── */}
@@ -1540,188 +1539,252 @@ export default function SmartSalesmanAssignmentsPage() {
         {/* VIEW 1: LIVE FLEET VIEW (Default Dispatch Side panel + Map) */}
 
         <>
-          <div className="w-full xl:w-[500px] flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
-            <div className="p-8 border-b border-slate-100 shrink-0 bg-white">
+          <div className="w-full xl:w-125 flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl shrink-0">
+            <div className="p-5 sm:p-6 border-b border-slate-100 shrink-0 bg-white">
               <div>
                 <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
                   <div className="w-8 h-px bg-amber-600"></div>
                   <span>Workforce Optimization</span>
                 </div>
-                <div className="flex justify-between items-end mb-6">
-                  <h2 className="text-3xl font-light text-slate-900 tracking-tight">Smart <span className="font-medium">Dispatch</span></h2>
+                <div className="flex justify-between items-end mb-4">
+                  <h2 className="text-2xl sm:text-3xl font-light text-slate-900 tracking-tight">Smart <span className="font-medium">Dispatch</span></h2>
                 </div>
               </div>
 
               {/* Date Filter Panel */}
-              <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                <button
-                  onClick={() => {
-                    setDateFilterType("today");
-                    setViewDate(new Date());
-                  }}
-                  className={cn(
-                    "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
-                    dateFilterType === "today"
-                      ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
-                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                  )}
-                >
-                  Today
-                </button>
-                <button
-                  onClick={() => {
-                    setDateFilterType("tomorrow");
-                    setViewDate(addDays(new Date(), 1));
-                  }}
-                  className={cn(
-                    "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all text-center",
-                    dateFilterType === "tomorrow"
-                      ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
-                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                  )}
-                >
-                  Tomorrow
-                </button>
+              <div className="space-y-2">
+                <div className="grid grid-cols-6 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/70">
+                  <button
+                    onClick={() => setDateFilterType("all")}
+                    className={cn(
+                      "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                      dateFilterType === "all"
+                        ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    )}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDateFilterType("today");
+                      setViewDate(new Date());
+                    }}
+                    className={cn(
+                      "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                      dateFilterType === "today"
+                        ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    )}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDateFilterType("tomorrow");
+                      setViewDate(addDays(new Date(), 1));
+                    }}
+                    className={cn(
+                      "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                      dateFilterType === "tomorrow"
+                        ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    )}
+                  >
+                    Tomorrow
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDateFilterType("yesterday");
+                      setViewDate(subDays(new Date(), 1));
+                    }}
+                    className={cn(
+                      "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                      dateFilterType === "yesterday"
+                        ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    )}
+                  >
+                    Yesterday
+                  </button>
+                  <button
+                    onClick={() => setDateFilterType("week")}
+                    className={cn(
+                      "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                      dateFilterType === "week"
+                        ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    )}
+                  >
+                    Week
+                  </button>
+                  <button
+                    onClick={() => setDateFilterType("month")}
+                    className={cn(
+                      "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                      dateFilterType === "month"
+                        ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                        : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                    )}
+                  >
+                    Month
+                  </button>
+                </div>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      className={cn(
-                        "flex-1 h-7 px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1 min-w-0",
-                        dateFilterType === "custom"
-                          ? "bg-white shadow-sm text-slate-900 border border-slate-200/50"
-                          : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
-                      )}
-                    >
-                      <CalendarDays className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">
-                        {dateFilterType === "custom" ? format(viewDate, "MMM do") : "Date"}
-                      </span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
-                      mode="single"
-                      selected={viewDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setDateFilterType("custom");
-                          setViewDate(date);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <div className="flex items-center justify-between pt-0.5 gap-2">
+                  <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1 shrink-0">
+                    Filter: <strong className="text-slate-700 font-semibold capitalize">{dateFilterType === "custom" ? format(viewDate, "PPP") : dateFilterType}</strong>
+                  </span>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
+                      <SelectTrigger className="h-7 px-2.5 text-xs font-semibold bg-white border-slate-200 shadow-sm rounded-lg hover:bg-slate-50 transition-all text-slate-700">
+                        <SelectValue placeholder="All Statuses" />
+                      </SelectTrigger>
+                      <SelectContent align="end" className="text-xs">
+                        <SelectItem value="all" className="font-semibold text-slate-900">All Statuses</SelectItem>
+                        <SelectItem value={JobStatus.Pending}>Pending</SelectItem>
+                        <SelectItem value={JobStatus.SalesmanScheduled}>Salesman Scheduled</SelectItem>
+                        <SelectItem value={JobStatus.SalesmanOnTheWay}>Salesman On The Way</SelectItem>
+                        <SelectItem value={JobStatus.SalesmanReached}>Salesman Reached</SelectItem>
+                        <SelectItem value={JobStatus.SalesmanCancelled}>Salesman Cancelled</SelectItem>
+                        <SelectItem value={JobStatus.Measuring}>Measuring</SelectItem>
+                        <SelectItem value={JobStatus.Quoting}>Quoting</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          className={cn(
+                            "px-2.5 py-1 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 border shadow-sm",
+                            dateFilterType === "custom"
+                              ? "bg-blue-50 text-blue-700 border-blue-200 font-bold"
+                              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+                          )}
+                        >
+                          <CalendarDays className="w-3.5 h-3.5 shrink-0 text-blue-500" />
+                          <span>
+                            {dateFilterType === "custom" ? format(viewDate, "MMM do, yyyy") : "Custom Date"}
+                          </span>
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={viewDate}
+                          onSelect={(date) => {
+                            if (date) {
+                              setDateFilterType("custom");
+                              setViewDate(date);
+                            }
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
-              <FilterSortBar
-                onFilterClick={() => {
-                  toast.info("Showing today's live field list. Use date filters to check schedules.");
-                  loadJobs();
-                }}
-                onSortChange={handleSortChange}
-                currentSort={currentSortLabel}
-                sortOptions={sortOptions}
-                className="border-b border-slate-200/60"
-              />
-
               {(isLoading || loadError) && (
                 <div className={cn("px-6 py-2 text-[10px] uppercase tracking-widest font-bold border-b", loadError ? "bg-red-50 text-red-600 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100")}>
                   {loadError ?? "Updating live presence queue..."}
                 </div>
               )}
 
-              <Tabs defaultValue="pending" className="flex-1 flex flex-col min-h-0">
-                <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
-                  <TabsList className="bg-slate-100 p-1 rounded-xl w-full flex h-auto gap-1">
-                    <TabsTrigger value="pending" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
-                      <span className="mr-2">Pending</span>
-                      {pendingJobs.length > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[9px]">{pendingJobs.length}</span>}
-                    </TabsTrigger>
-                    <TabsTrigger value="active" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
-                      <span className="mr-2">Scheduled</span>
-                      {activeJobs.length > 0 && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md text-[9px]">{activeJobs.length}</span>}
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
+              <div className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container min-h-0">
+                <div className="space-y-3">
+                  {/* Pending Jobs */}
+                  {pendingJobs.map((job) => {
+                    const isSelected = selectedJobId === job.id;
 
-                <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container min-h-0">
-                  <div className="space-y-3">
-                    {pendingJobs.map((job) => {
-                      const isSelected = selectedJobId === job.id;
+                    const suggestedFitter = (() => {
+                      const available = workforceMembers.filter(f => f.location && f.status === "Available");
+                      if (available.length === 0) return null;
+                      const sourceJob = jobs.find(item => item._id === job.id);
+                      if (!sourceJob || !sourceJob.location?.coordinates) return null;
+                      const jobLatLng: [number, number] = [sourceJob.location.coordinates[1], sourceJob.location.coordinates[0]];
+                      const mapped = available.map(f => ({
+                        fitter: f,
+                        dist: distanceKm(f.location!, jobLatLng)
+                      }));
+                      mapped.sort((a, b) => a.dist - b.dist);
+                      return mapped[0];
+                    })();
 
-                      // Simple distance based suggested fitter
-                      const suggestedFitter = (() => {
-                        const available = workforceMembers.filter(f => f.location && f.status === "Available");
-                        if (available.length === 0) return null;
-                        const sourceJob = jobs.find(item => item._id === job.id);
-                        if (!sourceJob || !sourceJob.location?.coordinates) return null;
-                        const jobLatLng: [number, number] = [sourceJob.location.coordinates[1], sourceJob.location.coordinates[0]];
-                        const mapped = available.map(f => ({
-                          fitter: f,
-                          dist: distanceKm(f.location!, jobLatLng)
-                        }));
-                        mapped.sort((a, b) => a.dist - b.dist);
-                        return mapped[0];
-                      })();
+                    const cardRecommendedFitters = isSelected
+                      ? recommendedFitters
+                      : (suggestedFitter ? [{
+                        id: suggestedFitter.fitter.id,
+                        name: suggestedFitter.fitter.name,
+                        dist: suggestedFitter.dist,
+                        isFree: true
+                      }] : []);
 
-                      const cardRecommendedFitters = isSelected
-                        ? recommendedFitters
-                        : (suggestedFitter ? [{
-                          id: suggestedFitter.fitter.id,
-                          name: suggestedFitter.fitter.name,
-                          dist: suggestedFitter.dist,
-                          isFree: true
-                        }] : []);
-
-                      return (
-                        <JobCard
-                          key={job.id}
-                          job={{ ...job, recommendedFitters: cardRecommendedFitters }}
-                          isSelected={isSelected}
-                          onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
-                          onAction={(action, payload) => {
-                            if (action === "assign") {
-                              initiateAssignment(job.id, payload);
-                            } else {
-                              handleCardAction(action, job.id);
-                            }
-                          }}
-                          showEditDelete={isAuthorized}
-                          variant="assignment"
-                        />
-                      );
-                    })}
-                    {!isLoading && pendingJobs.length === 0 && <div className="text-center py-12 text-slate-400 text-xs italic">No pending leads remaining.</div>}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="active" className="flex-1 overflow-y-auto outline-none p-4 min-h-0">
-                  <div className="space-y-3">
-                    {activeJobs.map((job) => (
+                    return (
                       <JobCard
                         key={job.id}
-                        job={job}
-                        isSelected={selectedJobId === job.id}
-                        onSelect={() => openRescheduleForJob(job)}
-                        onAction={(action) => {
-                          if (action === "manage") {
-                            openRescheduleForJob(job);
+                        job={{ ...job, recommendedFitters: cardRecommendedFitters }}
+                        isSelected={isSelected}
+                        onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
+                        onAction={(action, payload) => {
+                          if (action === "assign") {
+                            initiateAssignment(job.id, payload);
                           } else {
                             handleCardAction(action, job.id);
                           }
                         }}
                         showEditDelete={isAuthorized}
-                        variant="schedule"
+                        variant="assignment"
                       />
-                    ))}
-                    {!isLoading && activeJobs.length === 0 && <div className="text-center py-12 text-slate-400 text-xs italic">No appointments scheduled for this date.</div>}
-                  </div>
-                </TabsContent>
-              </Tabs>
+                    );
+                  })}
+
+                  {/* Scheduled / Active Jobs */}
+                  {activeJobs.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      isSelected={selectedJobId === job.id}
+                      onSelect={() => {
+                        if (selectedJobId === job.id) {
+                          setSelectedJobId(null);
+                          setSelectedMapFitter(null);
+                        } else {
+                          setSelectedJobId(job.id);
+                          const sourceJob = jobs.find((j) => j._id === job.id);
+                          if (sourceJob) {
+                            const assignedId =
+                              (typeof sourceJob.assignedSalesman === "object" ? sourceJob.assignedSalesman?._id : sourceJob.assignedSalesman) ||
+                              (typeof sourceJob.assignedFitter === "object" ? sourceJob.assignedFitter?._id : sourceJob.assignedFitter);
+                            if (assignedId && typeof assignedId === "string") {
+                              setSelectedMapFitter(assignedId);
+                            }
+                          }
+                        }
+                      }}
+                      onAction={(action) => {
+                        if (action === "manage" || action === "reschedule") {
+                          openRescheduleForJob(job);
+                        } else {
+                          handleCardAction(action, job.id);
+                        }
+                      }}
+                      showEditDelete={isAuthorized}
+                      variant="schedule"
+                    />
+                  ))}
+
+                  {!isLoading && pendingJobs.length === 0 && activeJobs.length === 0 && (
+                    <div className="text-center py-12 text-slate-400 text-xs italic">
+                      No jobs found for this date.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1749,7 +1812,7 @@ export default function SmartSalesmanAssignmentsPage() {
             </div>
             {/* Selected Salesman Details Card */}
             {selectedMapFitter && (
-              <div className="absolute top-6 right-6 z-30 w-96 bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-10rem)] rounded-2xl overflow-hidden ring-1 ring-black/5">
+              <div className="absolute top-18 right-6 z-30 w-96 bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200 animate-in slide-in-from-right-4 flex flex-col max-h-[calc(100vh-10rem)] rounded-2xl overflow-hidden ring-1 ring-black/5">
                 {(() => {
                   const fitter = workforceMembers.find((item) => item.id === selectedMapFitter) || (() => {
                     const userObj = allUsers.find(u => u._id === selectedMapFitter);
@@ -1760,7 +1823,7 @@ export default function SmartSalesmanAssignmentsPage() {
                       name: userObj.name,
                       role: isSalesManagerRole(userObj.role) ? UserRole.SalesManager : (userObj.role || UserRole.Salesman),
                       avatar: userObj.avatar,
-                      phone: userObj.phone,
+                      phoneNumber: userObj.phoneNumber,
                       status: userObj.checkedIn === false ? "Offline" : "Available",
                       location: ll ? [ll.lat, ll.lng] as [number, number] : undefined,
                       lastUpdated: "Not updated",
@@ -1789,12 +1852,12 @@ export default function SmartSalesmanAssignmentsPage() {
                         <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600 p-1"><X className="w-4 h-4" /></button>
                       </div>
                       <div className="p-5 space-y-4 flex-1 overflow-y-auto">
-                        {fitter.locationLabel && (
+                        {fitter.location && (
                           <div className="flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/50 rounded-xl p-3">
                             <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                             <div className="flex flex-col">
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Last Location</span>
-                              <span className="leading-snug text-slate-700">{fitter.locationLabel}</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Live Coordinates</span>
+                              <span className="leading-snug text-slate-700 font-mono text-[11px]">{fitter.locationLabel || `${fitter.location[0].toFixed(6)}, ${fitter.location[1].toFixed(6)}`}</span>
                               <span className="text-[9px] text-slate-400 mt-1 font-semibold">Updated {fitter.lastUpdated}</span>
                             </div>
                           </div>
@@ -2176,7 +2239,7 @@ export default function SmartSalesmanAssignmentsPage() {
                 value={editJobFormState.notes}
                 onChange={(e) => setEditJobFormState(prev => ({ ...prev, notes: e.target.value }))}
                 placeholder="Additional instructions or notes"
-                className="text-xs rounded-xl border-slate-200 resize-none min-h-[80px]"
+                className="text-xs rounded-xl border-slate-200 resize-none min-h-20"
               />
             </div>
           </div>
@@ -2199,7 +2262,7 @@ export default function SmartSalesmanAssignmentsPage() {
               Delete Job?
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              This action cannot be undone and will remove the job from all lists, calendars, and routes.
+              This action will remove the job from all active lists, calendars, and routes.
             </DialogDescription>
           </DialogHeader>
 

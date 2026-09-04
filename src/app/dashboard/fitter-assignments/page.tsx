@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { format, addDays, isSameDay, parseISO } from "date-fns";
+import { format, addDays, subDays, isSameDay, isSameWeek, isSameMonth, parseISO } from "date-fns";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
-import { CalendarDays, Pencil, X } from "lucide-react";
+import { CalendarDays, MapPin, Pencil, X } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { useLiveFitters, toFitterJobStatus, type Fitter, type FitterJob } from "
 import { getUserErrorMessage, getUsers, type UserRecord, extractLatLng } from "@/lib/users";
 import { JobDetailSheet } from "@/components/tracking/JobDetailSheet";
 import { cn } from "@/lib/utils";
+import { useLiveLocation } from "@/hooks";
 
 const AssignmentMap = dynamic(() => import("@/components/tracking/FitterMap"), {
   ssr: false,
@@ -88,7 +89,7 @@ function toUnifiedJob(job: Job): UnifiedJob {
     jobId: job.jobId,
     client: job.customerName,
     email: job.customerEmail,
-    phone: job.customerPhone,
+    phoneNumber: job.customerPhone,
     brand: "Easy Blinds",
     productType: job.productType,
     priority: priorityLabel,
@@ -118,7 +119,7 @@ function toFitterJob(job: Job): FitterJob {
     status: toFitterJobStatus(job.status),
     value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
     email: job.customerEmail,
-    phone: job.customerPhone,
+    phoneNumber: job.customerPhone,
     notes: job.notes,
     brand: "Easy Blinds",
     property: `Qty ${job.quantity ?? 1}`,
@@ -167,7 +168,7 @@ function toSalesmanWorkforceMember(user: UserRecord): Fitter {
     lastUpdated: (() => { const u = user.location?.updatedAt; if (!u) return "Not updated"; try { return typeof u === "string" ? toReadableLastUpdated(u) : toReadableLastUpdated(new Date(u).toISOString()); } catch { return "Not updated"; } })(),
     avatar: user.avatar,
     email: user.email,
-    phone: user.phone,
+    phoneNumber: user.phoneNumber,
     history: [],
     schedule: {
       yesterday: [],
@@ -205,6 +206,7 @@ export default function SmartAssignmentsPage() {
   }, [user, router]);
 
   const { fitters: baseFitters, isLoaded } = useLiveFitters();
+  const { locations: liveLocations } = useLiveLocation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [salesmanUsers, setSalesmanUsers] = useState<UserRecord[]>([]);
   const [allUsers, setAllUsers] = useState<UserRecord[]>([]);
@@ -215,9 +217,53 @@ export default function SmartAssignmentsPage() {
   const [selectedMapFitter, setSelectedMapFitter] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [viewDate, setViewDate] = useState<Date>(new Date());
+  const [dateFilterType, setDateFilterType] = useState<"all" | "today" | "tomorrow" | "yesterday" | "week" | "month" | "custom">("today");
+  const [statusFilter, setStatusFilter] = useState<string>(JobStatus.ReadyForFitting);
 
   const isToday = isSameDay(viewDate, new Date());
   const isTomorrow = isSameDay(viewDate, addDays(new Date(), 1));
+
+  const matchesDateFilter = useCallback((scheduledAtStr: string | undefined) => {
+    if (dateFilterType === "all") {
+      return true;
+    }
+    if (!scheduledAtStr) {
+      return false;
+    }
+    try {
+      const jobDate = parseISO(scheduledAtStr);
+      const today = new Date();
+      const tomorrow = addDays(today, 1);
+      const yesterday = subDays(today, 1);
+
+      if (dateFilterType === "today") {
+        return isSameDay(jobDate, today);
+      }
+      if (dateFilterType === "tomorrow") {
+        return isSameDay(jobDate, tomorrow);
+      }
+      if (dateFilterType === "yesterday") {
+        return isSameDay(jobDate, yesterday);
+      }
+      if (dateFilterType === "week") {
+        return isSameWeek(jobDate, today, { weekStartsOn: 1 });
+      }
+      if (dateFilterType === "month") {
+        return isSameMonth(jobDate, today);
+      }
+      if (dateFilterType === "custom") {
+        return isSameDay(jobDate, viewDate);
+      }
+    } catch {
+      return false;
+    }
+    return false;
+  }, [dateFilterType, viewDate]);
+
+  const matchesStatusFilter = useCallback((status: JobStatus) => {
+    if (statusFilter === "all") return true;
+    return status === statusFilter;
+  }, [statusFilter]);
 
   const loadJobs = useCallback(async () => {
     setIsLoadingJobs(true);
@@ -350,8 +396,26 @@ export default function SmartAssignmentsPage() {
   }, [salesmanUsers]);
 
   const workforceMembers = useMemo<Fitter[]>(() => {
-    return [...fitters, ...salesmen];
-  }, [fitters, salesmen]);
+    const base = [...fitters, ...salesmen];
+    // Enrich with live location data
+    return base.map((member) => {
+      const liveLoc = liveLocations?.find(loc => loc.userId === member.id);
+      if (liveLoc) {
+        const liveCoords = [liveLoc.lat, liveLoc.lng] as [number, number];
+        const liveLabel = `${liveLoc.lat.toFixed(6)}, ${liveLoc.lng.toFixed(6)}`;
+        let liveLastUpdated = member.lastUpdated;
+        if (liveLoc.updatedAt) {
+          try { liveLastUpdated = toReadableLastUpdated(liveLoc.updatedAt); } catch { /* keep original */ }
+        }
+        return { ...member, location: liveCoords, locationLabel: liveLabel, lastUpdated: liveLastUpdated };
+      }
+      // If no live data, show coordinates from static location
+      if (member.location) {
+        return { ...member, locationLabel: `${member.location[0].toFixed(6)}, ${member.location[1].toFixed(6)}` };
+      }
+      return member;
+    });
+  }, [fitters, salesmen, liveLocations]);
 
   const rescheduleSlots = useMemo(() => {
     if (!dialogState || !rescheduleDate) return [];
@@ -436,6 +500,8 @@ export default function SmartAssignmentsPage() {
             ) {
               return false;
             }
+            if (!matchesDateFilter(job.scheduledAt)) return false;
+            if (!matchesStatusFilter(job.status)) return false;
             // Jobs ready for fitting or pending fitter assignment
             if (job.status === JobStatus.ReadyForFitting) return true;
             if (!job.assignedFitter && job.status === JobStatus.Pending) return true;
@@ -444,7 +510,7 @@ export default function SmartAssignmentsPage() {
           .map(resolveUnifiedJob),
         sortKey
       ),
-    [jobs, sortKey, resolveUnifiedJob]
+    [jobs, sortKey, resolveUnifiedJob, matchesDateFilter, matchesStatusFilter]
   );
 
   const activeJobs = useMemo(
@@ -459,6 +525,8 @@ export default function SmartAssignmentsPage() {
             ) {
               return false;
             }
+            if (!matchesDateFilter(job.scheduledAt)) return false;
+            if (!matchesStatusFilter(job.status)) return false;
             if (
               [
                 JobStatus.FitterAssigned,
@@ -475,8 +543,75 @@ export default function SmartAssignmentsPage() {
           .map(resolveUnifiedJob),
         sortKey
       ),
-    [jobs, sortKey, resolveUnifiedJob]
+    [jobs, sortKey, resolveUnifiedJob, matchesDateFilter, matchesStatusFilter]
   );
+
+  const selectedPendingJobForMap = useMemo(() => {
+    if (!selectedJobId) return undefined;
+    const job = jobs.find((j) => j._id === selectedJobId);
+    if (!job) return undefined;
+
+    let lat = 10.8505;
+    let lng = 76.2711;
+    if (job.location?.coordinates && job.location.coordinates.length >= 2) {
+      lng = job.location.coordinates[0];
+      lat = job.location.coordinates[1];
+    }
+
+    const assignedSalesmanId = typeof job.assignedSalesman === "object" ? job.assignedSalesman?._id : job.assignedSalesman;
+    const assignedFitterId = typeof job.assignedFitter === "object" ? job.assignedFitter?._id : job.assignedFitter;
+
+    return {
+      id: job._id,
+      jobId: job.jobId,
+      location: { lat, lng },
+      address: job.address || "Job Location",
+      client: job.customerName || "Client",
+      status: job.status,
+      assignedSalesmanId,
+      assignedFitterId,
+    };
+  }, [selectedJobId, jobs]);
+
+  const unassignedJobsForMap = useMemo(() => jobs
+    .filter((job) => (job.status === JobStatus.ReadyForFitting || (!job.assignedFitter && job.status === JobStatus.Pending)) && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
+    .map((job) => {
+      const coordinates = job.location?.coordinates;
+      const lng = coordinates?.[0] ?? 76.2711;
+      const lat = coordinates?.[1] ?? 10.8505;
+      return {
+        id: job._id,
+        jobId: job.jobId,
+        location: { lat, lng },
+        address: job.address || "Fitting Location",
+        client: job.customerName || "Client",
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
+      };
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
+
+  const scheduledJobsForMap = useMemo(() => jobs
+    .filter((job) => [JobStatus.FitterAssigned, JobStatus.FitterOnTheWay, JobStatus.FitterReached, JobStatus.Fitting, JobStatus.TakingPhotos].includes(job.status) && matchesDateFilter(job.scheduledAt) && matchesStatusFilter(job.status))
+    .map((job) => {
+      const coordinates = job.location?.coordinates;
+      const lng = coordinates?.[0] ?? 76.2711;
+      const lat = coordinates?.[1] ?? 10.8505;
+      return {
+        id: job._id,
+        jobId: job.jobId,
+        location: { lat, lng },
+        address: job.address || "Scheduled Fitting Location",
+        client: job.customerName || "Client",
+        status: job.status,
+        assignedSalesmanId: typeof job.assignedFitter === "object" ? job.assignedFitter?._id : job.assignedFitter,
+        value: job.projectValue ?? ((job.quantity ?? 1) * 1000),
+        time: toDisplayTime(job.scheduledAt) ?? "10:00",
+        property: job.propertyType,
+        productType: job.productType,
+      };
+    }), [jobs, matchesDateFilter, matchesStatusFilter]);
 
   const recommendedFitters = useMemo(() => {
     if (!selectedJobId) return [];
@@ -499,9 +634,9 @@ export default function SmartAssignmentsPage() {
           const a =
             Math.sin(dLat / 2) * Math.sin(dLat / 2) +
             Math.cos((fitter.location[0] * Math.PI) / 180) *
-              Math.cos((jobLl.lat * Math.PI) / 180) *
-              Math.sin(dLon / 2) *
-              Math.sin(dLon / 2);
+            Math.cos((jobLl.lat * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
           dist = R * c;
           duration = (dist / 30) * 3600;
@@ -627,123 +762,244 @@ export default function SmartAssignmentsPage() {
   const isLoading = !isLoaded || isLoadingJobs || isLoadingUsers;
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] overflow-hidden bg-white">
+    <div className="flex max-h-screen h-full overflow-hidden bg-white">
       {inspectJobId && (
         <JobDetailSheet jobId={inspectJobId} onClose={() => setInspectJobId(null)} />
       )}
       <div className="w-full xl:w-125 flex flex-col border-r border-slate-200 bg-white z-20 shadow-xl">
-        <div className="p-8 border-b border-slate-100 shrink-0">
+        <div className="p-5 sm:p-6 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.25em] text-slate-400 font-bold mb-2">
             <div className="w-8 h-px bg-amber-600"></div>
             <span>Workforce Optimization</span>
           </div>
-          <div className="flex justify-between items-end mb-6">
-            <h1 className="text-3xl font-light text-slate-900">
+          <div className="flex justify-between items-end mb-4">
+            <h1 className="text-2xl sm:text-3xl font-light text-slate-900">
               Smart <span className="font-medium">Fitter Dispatch</span>
             </h1>
           </div>
 
-          <div className="flex items-center justify-between bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" className={cn("text-xs font-medium h-7 px-3 rounded-md transition-all", isToday ? "bg-white shadow-sm text-slate-900 border border-slate-200/50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50")} onClick={() => setViewDate(new Date())}>Today</Button>
-              <Button variant="ghost" size="sm" className={cn("text-xs font-medium h-7 px-3 rounded-md transition-all", isTomorrow ? "bg-white shadow-sm text-slate-900 border border-slate-200/50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50")} onClick={() => setViewDate(addDays(new Date(), 1))}>Tomorrow</Button>
+          {/* Date Filter Panel */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-6 gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/70">
+              <button
+                onClick={() => setDateFilterType("all")}
+                className={cn(
+                  "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                  dateFilterType === "all"
+                    ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                )}
+              >
+                All
+              </button>
+              <button
+                onClick={() => {
+                  setDateFilterType("today");
+                  setViewDate(new Date());
+                }}
+                className={cn(
+                  "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                  dateFilterType === "today"
+                    ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                )}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => {
+                  setDateFilterType("tomorrow");
+                  setViewDate(addDays(new Date(), 1));
+                }}
+                className={cn(
+                  "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                  dateFilterType === "tomorrow"
+                    ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                )}
+              >
+                Tomorrow
+              </button>
+              <button
+                onClick={() => {
+                  setDateFilterType("yesterday");
+                  setViewDate(subDays(new Date(), 1));
+                }}
+                className={cn(
+                  "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                  dateFilterType === "yesterday"
+                    ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                )}
+              >
+                Yesterday
+              </button>
+              <button
+                onClick={() => setDateFilterType("week")}
+                className={cn(
+                  "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                  dateFilterType === "week"
+                    ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                )}
+              >
+                Week
+              </button>
+              <button
+                onClick={() => setDateFilterType("month")}
+                className={cn(
+                  "py-1.5 px-0.5 text-[11px] font-bold rounded-lg transition-all text-center truncate",
+                  dateFilterType === "month"
+                    ? "bg-white shadow-sm text-blue-600 border border-slate-200/60"
+                    : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                )}
+              >
+                Month
+              </button>
             </div>
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200 mx-2">
-              <span className="text-xs text-slate-600 font-semibold">{format(viewDate, "MMM do")}</span>
-              <Popover>
-                <PopoverTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-200/50"><CalendarDays className="w-3.5 h-3.5" /></Button></PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end"><Calendar mode="single" selected={viewDate} onSelect={(date) => date && setViewDate(date)} initialFocus /></PopoverContent>
-              </Popover>
+
+            <div className="flex items-center justify-between pt-0.5 gap-2">
+              <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1 shrink-0">
+                Filter: <strong className="text-slate-700 font-semibold capitalize">{dateFilterType === "custom" ? format(viewDate, "PPP") : dateFilterType}</strong>
+              </span>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
+                  <SelectTrigger className="h-7 px-2.5 text-xs font-semibold bg-white border-slate-200 shadow-sm rounded-lg hover:bg-slate-50 transition-all text-slate-700">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent align="end" className="text-xs">
+                    <SelectItem value="all" className="font-semibold text-slate-900">All Statuses</SelectItem>
+                    <SelectItem value={JobStatus.ReadyForFitting}>Ready for Fitting</SelectItem>
+                    <SelectItem value={JobStatus.FitterAssigned}>Fitter Assigned</SelectItem>
+                    <SelectItem value={JobStatus.FitterOnTheWay}>Fitter On The Way</SelectItem>
+                    <SelectItem value={JobStatus.FitterReached}>Fitter Reached</SelectItem>
+                    <SelectItem value={JobStatus.FitterCancelled}>Fitter Cancelled</SelectItem>
+                    <SelectItem value={JobStatus.Fitting}>Fitting</SelectItem>
+                    <SelectItem value={JobStatus.TakingPhotos}>Taking Photos</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        "px-2.5 py-1 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 border shadow-sm",
+                        dateFilterType === "custom"
+                          ? "bg-blue-50 text-blue-700 border-blue-200 font-bold"
+                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+                      )}
+                    >
+                      <CalendarDays className="w-3.5 h-3.5 shrink-0 text-blue-500" />
+                      <span>
+                        {dateFilterType === "custom" ? format(viewDate, "MMM do, yyyy") : "Custom Date"}
+                      </span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={viewDate}
+                      onSelect={(date) => {
+                        if (date) {
+                          setDateFilterType("custom");
+                          setViewDate(date);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col bg-slate-50/50">
-          <FilterSortBar
-            onFilterClick={() => {
-              toast.info("This view is connected to jobs. Use the date picker and status tabs to narrow dispatch work.");
-              loadJobs();
-            }}
-            onSortChange={handleSortChange}
-            currentSort={currentSortLabel}
-            sortOptions={sortOptions}
-            className="border-t border-b-0"
-          />
-
           {(isLoading || loadError) && (
             <div className={cn("px-6 py-2 text-[10px] uppercase tracking-widest font-bold border-b", loadError ? "bg-red-50 text-red-600 border-red-100" : "bg-amber-50 text-amber-700 border-amber-100")}>
               {loadError ?? "Syncing Smart Dispatch jobs..."}
             </div>
           )}
 
-          <Tabs defaultValue="pending" className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 pt-4 bg-white border-b border-slate-100 pb-0">
-              <TabsList className="bg-slate-100 p-1 rounded-xl w-full flex h-auto gap-1">
-                <TabsTrigger value="pending" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-amber-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
-                  <span className="mr-2">Pending</span>
-                  {pendingJobs.length > 0 && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[10px]">{pendingJobs.length}</span>}
-                </TabsTrigger>
-                <TabsTrigger value="active" className="flex-1 rounded-lg py-2.5 text-xs font-bold uppercase tracking-wider text-slate-500 data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm transition-all border border-transparent data-[state=active]:border-slate-200/50">
-                  <span className="mr-2">Scheduled</span>
-                  {activeJobs.length > 0 && <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md text-[10px]">{activeJobs.length}</span>}
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent value="pending" className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container min-h-0">
-              <style jsx>{`
-                .scrollbar-container::-webkit-scrollbar { width: 6px; }
-                .scrollbar-container::-webkit-scrollbar-track { background: transparent; }
-                .scrollbar-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
-                .scrollbar-container::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
-              `}</style>
-              <div className="space-y-3">
-                {pendingJobs.map((job) => {
-                  const isSelected = selectedJobId === job.id;
-                  return (
-                    <JobCard
-                      key={job.id}
-                      job={{ ...job, recommendedFitters }}
-                      isSelected={isSelected}
-                      onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
-                      onAction={(action, payload) => {
-                        if (action === "assign") {
-                          initiateAssignment(job.id, payload);
-                        }
-                      }}
-                      variant="assignment"
-                    />
-                  );
-                })}
-                {!isLoading && pendingJobs.length === 0 && <div className="text-center py-10 text-slate-300 text-sm font-light">No pending jobs.</div>}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="active" className="flex-1 overflow-y-auto outline-none p-4 min-h-0">
-              <div className="space-y-3">
-                {activeJobs.map((job) => (
+          <div className="flex-1 overflow-y-auto outline-none p-4 pr-3 scrollbar-container min-h-0">
+            <style jsx>{`
+              .scrollbar-container::-webkit-scrollbar { width: 6px; }
+              .scrollbar-container::-webkit-scrollbar-track { background: transparent; }
+              .scrollbar-container::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+              .scrollbar-container::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
+            `}</style>
+            <div className="space-y-3">
+              {/* Pending Jobs */}
+              {pendingJobs.map((job) => {
+                const isSelected = selectedJobId === job.id;
+                return (
                   <JobCard
                     key={job.id}
-                    job={job}
-                    isSelected={selectedJobId === job.id}
-                    onSelect={() => openRescheduleForJob(job)}
-                    onAction={(action) => {
-                      if (action === "manage") {
-                        openRescheduleForJob(job);
+                    job={{ ...job, recommendedFitters }}
+                    isSelected={isSelected}
+                    onSelect={() => setSelectedJobId(isSelected ? null : job.id)}
+                    onAction={(action, payload) => {
+                      if (action === "assign") {
+                        initiateAssignment(job.id, payload);
                       }
                     }}
-                    variant="schedule"
+                    variant="assignment"
                   />
-                ))}
-                {!isLoading && activeJobs.length === 0 && <div className="text-center py-10 text-slate-300 text-sm font-light">No scheduled jobs for this date.</div>}
-              </div>
-            </TabsContent>
-          </Tabs>
+                );
+              })}
+
+              {/* Scheduled / Active Jobs */}
+              {activeJobs.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  isSelected={selectedJobId === job.id}
+                  onSelect={() => {
+                    if (selectedJobId === job.id) {
+                      setSelectedJobId(null);
+                      setSelectedMapFitter(null);
+                    } else {
+                      setSelectedJobId(job.id);
+                      const sourceJob = jobs.find((j) => j._id === job.id);
+                      if (sourceJob) {
+                        const assignedId =
+                          (typeof sourceJob.assignedFitter === "object" ? sourceJob.assignedFitter?._id : sourceJob.assignedFitter) ||
+                          (typeof sourceJob.assignedSalesman === "object" ? sourceJob.assignedSalesman?._id : sourceJob.assignedSalesman);
+                        if (assignedId && typeof assignedId === "string") {
+                          setSelectedMapFitter(assignedId);
+                        }
+                      }
+                    }
+                  }}
+                  onAction={(action) => {
+                    if (action === "manage" || action === "reschedule") {
+                      openRescheduleForJob(job);
+                    }
+                  }}
+                  variant="schedule"
+                />
+              ))}
+
+              {!isLoading && pendingJobs.length === 0 && activeJobs.length === 0 && (
+                <div className="text-center py-10 text-slate-300 text-sm font-light">
+                  No jobs found for this date.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 bg-slate-100 relative">
-        <AssignmentMap fitters={workforceMembers} selectedFitterId={selectedMapFitter} onSelectFitter={setSelectedMapFitter} />
+        <AssignmentMap
+          fitters={workforceMembers}
+          selectedFitterId={selectedMapFitter}
+          onSelectFitter={setSelectedMapFitter}
+          selectedJob={selectedPendingJobForMap}
+          unassignedJobs={unassignedJobsForMap}
+          scheduledJobs={scheduledJobsForMap}
+        />
         <div className="absolute bottom-6 left-6 z-30 bg-white/80 backdrop-blur-md border border-white/50 p-4 shadow-2xl rounded-2xl max-w-sm ring-1 ring-black/5">
           <h4 className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-3">Live Fleet Status</h4>
           <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs font-medium text-slate-700">
@@ -773,6 +1029,17 @@ export default function SmartAssignmentsPage() {
                     <button onClick={() => setSelectedMapFitter(null)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
                   </div>
                   <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                    {/* Live Coordinates */}
+                    {fitter.location && (
+                      <div className="flex items-start gap-2.5 text-xs text-slate-600 bg-slate-50 border border-slate-200/50 rounded-xl p-3">
+                        <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Live Coordinates</span>
+                          <span className="leading-snug text-slate-700 font-mono text-[11px]">{(fitter as any).locationLabel || `${fitter.location[0].toFixed(6)}, ${fitter.location[1].toFixed(6)}`}</span>
+                          <span className="text-[9px] text-slate-400 mt-1 font-semibold">Updated {fitter.lastUpdated}</span>
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2"><span>Workload ({format(viewDate, "MMM do")})</span><span className={cn(fitter.capacity.remaining === 0 ? "text-red-600" : "text-emerald-600")}>{activeSchedule.length} Assignments</span></div>
                       <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden"><div className={cn("h-full transition-all", capacityPercent >= 100 ? "bg-red-500" : "bg-emerald-500")} style={{ width: `${capacityPercent}%` }}></div></div>

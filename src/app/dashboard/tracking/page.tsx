@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export default function TrackingRedirectPage() {
     const router = useRouter();
     useEffect(() => {
-        router.replace("/dashboard/fitter");
+        router.replace("/dashboard/fitter-assignments");
     }, [router]);
 
     return (

@@ -72,23 +72,37 @@ export function RoomManagementStep({
         setRooms(rooms.filter((room) => room.id !== id));
     };
 
+    const scrollToTop = () => {
+        if (typeof window !== "undefined") {
+            window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.documentElement?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+            document.body?.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }
+    };
+
     const handleNext = () => {
         if (rooms.length === 0) {
             alert("Please add at least one room");
             return;
         }
+        scrollToTop();
         onNext();
     };
 
+    const handleBack = () => {
+        scrollToTop();
+        onBack();
+    };
+
     return (
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
             <div>
-                <h2 className="text-2xl font-bold text-stone-900 dark:text-white mb-2">Room Management</h2>
-                <p className="text-stone-500 dark:text-stone-400">Add all rooms that require measurements</p>
+                <h2 className="mb-2 text-xl font-bold text-stone-900 dark:text-white sm:text-2xl">Room Management</h2>
+                <p className="text-sm text-stone-500 dark:text-stone-400 sm:text-base">Add all rooms that require measurements</p>
             </div>
 
             {/* Add Room Form */}
-            <Card className="p-6 bg-stone-50 dark:bg-stone-900 border-2 border-dashed border-stone-300 dark:border-stone-700">
+            <Card className="border-2 border-dashed border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900 sm:p-6">
                 <div className="space-y-4">
                     <h3 className="font-semibold text-stone-900 dark:text-white">Add New Room</h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -182,11 +196,11 @@ export function RoomManagementStep({
                 </div>
             )}
 
-            <div className="flex justify-between gap-3 pt-4 border-t border-stone-200 dark:border-stone-800">
-                <Button type="button" variant="outline" size="lg" onClick={onBack}>
+            <div className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-4 dark:border-stone-800 sm:flex-row sm:justify-between">
+                <Button type="button" variant="outline" size="lg" className="w-full sm:w-auto" onClick={handleBack}>
                     Back
                 </Button>
-                <Button type="button" size="lg" onClick={handleNext} className="bg-stone-900 dark:bg-white hover:bg-stone-800 dark:hover:bg-stone-200 dark:text-stone-900">
+                <Button type="button" size="lg" onClick={handleNext} className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:text-stone-900 dark:hover:bg-stone-200 sm:w-auto">
                     Continue to Measurements
                 </Button>
             </div>

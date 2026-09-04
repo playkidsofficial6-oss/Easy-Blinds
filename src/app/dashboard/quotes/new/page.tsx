@@ -27,7 +27,7 @@ export default function NewQuotePage() {
     const searchParams = useSearchParams();
     const jobId = searchParams.get("jobId") ?? searchParams.get("measurementId") ?? undefined;
     const { user } = useAuth();
-    
+
     const [isLoading, setIsLoading] = useState(false);
     const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
     const [clientName, setClientName] = useState("");
@@ -35,7 +35,7 @@ export default function NewQuotePage() {
     const [clientEmail, setClientEmail] = useState("");
     const [notes, setNotes] = useState("");
     const [originalJobNotes, setOriginalJobNotes] = useState("");
-    
+
     // Invoice preview states
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [tempQuoteId, setTempQuoteId] = useState("");
@@ -122,7 +122,7 @@ export default function NewQuotePage() {
             toast.error("No Job ID provided. Cannot save quote without a job.");
             return;
         }
-        
+
         try {
             const quotation = {
                 id: tempQuoteId || `Q${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
@@ -159,102 +159,108 @@ export default function NewQuotePage() {
     }
 
     return (
-        <div className="space-y-8 max-w-5xl mx-auto pb-20">
+        <div className="space-y-3 sm:space-y-6 max-w-5xl mx-auto px-2.5 sm:px-6 lg:px-8 py-2.5 sm:py-6 pb-20">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Link href="/salesman">
-                        <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100">
-                            <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-3xl font-light text-neutral-900">{existingQuoteId ? `Edit Quote ${existingQuoteId}` : "New Quote"}</h1>
-                        <p className="text-neutral-500 text-sm">{existingQuoteId ? "Modify an existing quotation" : "Create a new quotation for a client"}</p>
-                    </div>
-                </div>
-                <div className="flex gap-3">
-                    <Button onClick={() => setShowInvoiceModal(true)} className="h-12 px-6 bg-neutral-900 hover:bg-neutral-800 text-white">
-                        <Save className="w-4 h-4 mr-2" />
-                        {existingQuoteId ? "Update Quote" : "Create Quote"}
+            <div className="flex items-center gap-2.5">
+                <Link href="/salesman">
+                    <Button variant="ghost" size="icon" className="rounded-full hover:bg-neutral-100 shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                        <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                     </Button>
+                </Link>
+                <div>
+                    <h1 className="text-base sm:text-2xl font-semibold sm:font-light text-neutral-900 leading-tight">
+                        {existingQuoteId ? `Edit Quote ${existingQuoteId}` : "New Quote"}
+                    </h1>
+                    <p className="text-neutral-500 text-[11px] sm:text-xs">
+                        {existingQuoteId ? "Modify an existing quotation" : "Create a new quotation for a client"}
+                    </p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
                 {/* Main Form Area */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-3 sm:space-y-6">
 
                     {/* Line Items */}
-                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200">
-                        <CardHeader className="pb-4 border-b border-neutral-100 flex flex-row items-center justify-between">
-                            <CardTitle className="text-lg font-medium">Line Items</CardTitle>
-                            <Button variant="outline" size="sm" onClick={addLineItem} className="h-9">
-                                <Plus className="w-4 h-4 mr-2" />
+                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200 overflow-hidden">
+                        <CardHeader className="px-3 py-2.5 sm:px-6 sm:py-3.5 border-b border-neutral-100 flex flex-row items-center justify-between">
+                            <CardTitle className="text-sm sm:text-base font-semibold">Line Items</CardTitle>
+                            <Button variant="outline" size="sm" onClick={addLineItem} className="h-7 sm:h-8 text-xs font-semibold px-2.5">
+                                <Plus className="w-3.5 h-3.5 mr-1" />
                                 Add Item
                             </Button>
                         </CardHeader>
-                        <CardContent className="p-6 space-y-6">
-                            {lineItems.map((item) => (
-                                <div key={item.id} className="flex flex-col md:flex-row gap-4 items-start md:items-end p-4 bg-neutral-50 rounded-lg border border-neutral-100">
-                                    <div className="flex-1 w-full space-y-2">
-                                        <Label className="text-xs text-neutral-500">Description</Label>
+                        <CardContent className="p-2.5 sm:p-5 space-y-2.5 sm:space-y-4">
+                            {lineItems.map((item, idx) => (
+                                <div key={item.id} className="p-2.5 sm:p-4 bg-neutral-50/90 rounded-lg border border-neutral-200/80 space-y-2 sm:space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider">Item #{idx + 1}</span>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => removeLineItem(item.id)}
+                                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-6 sm:h-7 px-1.5 text-[10px] sm:text-xs"
+                                            disabled={lineItems.length === 1}
+                                        >
+                                            <Trash2 className="w-3 h-3 mr-1" /> Delete
+                                        </Button>
+                                    </div>
+
+                                    {/* Description */}
+                                    <div className="space-y-0.5">
+                                        <Label className="text-[10px] sm:text-xs font-medium text-neutral-500">Description</Label>
                                         <Input
                                             placeholder="Item description"
                                             value={item.description}
                                             onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                                            className="bg-white"
+                                            className="bg-white h-8 sm:h-9 text-xs sm:text-sm"
                                         />
                                     </div>
-                                    <div className="w-full md:w-24 space-y-2">
-                                        <Label className="text-xs text-neutral-500">Qty</Label>
-                                        <Input
-                                            type="number"
-                                            min="1"
-                                            value={item.quantity === 0 ? "" : item.quantity}
-                                            onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
-                                            className="bg-white"
-                                        />
-                                    </div>
-                                    <div className="w-full md:w-32 space-y-2">
-                                        <Label className="text-xs text-neutral-500">Unit Price</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            value={item.unitPrice === 0 ? "" : item.unitPrice}
-                                            onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            className="bg-white"
-                                        />
-                                    </div>
-                                    <div className="w-full md:w-32 space-y-2">
-                                        <Label className="text-xs text-neutral-500">Total</Label>
-                                        <div className="h-10 px-3 flex items-center bg-neutral-100 rounded-md text-sm font-medium text-neutral-900 border border-neutral-200">
-                                            AED {(item.quantity * item.unitPrice).toLocaleString()}
+
+                                    {/* Responsive Grid for Qty, Unit Price, and Total */}
+                                    <div className="grid grid-cols-12 gap-2 sm:gap-3 items-end">
+                                        <div className="col-span-4 sm:col-span-3 space-y-0.5">
+                                            <Label className="text-[10px] sm:text-xs font-medium text-neutral-500">Qty</Label>
+                                            <Input
+                                                type="number"
+                                                min="1"
+                                                value={item.quantity === 0 ? "" : item.quantity}
+                                                onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                                                className="bg-white px-2 text-center h-8 sm:h-9 text-xs sm:text-sm font-semibold"
+                                            />
+                                        </div>
+                                        <div className="col-span-8 sm:col-span-4 space-y-0.5">
+                                            <Label className="text-[10px] sm:text-xs font-medium text-neutral-500 truncate block">Unit Price (AED)</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                value={item.unitPrice === 0 ? "" : item.unitPrice}
+                                                onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                                className="bg-white px-2 h-8 sm:h-9 text-xs sm:text-sm font-semibold"
+                                            />
+                                        </div>
+                                        <div className="col-span-12 sm:col-span-5 space-y-0.5 mt-0.5 sm:mt-0">
+                                            <Label className="text-[10px] sm:text-xs font-medium text-neutral-500">Line Total</Label>
+                                            <div className="h-8 sm:h-9 px-2.5 flex items-center justify-between sm:justify-start bg-neutral-100/90 rounded-md text-xs sm:text-sm font-bold text-neutral-900 border border-neutral-200">
+                                                <span className="text-[10px] text-neutral-500 font-medium sm:hidden">Total:</span>
+                                                <span>AED {(item.quantity * item.unitPrice).toLocaleString()}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => removeLineItem(item.id)}
-                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-10 w-10 shrink-0"
-                                        disabled={lineItems.length === 1}
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </Button>
                                 </div>
                             ))}
                         </CardContent>
                     </Card>
 
                     {/* Notes */}
-                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200">
-                        <CardHeader className="pb-4 border-b border-neutral-100">
-                            <CardTitle className="text-lg font-medium">Notes</CardTitle>
+                    <Card className="border-0 shadow-sm ring-1 ring-neutral-200 overflow-hidden py-2! gap-1.5">
+                        <CardHeader className="px-3! py-2! border-b border-neutral-100">
+                            <CardTitle className="text-sm sm:text-base font-semibold">Notes</CardTitle>
                         </CardHeader>
-                        <CardContent className="p-6">
+                        <CardContent className="p-2.5 sm:p-4">
                             <Textarea
                                 placeholder="Add any notes or terms for this quote..."
-                                className="min-h-[120px] resize-none"
+                                className="min-h-16 sm:min-h-24 p-2.5 text-xs sm:text-sm resize-none focus:bg-white border-neutral-200 rounded-lg"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
                             />
@@ -264,84 +270,92 @@ export default function NewQuotePage() {
 
                 {/* Sidebar Summary */}
                 <div className="lg:col-span-1">
-                    <div className="sticky top-8 space-y-6">
-                        <Card className="border-0 shadow-sm ring-1 ring-neutral-200 bg-neutral-900 text-white">
-                            <CardHeader className="pb-4 border-b border-neutral-800">
-                                <CardTitle className="text-lg font-medium flex items-center gap-2">
-                                    <Calculator className="w-5 h-5" />
-                                    Summary
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-6 space-y-4">
-                                <div className="flex justify-between text-neutral-400">
+                    <div className="sticky top-6 space-y-3 sm:space-y-4">
+                        <Card className="border-0 shadow-sm ring-1 ring-neutral-200 bg-neutral-900 text-white overflow-hidden px-5">                            <CardHeader className="px-3 py-2.5 sm:px-6 sm:py-3.5 border-b border-neutral-800">
+                            <CardTitle className="text-sm sm:text-base font-medium flex items-center gap-2">
+                                <Calculator className="w-4 h-4 text-amber-500" />
+                                Summary
+                            </CardTitle>
+                        </CardHeader>
+                            <CardContent className="p-3 sm:p-5 space-y-2 sm:space-y-3">
+                                <div className="flex justify-between text-xs sm:text-sm text-neutral-400">
                                     <span>Subtotal</span>
                                     <span>AED {subtotal.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between text-neutral-400">
+                                <div className="flex justify-between text-xs sm:text-sm text-neutral-400">
                                     <span>VAT (5%)</span>
                                     <span>AED {vat.toLocaleString()}</span>
                                 </div>
-                                <div className="pt-4 border-t border-neutral-800 flex justify-between items-end">
-                                    <span className="text-lg font-medium">Total</span>
-                                    <span className="text-3xl font-light">AED {total.toLocaleString()}</span>
+                                <div className="pt-2 sm:pt-3 border-t border-neutral-800 flex justify-between items-end">
+                                    <span className="text-sm sm:text-base font-medium">Total</span>
+                                    <span className="text-xl sm:text-2xl font-bold sm:font-light">AED {total.toLocaleString()}</span>
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {/* Create Quote Action Button */}
+                        <Button
+                            onClick={() => setShowInvoiceModal(true)}
+                            className="w-full h-12 sm:h-12 px-5 bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                        >
+                            <Save className="w-4 h-4 mr-1" />
+                            {existingQuoteId ? "Update Quote" : "Create Quote"}
+                        </Button>
                     </div>
                 </div>
             </div>
 
             {/* Invoice Preview Modal UI */}
             {showInvoiceModal && (
-                <div className="fixed inset-0 z-[200] bg-neutral-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-                    <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden border border-stone-200 animate-slideUp my-8">
+                <div className="fixed inset-0 z-200 bg-neutral-900/60 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn">
+                    <div className="bg-white rounded-xl sm:rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden border border-stone-200 animate-slideUp my-2 sm:my-8">
                         {/* Modal Header */}
-                        <div className="bg-neutral-900 text-white p-6 flex justify-between items-center border-b border-neutral-800">
-                            <div className="flex items-center gap-3">
-                                <FileText className="w-6 h-6 text-indigo-400" />
+                        <div className="bg-neutral-900 text-white p-4 sm:p-6 flex justify-between items-center border-b border-neutral-800">
+                            <div className="flex items-center gap-2.5 sm:gap-3">
+                                <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400 shrink-0" />
                                 <div className="text-left">
-                                    <h2 className="text-xl font-light tracking-wide text-white">Invoice Preview</h2>
-                                    <p className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider mt-0.5">Review and live-edit details before submitting</p>
+                                    <h2 className="text-lg sm:text-xl font-light tracking-wide text-white">Invoice Preview</h2>
+                                    <p className="text-[9px] sm:text-[10px] text-neutral-400 font-bold uppercase tracking-wider mt-0.5">Review and live-edit details before submitting</p>
                                 </div>
                             </div>
-                            <button 
+                            <button
                                 onClick={() => setShowInvoiceModal(false)}
-                                className="text-neutral-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors"
+                                className="text-neutral-400 hover:text-white hover:bg-white/10 p-1.5 sm:p-2 rounded-full transition-colors shrink-0"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         {/* Invoice Document Body */}
-                        <div className="p-8 space-y-8 max-h-[65vh] overflow-y-auto custom-scrollbar">
+                        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8 max-h-[70vh] sm:max-h-[65vh] overflow-y-auto custom-scrollbar">
                             {/* Invoice Branding & Header */}
-                            <div className="flex justify-between items-start gap-4">
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                                 <div className="text-left">
-                                    <h3 className="text-2xl font-black text-neutral-900 tracking-wider">EASY BLINDS</h3>
+                                    <h3 className="text-xl sm:text-2xl font-black text-neutral-900 tracking-wider">EASY BLINDS</h3>
                                     <p className="text-xs text-neutral-500 font-medium">Premium Window Treatments & Custom Automation</p>
-                                    <p className="text-[11px] text-neutral-400 mt-2">Dubai, United Arab Emirates<br />info@easyblinds.ae | +971 4 123 4567</p>
+                                    <p className="text-[11px] text-neutral-400 mt-1.5">Dubai, United Arab Emirates<br />info@easyblinds.ae | +971 4 123 4567</p>
                                 </div>
-                                <div className="text-right">
-                                    <span className="px-3 py-1 bg-neutral-100 text-neutral-800 text-[10px] font-black tracking-widest uppercase rounded border border-neutral-200">
+                                <div className="text-left sm:text-right shrink-0">
+                                    <span className="inline-block px-3 py-1 bg-neutral-100 text-neutral-800 text-[10px] font-black tracking-widest uppercase rounded border border-neutral-200 whitespace-nowrap">
                                         OFFICIAL QUOTATION
                                     </span>
-                                    <h4 className="text-xl font-light text-neutral-700 mt-3">{tempQuoteId}</h4>
-                                    <p className="text-[11px] text-neutral-500 mt-1 font-medium">Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                    <h4 className="text-lg sm:text-xl font-light text-neutral-700 mt-1 sm:mt-3">{tempQuoteId}</h4>
+                                    <p className="text-[11px] text-neutral-500 mt-1 font-medium whitespace-nowrap">Date: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                                 </div>
                             </div>
 
                             <hr className="border-stone-100" />
 
                             {/* Client & Salesman Info Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-stone-50 p-6 rounded-xl border border-stone-100">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 bg-stone-50 p-4 sm:p-6 rounded-xl border border-stone-100">
                                 <div className="text-left">
-                                    <p className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-2">Prepared For</p>
+                                    <p className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-1.5">Prepared For</p>
                                     <p className="text-base font-bold text-neutral-900">{clientName || "Unnamed Client"}</p>
                                     <p className="text-xs text-neutral-600 font-medium mt-1">Phone: {clientPhone || "N/A"}</p>
                                     <p className="text-xs text-neutral-600 font-medium">Email: {clientEmail || "N/A"}</p>
                                 </div>
                                 <div className="text-left">
-                                    <p className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-2">Prepared By</p>
+                                    <p className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-1.5">Prepared By</p>
                                     <p className="text-base font-bold text-neutral-900">{user?.name || "Easy Blinds Sales Representative"}</p>
                                     <p className="text-xs text-neutral-600 font-medium mt-1">ID: {user?._id?.slice(-8).toUpperCase()}</p>
                                     <p className="text-xs text-neutral-600 font-medium">Email: {user?.email || "N/A"}</p>
@@ -350,9 +364,9 @@ export default function NewQuotePage() {
 
                             {/* Live Editable Item Table */}
                             <div>
-                                <p className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-4 text-left">Line Items (Edit directly below)</p>
-                                <div className="border border-stone-200 rounded-xl overflow-hidden">
-                                    <table className="w-full text-left border-collapse">
+                                <p className="text-[10px] font-black uppercase text-neutral-400 tracking-wider mb-3 text-left">Line Items (Edit directly below)</p>
+                                <div className="border border-stone-200 rounded-xl overflow-x-auto">
+                                    <table className="w-full text-left border-collapse min-w-125">
                                         <thead>
                                             <tr className="bg-neutral-100 border-b border-stone-200 text-xs font-bold text-neutral-700">
                                                 <th className="p-3 w-12 text-center">#</th>
@@ -367,8 +381,8 @@ export default function NewQuotePage() {
                                                 <tr key={item.id} className="hover:bg-stone-50/50 transition-colors">
                                                     <td className="p-3 text-center text-neutral-400 font-medium">{idx + 1}</td>
                                                     <td className="p-2">
-                                                        <input 
-                                                            type="text" 
+                                                        <input
+                                                            type="text"
                                                             value={item.description}
                                                             onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
                                                             placeholder="Item description"
@@ -376,8 +390,8 @@ export default function NewQuotePage() {
                                                         />
                                                     </td>
                                                     <td className="p-2">
-                                                        <input 
-                                                            type="number" 
+                                                        <input
+                                                            type="number"
                                                             min="1"
                                                             value={item.quantity}
                                                             onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
@@ -385,8 +399,8 @@ export default function NewQuotePage() {
                                                         />
                                                     </td>
                                                     <td className="p-2">
-                                                        <input 
-                                                            type="number" 
+                                                        <input
+                                                            type="number"
                                                             min="0"
                                                             value={item.unitPrice}
                                                             onChange={(e) => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
@@ -404,7 +418,7 @@ export default function NewQuotePage() {
                             </div>
 
                             {/* Notes & Summary Breakdown */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
                                 <div className="md:col-span-2 space-y-2 text-left">
                                     <Label className="text-[10px] font-black uppercase text-neutral-400 tracking-wider">Invoice Notes & Terms</Label>
                                     <textarea
@@ -414,7 +428,7 @@ export default function NewQuotePage() {
                                         placeholder="Terms and conditions, delivery, and payment terms..."
                                     />
                                 </div>
-                                <div className="bg-stone-50 p-5 rounded-xl border border-stone-100 space-y-3 text-sm">
+                                <div className="bg-stone-50 p-4 sm:p-5 rounded-xl border border-stone-100 space-y-3 text-sm">
                                     <div className="flex justify-between text-neutral-500 font-medium">
                                         <span>Subtotal</span>
                                         <span>AED {subtotal.toLocaleString()}</span>
@@ -425,27 +439,27 @@ export default function NewQuotePage() {
                                     </div>
                                     <div className="pt-2 border-t border-stone-200 flex justify-between items-baseline">
                                         <span className="font-bold text-neutral-900">Total</span>
-                                        <span className="text-2xl font-light text-neutral-900">AED {total.toLocaleString()}</span>
+                                        <span className="text-xl sm:text-2xl font-light text-neutral-900">AED {total.toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Modal Actions */}
-                        <div className="bg-neutral-50 px-8 py-5 flex justify-end gap-3 border-t border-stone-200">
-                            <Button 
-                                variant="outline" 
+                        <div className="bg-neutral-50 p-3 sm:px-8 sm:py-5 flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 border-t border-stone-200">
+                            <Button
+                                variant="outline"
                                 onClick={() => setShowInvoiceModal(false)}
-                                className="h-11 px-5 font-medium border-2"
+                                className="w-full sm:w-auto h-11 px-5 font-medium border-2"
                             >
                                 Back to Editor
                             </Button>
-                            <Button 
+                            <Button
                                 onClick={() => {
                                     setShowInvoiceModal(false);
                                     void handleSave("Sent");
                                 }}
-                                className="h-11 px-6 bg-neutral-900 hover:bg-neutral-800 text-white font-medium flex items-center gap-2"
+                                className="w-full sm:w-auto h-11 px-6 bg-neutral-900 hover:bg-neutral-800 text-white font-medium flex items-center justify-center gap-2"
                             >
                                 <Send className="w-4 h-4" />
                                 Approve & Save Quote

@@ -40,6 +40,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
+  phoneNumber?: string;
   createdAt?: string;
   updatedAt?: string;
 }

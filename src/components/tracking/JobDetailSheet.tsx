@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import {
     X, Ruler, FileText, UserCheck, ChevronDown, ChevronUp,
     Loader2, CheckCircle, Phone, MapPin, Home,
-    Package, DoorOpen, Wrench, AlertCircle, Camera, Image as ImageIcon
+    Package, DoorOpen, Wrench, AlertCircle, Camera, Image as ImageIcon, Star
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ interface JobDetailSheetProps {
     onClose: () => void;
 }
 
-type TabKey = "measurements" | "quotation" | "assign" | "photos";
+type TabKey = "measurements" | "quotation" | "photos";
 
 export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
     const [job, setJob] = useState<Job | null>(null);
@@ -87,7 +87,6 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
     const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
         { key: "measurements", label: "Measurements", icon: <Ruler className="w-3.5 h-3.5" /> },
         { key: "quotation", label: "Quotation", icon: <FileText className="w-3.5 h-3.5" /> },
-        { key: "assign", label: "Assign Fitter", icon: <UserCheck className="w-3.5 h-3.5" /> },
         { key: "photos", label: "Fitting Photos", icon: <Camera className="w-3.5 h-3.5" /> },
     ];
 
@@ -104,10 +103,10 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
             <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
             {/* Sheet */}
-            <div className="relative z-10 w-full sm:w-[560px] h-full sm:h-[90vh] bg-white sm:rounded-l-3xl shadow-2xl flex flex-col animate-in slide-in-from-right-10 duration-300">
+            <div className="relative z-10 w-full sm:w-140 h-full sm:h-[90vh] bg-white sm:rounded-l-3xl shadow-2xl flex flex-col animate-in slide-in-from-right-10 duration-300">
 
                 {/* Header */}
-                <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 sm:rounded-tl-3xl text-white shrink-0">
+                <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-linear-to-br from-slate-900 to-slate-800 sm:rounded-tl-3xl text-white shrink-0">
                     <div className="flex items-start justify-between mb-4">
                         <div>
                             <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-400 mb-1">Completed Job</p>
@@ -142,6 +141,19 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                 <span className="text-xs text-slate-400">
                                     {format(parseISO(job.scheduledAt), "MMM d, yyyy · HH:mm")}
                                 </span>
+                            )}
+                            {job.isReviewed && (
+                                <div className="col-span-2 mt-1 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-1.5 text-amber-300 font-medium shrink-0">
+                                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                                        <span>Google Review: {job.reviewRating || 5}.0 Stars</span>
+                                    </div>
+                                    {job.reviewMessage && (
+                                        <span className="text-[11px] text-amber-200/80 italic max-w-60 truncate ml-2">
+                                            &ldquo;{job.reviewMessage}&rdquo;
+                                        </span>
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}
@@ -352,80 +364,6 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                 </div>
                             )}
 
-                            {/* ── ASSIGN FITTER TAB ── */}
-                            {activeTab === "assign" && (
-                                <div className="p-6 space-y-4">
-                                    {/* Current Assignment */}
-                                    {assignedFitterUser && (
-                                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
-                                                <Wrench className="w-4 h-4 text-emerald-600" />
-                                            </div>
-                                            <div>
-                                                <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600">Currently Assigned Fitter</p>
-                                                <p className="text-sm font-semibold text-emerald-900">{assignedFitterUser.name}</p>
-                                                {assignedFitterUser.phone && <p className="text-xs text-emerald-700">{assignedFitterUser.phone}</p>}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
-                                        <div>
-                                            <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-3">Select Fitter</p>
-                                            <Select value={selectedFitter} onValueChange={setSelectedFitter}>
-                                                <SelectTrigger className="h-11 border-slate-200">
-                                                    <SelectValue placeholder="Choose a fitter to assign…" />
-                                                </SelectTrigger>
-                                                <SelectContent className="z-[9999]">
-                                                    {fitters.length === 0 ? (
-                                                        <div className="p-4 text-xs text-slate-400 text-center">No fitters available</div>
-                                                    ) : fitters.map(f => (
-                                                        <SelectItem key={f._id} value={f._id}>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
-                                                                    {f.name.substring(0, 2).toUpperCase()}
-                                                                </div>
-                                                                <div>
-                                                                    <span className="font-medium">{f.name}</span>
-                                                                    {f.phone && <span className="text-slate-400 ml-2 text-xs">{f.phone}</span>}
-                                                                </div>
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Job Summary */}
-                                        <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 space-y-1.5">
-                                            {[
-                                                ["Client", job?.customerName],
-                                                ["Address", job?.address],
-                                                ["Product", job?.productType],
-                                                ["Value", job?.projectValue ? `AED ${job.projectValue.toLocaleString()}` : undefined],
-                                            ].filter(([, v]) => v).map(([k, v]) => (
-                                                <div key={String(k)} className="flex gap-2 text-xs">
-                                                    <span className="text-slate-400 font-bold uppercase w-14 shrink-0">{k}</span>
-                                                    <span className="text-slate-700">{String(v)}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <Button
-                                            onClick={handleAssign}
-                                            disabled={!selectedFitter || isAssigning}
-                                            className="w-full h-11 bg-slate-900 hover:bg-slate-700 text-white font-semibold gap-2"
-                                        >
-                                            {isAssigning ? (
-                                                <><Loader2 className="w-4 h-4 animate-spin" /> Assigning…</>
-                                            ) : (
-                                                <><UserCheck className="w-4 h-4" /> Confirm Assignment</>
-                                            )}
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
-
                             {/* ── FITTING PHOTOS TAB ── */}
                             {activeTab === "photos" && (
                                 <div className="p-6 space-y-4">
@@ -463,13 +401,13 @@ export function JobDetailSheet({ jobId, onClose }: JobDetailSheetProps) {
                                                         {photosList.map((url, idx) => (
                                                             <a
                                                                 key={idx}
-                                                                href={url}
+                                                                href={`${process.env.NEXT_PUBLIC_IMAGE_URL}${url}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200 bg-slate-100 block"
                                                             >
                                                                 <img
-                                                                    src={url}
+                                                                    src={`${process.env.NEXT_PUBLIC_IMAGE_URL}${url}`}
                                                                     alt={`Fitting photo ${idx + 1}`}
                                                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                                                 />

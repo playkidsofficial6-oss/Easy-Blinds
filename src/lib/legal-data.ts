@@ -85,7 +85,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
                 "• Maintain account security and unique passwords; sharing login credentials between staff members is prohibited.",
                 "• Respect role-based authorization tiers (Sales Representative, Fitter, Admin) and do not attempt to bypass access controls.",
                 "• Lock or log out of mobile measurement tablets when leaving job sites or unattended field vehicles.",
-                "• Immediately notify internal IT Support (it-support@company.internal) if a company-issued device containing MeasurePro data is lost, stolen, or compromised."
+                "• Immediately notify internal IT Support (it-hello@measurepro.co) if a company-issued device containing MeasurePro data is lost, stolen, or compromised."
             ]
         },
         {
@@ -125,7 +125,7 @@ export const TERMS_OF_SERVICE: LegalDocument = {
             summary: "Internal channels for reporting system bugs, feature requests, or policy updates.",
             paragraphs: [
                 "For technical support, account permission changes, or questions regarding internal company policies, contact:",
-                "Internal IT Helpdesk: support@company.internal | Ext: 4401",
+                "Internal IT Helpdesk: hello@measurepro.co | Ext: 4401",
                 "Operations Management: ops@company.internal"
             ]
         }
@@ -220,8 +220,8 @@ export const PRIVACY_POLICY: LegalDocument = {
             summary: "Reporting channels for privacy concerns or security issues.",
             paragraphs: [
                 "If staff observe any potential data privacy violation, unauthorized access attempt, or security issue within MeasurePro, report it immediately to:",
-                "Data Security & IT: security@company.internal",
-                "Internal Privacy Compliance: privacy@company.internal"
+                "Data Security & IT: hello@measurepro.co",
+                "Internal Privacy Compliance: hello@measurepro.co"
             ]
         }
     ]

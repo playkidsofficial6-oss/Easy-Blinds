@@ -12,7 +12,7 @@ export interface FitterProfileRecord {
   _id?: string;
   userId: string;
   user: UserRecord;
-  phone?: string;
+  phoneNumber?: string;
   location?: UserLocation;
   status: FitterProfileStatus;
   capacity: number;
