@@ -37,7 +37,7 @@ function LocationMarker({ onAddressSelect, externalCoords }: AddressPickerMapPro
         click: async (e) => {
             const { lat, lng } = e.latlng;
             setPosition([lat, lng]);
-            
+
             try {
                 // Using OpenStreetMap Nominatim for free reverse geocoding
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
@@ -65,7 +65,7 @@ export default function AddressPickerMap({ onAddressSelect, externalCoords }: Ad
 
     return (
         <div className="h-64 w-full rounded-xl border-2 border-slate-200 overflow-hidden relative z-0 mt-2 shadow-sm">
-            <div className="absolute top-2 right-2 z-[1000] bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-sm border border-slate-100 pointer-events-none">
+            <div className="absolute top-2 right-2 z-1000 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-sm border border-slate-100 pointer-events-none">
                 Click Map to Pick Address
             </div>
             <MapContainer

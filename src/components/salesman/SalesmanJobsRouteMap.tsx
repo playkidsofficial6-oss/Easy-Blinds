@@ -246,7 +246,7 @@ export default function SalesmanJobsRouteMap({
                 {isSelected ? "Current route target" : `Point ${index + 1}`}
               </Tooltip>
               <Popup>
-                <div className="space-y-2 text-xs min-w-[210px]">
+                <div className="space-y-2 text-xs min-w-52.5">
                   <div>
                     <div className="font-bold text-slate-900 text-sm">{job.client}</div>
                     <div className="font-mono text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded px-1.5 py-0.5 inline-block mt-1">{job.jobId || job.shortRef}</div>
@@ -264,7 +264,7 @@ export default function SalesmanJobsRouteMap({
 
         <Marker position={EASYBLINDS_HQ.position} icon={hqIcon} zIndexOffset={250}>
           <Popup>
-            <div className="space-y-1 text-xs min-w-[150px]">
+            <div className="space-y-1 text-xs min-w-37.5">
               <div className="font-bold text-slate-900">{EASYBLINDS_HQ.name}</div>
               <div className="text-slate-500">{EASYBLINDS_HQ.address}</div>
             </div>
