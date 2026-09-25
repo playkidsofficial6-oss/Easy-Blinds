@@ -175,11 +175,11 @@ export function MeasuringTapeInput({
     const paddingX = "calc(50% - 1px)";
 
     return (
-        <div className={cn("relative h-24 bg-stone-50 rounded-lg border border-stone-200 overflow-hidden select-none", className)}>
+        <div className={cn("relative h-20 sm:h-24 bg-stone-50 rounded-lg border border-stone-200 overflow-hidden select-none", className)}>
             {/* Center Indicator */}
             <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-red-500 z-10 transform -translate-x-1/2 pointer-events-none">
                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rotate-45" />
-                <div className="absolute top-8 left-1/2 transform -translate-x-1/2 bg-stone-900 text-white px-3 py-1.5 rounded-full text-sm font-bold whitespace-nowrap shadow-lg z-50 border-2 border-white">
+                <div className="absolute top-6 sm:top-8 left-1/2 transform -translate-x-1/2 bg-stone-900 text-white px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap shadow-lg z-50 border-2 border-white">
                     {Math.round((value + Number.EPSILON) * 100) / 100} <span className="text-stone-300 text-xs ml-0.5">{unit}</span>
                     <span className="text-stone-500 mx-1">|</span>
                     {unit === 'cm'
